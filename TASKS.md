@@ -16,18 +16,20 @@ Legenda: `[x]` feito e verificado (o método está entre parênteses) · `[~]` f
 - [x] Inventário básico com stacking e transferências (testes) · [~] HUD de desenvolvimento
 - [x] Construção em grelha: multi-célula, rotação, pré-visualização, obstáculos, custo, desmontar com reembolso (testes) · [~] Unity
 - [ ] **Abrir no Unity 6, corrigir erros de compilação/importação, jogar 5 min e registar o resultado**
-- [ ] Guardar/carregar mundo (base para Save; necessário antes do multiplayer)
+- [x] Guardar/carregar mundo: formato versionado, F5/F9 (testes de ida e volta, estabilidade e ficheiros corrompidos) · [~] Unity
 - [ ] Camadas de construção (chão + objeto na mesma célula)
 - [ ] Modo de planeamento: blueprints colocados sem gastar recursos e construídos depois
 
 ## Etapa 2 — Primeiras máquinas
-- [ ] Framework de máquinas no tick da simulação (estado, consumo, inventário de entrada/saída)
-- [ ] Perfuradora (2x2 sobre depósitos de minério)
-- [ ] Energia: gerador a carvão, rede elétrica por proximidade/postes, consumo e falta de energia
-- [ ] Computador (CPU, RAM, armazenamento, rede, energia)
-- [ ] Ligações entre máquinas (computador ↔ máquinas controladas)
-- [ ] Primeira máquina programável (depende do runtime da Etapa 3)
-- [ ] Regra: máquinas sem programa válido não funcionam
+- [x] Framework de máquinas no tick da simulação (testes) · [~] Unity
+- [x] Perfuradora 2x2 sobre minério, ciclos proporcionais à energia, saída para armazenamento à frente (testes) · [~] Unity
+- [x] Energia: postes, redes, baterias, gerador a carvão, falta de energia proporcional (testes) · [~] Unity
+- [x] Bateria de emergência da nave no início do jogo (testes)
+- [x] Computador: hardware, armazenamento de programas, estado, consumo (testes) · [~] painel no HUD
+- [x] Ligações computador ↔ máquinas com alcance e portas (testes) · [~] modo de ligação no HUD
+- [x] Regra: máquinas sem programa válido não funcionam (testes)
+- [ ] Primeira máquina programável a correr código real (depende do runtime da Etapa 3, bloqueado)
+- [ ] Ligações entre máquinas além do computador (transportadores, Etapa 4)
 
 ## Etapa 3 — Programação funcional
 - [ ] Host de sandbox num processo separado (Wasmtime): limites de CPU (fuel), RAM e tempo; interrupção segura
@@ -80,4 +82,4 @@ Legenda: `[x]` feito e verificado (o método está entre parênteses) · `[~]` f
 
 ## Concluídas (resumo)
 - [x] Skills do projeto: `codebound-session`, `unity-conventions`
-- [x] Ferramentas: `Tools/LogicTests` (42 testes), `Tools/UnityCompileCheck`, `Tools/WorldPreview`
+- [x] Ferramentas: `Tools/LogicTests` (59 testes), `Tools/UnityCompileCheck`, `Tools/WorldPreview`

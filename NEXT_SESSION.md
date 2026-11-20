@@ -1,10 +1,10 @@
 # Próxima sessão
-_Atualizado: 2026-11-20 (Sessão 1)_
+_Atualizado: 2026-11-20 (Sessão 1, continuação)_
 
 ## Estado atual
-- Etapa em curso: **Etapa 1 (Fundação)** concluída na lógica; **Etapa 3** antecipada (sandbox) iniciada.
+- Etapa em curso: Etapas 1 e 2 concluídas na lógica, com gravação; **Etapa 3 (sandbox) bloqueada** à espera de autorização.
 - Funciona e foi verificado:
-  - Lógica de Core, Items, Inventory, World, Building, Player: 42 testes passam (`Tools/LogicTests`).
+  - Lógica de Core, Items, Inventory, World, Building, Player, Energy, Machines e Save: 59 testes passam (`Tools/LogicTests`).
   - O código Unity (`Scripts/Game`) compila contra UnityEngine 2021.3 (`Tools/UnityCompileCheck`).
 - Existe mas não foi verificado:
   - Projeto Unity nunca aberto no editor Unity 6 (pacotes, asmdefs, Input System, cena, jogabilidade).
@@ -21,7 +21,8 @@ _Atualizado: 2026-11-20 (Sessão 1)_
    (a) importações de funções do host (requer runtime compilado com essas importações, por exemplo QuickJS-ng com wasi-sdk);
    (b) protocolo por linhas em stdin/stdout com FIFO ou implementação própria de `fd_read`.
    Primeira API: `drill.mine()`, `energy.available()`, `computer.on(event, fn)`. Ficheiros: `Runtime/api/` (esquema), `Runtime/host/`.
-4. **Etapa 2 (lógica, testável sem Unity):** módulo `Machines` no `SimulationClock` (estado, inventários de entrada e saída), `Drill` 2x2 sobre minério, módulo `Energy` (gerador a carvão, rede, falta de energia), `Computer` (CPU, RAM, armazenamento). Regra: uma máquina sem programa válido não funciona.
+4. **Ligar o runtime às máquinas** (quando o passo 2 passar): `Codebound.Execution` envia para o host o programa do `Computer` (linguagem + código + limites do `ComputerHardware`), chama `MarkRunning`/`MarkError`, e traduz as chamadas da API em métodos C#: `drill.mine()` → `Drill.RequestMine()`, `generator.enable(b)` → `CoalGenerator.Enabled`, `energy.available()` → satisfação da rede do computador. Depois, o editor de código mínimo no painel do computador.
+4b. **Se o sandbox continuar bloqueado**, avançar com o que não depende dele: Etapa 4 lógica (transportadores básicos, fabricação/fundição) ou Etapa 5 lógica (sobrevivência: vida/fome/sede/oxigénio/temperatura; dia/noite).
 5. Quando houver Unity: abrir `Codebound/` no Unity 6, menu *Codebound → Create Test Scene*, Play, corrigir erros, migrar para URP 2D e registar o resultado.
 
 ## Bloqueios e limitações conhecidas

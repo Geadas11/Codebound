@@ -1,6 +1,6 @@
 # Codebound — Arquitetura Técnica
 
-_Última revisão: 2026-11-20 (Sessão 1)_
+_Última revisão: 2026-11-20 (Sessão 1, continuação)_
 
 ## 1. Visão geral
 
@@ -56,11 +56,14 @@ _Última revisão: 2026-11-20 (Sessão 1)_
 | Inventory | Codebound.Inventory | Core, Items | `ItemInventory` (slots, stacking, operações atómicas, transferências) |
 | World | Codebound.World | Core, Items | `TerrainType`, `ResourceNode`, `WorldMap` (limitado, Etapa 5 → chunks), `TestWorldGenerator` |
 | Building | Codebound.Building | Core, Items, Inventory | `StructureDefinition`, `StructureCatalog`, `Footprint`, `BuildGrid` (validar/colocar/remover/reembolsar), `PlacedStructure` |
-| Player | Codebound.Player | Core, Items, Inventory, World, Building | `PlayerMotor` (colisão AABB vs grelha, sub-passos anti-túnel), `InteractionSystem` |
+| Player | Codebound.Player | Core, Items, Inventory, World, Building | `PlayerMotor` (colisão AABB vs grelha, sub-passos anti-túnel), `InteractionSystem` (recolher, abrir armazenamento, inspecionar) |
+| Energy | Codebound.Energy | Core | `PowerNode`, `Battery`, `PowerPole` (raio de alimentação 2, ligação 7), `PowerGrid` (redes por union-find, equilíbrio produção/consumo/baterias, *brown-out* proporcional) |
+| Machines | Codebound.Machines | Core, Items, Inventory, World, Building, Energy | `Machine` (regra: só funciona controlada por um computador com programa a correr), `Computer` (hardware, programa, estado, ligações com alcance e portas), `Drill`, `CoalGenerator`, `MachineSystem` (sincronizado com o `BuildGrid`, corre no tick) |
+| Save | Codebound.Save | todos os de lógica | `GameState` (liga todos os objetos da simulação), `SaveSystem` (formato binário versionado) |
 | Game | Codebound.Game | todos + Unity.InputSystem | apresentação Unity (ver §1) |
 | Editor | Codebound.Editor | Game | menu `Codebound/Create Test Scene` |
 
-Módulos previstos (ainda não criados): Machines, Energy, Networks, Programming, Execution, HUD, UI, AI, Combat, Survival, Multiplayer, Save, Research, Audio, Localization.
+Módulos previstos (ainda não criados): Networks, Programming, Execution, HUD, UI, AI, Combat, Survival, Multiplayer, Research, Audio, Localization.
 
 Regras: sem dependências cíclicas; comunicação entre módulos por interfaces do módulo inferior ou eventos no `EventBus`; dados referenciados por ids estáveis (`item.iron_ore`, `structure.wall`).
 
@@ -78,6 +81,11 @@ Regras: sem dependências cíclicas; comunicação entre módulos por interfaces
 | D8 | `GameBootstrap` cria-se automaticamente ao entrar em Play em qualquer cena | Projeto jogável sem cena serializada à mão |
 | D9 | Colisão do jogador na lógica (não Physics2D) | Determinística, testável, igual no host multiplayer |
 | D10 | Chão (`structure.floor`) ocupa a célula; camadas de construção (chão + objeto) ficam para a Etapa 2/4 | Simplicidade na Etapa 1 |
+| D12 | "Todas as máquinas precisam de programa": uma máquina só atua ligada a um computador alimentado cujo programa está `Running`. O computador é o anfitrião dos programas e não precisa de outro computador | Respeita a regra do design sem dependência circular |
+| D13 | Arranque energético: a **bateria de emergência da nave** (estrutura do mundo, não construível nem desmontável, 120 kJ) alimenta o primeiro computador, que programa o gerador | Resolve o "ovo e galinha" (o gerador precisa de programa, o computador precisa de energia) de forma narrativa |
+| D14 | Unidades: watts e joules; 1 tick = 1/20 s. Gerador a carvão 300 W, 9 kJ por carvão, só gasta combustível pela carga pedida; perfuradora 90 W a trabalhar, 5 W em espera, 40 ticks por ciclo à potência total | Números simples e afináveis |
+| D15 | Gravação: o terreno não é guardado (regenera-se da seed); formato binário com magic `CBSV` e versão; escrita para ficheiro temporário e depois rename | Ficheiros pequenos, migráveis, sem corrupção a meio da escrita |
+| D16 | Ao carregar, programas que estavam `Running` voltam como `Loaded`: o runtime tem de os reiniciar | O estado interno do programa (memória Wasm) não é persistido nesta versão |
 | D11 | Verificação sem Unity: `UnityEngine.Modules` 2021.3.33 (NuGet) só como referência de compilação local, nunca no repositório nem no jogo | Apanhar erros de API Unity sem o editor. Limitação: API 2021.3, sem Input System nem UnityEditor |
 
 ## 5. Execução de código do jogador (Etapa 3 — primeiro código em `Runtime/host`, **ainda não verificado**)

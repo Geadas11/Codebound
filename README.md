@@ -10,7 +10,7 @@ Jogo de sobrevivência, automação industrial e exploração num planeta descon
 
 ## Estado
 
-Em desenvolvimento, **Etapa 1 (Fundação)**. A lógica está testada fora do Unity; o jogo **ainda não foi aberto nem testado no editor Unity**.
+Em desenvolvimento: **Etapa 1 (Fundação)** e **Etapa 2 (Primeiras máquinas)** feitas na lógica, com gravação de jogo. A lógica está testada fora do Unity (59 testes); o jogo **ainda não foi aberto nem testado no editor Unity**. A execução de código do jogador (Etapa 3) ainda não funciona: as máquinas ficam em "Sem programa".
 
 ## Abrir e jogar (Unity)
 
@@ -28,15 +28,17 @@ Em desenvolvimento, **Etapa 1 (Fundação)**. A lógica está testada fora do Un
 | Mover | WASD / setas |
 | Recolher recurso / abrir caixa | **E** ou clique esquerdo (manter para continuar a recolher) |
 | Modo de construção | **B** (ou clicar numa estrutura no painel) |
-| Escolher estrutura | **1–4** |
+| Escolher estrutura | **1–8** |
 | Rodar | **R** |
 | Construir / desmontar | clique esquerdo / clique direito (no modo de construção) |
 | Zoom | roda do rato |
 | Inventário | **Tab** |
 | Fechar / sair do modo | **Esc** |
 | Idioma (pt-PT / en) | **F1** |
+| Guardar / carregar | **F5** / **F9** |
+| Inspecionar máquina / computador | **E** ou clique |
 
-Começa a recolher **sucata** à volta da nave despenhada, **madeira** das árvores e **pedra**. Constrói paredes, chão, caixas de armazenamento e módulos de abrigo.
+Começa a recolher **sucata** à volta da nave despenhada, **madeira** das árvores e **pedra**. Constrói paredes, chão, caixas, módulos de abrigo, postes elétricos, computadores, perfuradoras (sobre minério) e geradores a carvão. A bateria de emergência da nave, perto do ponto de partida, alimenta o primeiro computador. No computador podes ligar máquinas; correr programas chega com a Etapa 3.
 
 ## Verificação sem Unity
 

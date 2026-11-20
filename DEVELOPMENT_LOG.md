@@ -2,6 +2,24 @@
 
 Entradas mais recentes no topo.
 
+## 2026-11-20 — Sessão 1 (continuação) — Etapa 2 e gravação
+
+**Feito:**
+- Regra de colocação "sobre recurso" para perfuradoras; a interação dá prioridade à estrutura sobre o minério por baixo.
+- Módulo Energy: postes, redes, baterias, equilíbrio por tick e falta de energia proporcional.
+- Módulo Machines: regra "sem programa válido não funciona", `Computer` (hardware, programa, ligações), `Drill`, `CoalGenerator`, `MachineSystem`.
+- Bateria de emergência da nave colocada no início do mundo (resolve o arranque energético, D13).
+- Unity: sprites novos (rodados conforme a orientação), painel de inspeção com estado da rede e do hardware, modo de ligação de máquinas, estado das máquinas nas janelas de armazenamento, textos pt-PT/en.
+- Módulo Save: `GameState` + `SaveSystem` (binário versionado); F5/F9 no jogo.
+
+**Verificado:** `dotnet test` → **59/59**; `Tools/UnityCompileCheck` compila. Não verificado no Unity.
+
+**Decisões:** D12–D16 (`TECHNICAL_ARCHITECTURE.md`).
+
+**Problemas / bloqueios:** o sandbox (Etapa 3) continua por executar; não houve nova tentativa. Enquanto não houver runtime, nenhuma máquina funciona no jogo, e o painel do computador diz isso explicitamente.
+
+**Commits:** `8cb91c6` lógica da Etapa 2 · `adaccf3` integração Unity · `d349829` gravação · (este) documentação
+
 ## 2026-11-20 — Sessão 1 — Fundação (Etapa 1) e início do runtime de código
 
 **Feito:**
