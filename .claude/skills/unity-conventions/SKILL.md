@@ -15,7 +15,8 @@ compiling at every important step.
 /                         continuity docs (README, GAME_DESIGN, TASKS, …)
 /Codebound/               the Unity project (open this folder in Unity Hub)
   Assets/_Codebound/
-    Scripts/<Module>/     runtime code, one folder + one .asmdef per module
+    Scripts/<Module>/Logic/  pure C# simulation code, Codebound.<Module>.asmdef (noEngineReferences: true)
+    Scripts/Game/         Unity presentation layer (Codebound.Game.asmdef) — input, views, HUD
     Editor/               editor-only tools (Codebound.Editor.asmdef)
     Tests/EditMode/       NUnit EditMode tests
     Tests/PlayMode/       PlayMode tests
@@ -47,14 +48,18 @@ Dependency rules:
 - Everything may depend on `Core`. `Core` depends on nothing in Codebound.
 - No cyclic asmdef references. Cross-module communication goes through
   interfaces in the lower module or events on the `Core` event bus.
-- Gameplay logic in plain C# classes (testable without a scene);
-  MonoBehaviours are thin adapters (input, rendering, lifecycle).
+- Gameplay logic in plain C# classes under `Logic/` with `noEngineReferences: true`
+  (compiled and tested by `Tools/LogicTests` with `dotnet test`). MonoBehaviours in
+  `Scripts/Game` are thin adapters (input, rendering, lifecycle).
+- Logic code uses `Codebound.Core.Vec2`/`GridPos`, never `UnityEngine.Vector2`.
 - Data lives in ScriptableObjects under `Data/`, referenced by stable string IDs
   (e.g. `item.iron_ore`, `machine.drill_basic`) — never by display name.
 
 ## 3. C# style
 
-- File-scoped namespaces; one public type per file; file name = type name.
+- **C# 9 only** (Unity's compiler): block-scoped `namespace X { }`, no file-scoped
+  namespaces, no `record struct`, no `init`/`required`, no global usings.
+- One main public type per file; file name = type name.
 - `PascalCase` types/methods/properties, `_camelCase` private fields,
   `camelCase` locals/params, `I` prefix for interfaces.
 - `[SerializeField] private` instead of public fields.
@@ -102,8 +107,9 @@ Dependency rules:
 ## 6. Testing & verification
 
 - New gameplay logic gets EditMode tests (`Codebound.<Module>.Tests`).
-- Pure C# logic should also compile outside Unity when possible so it can be
-  checked with `dotnet test` in sessions without the Unity editor.
+- EditMode tests in `Tests/EditMode` must only reference Logic assemblies, so the
+  same files run in Unity and in `Tools/LogicTests` (`dotnet test`).
+- Unity-side code: compile-check with `Tools/UnityCompileCheck` (see README).
 - `/Runtime` gets its own automated tests (limits, API calls, errors).
 - In the docs, always state HOW something was verified; if the Unity editor
   was not available, say "não verificado no Unity".

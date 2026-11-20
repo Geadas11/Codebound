@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Out-of-process sandbox for player code: runs real language runtimes compiled to WebAssembly
+       under Wasmtime with CPU (fuel), memory and wall-clock limits. Never loaded into Unity. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Codebound.Runtime.Sandbox</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Wasmtime" Version="34.0.2" />
+  </ItemGroup>
+</Project>

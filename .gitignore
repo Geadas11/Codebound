@@ -23,3 +23,9 @@ crashlytics-build.properties
 .DS_Store
 node_modules/
 __pycache__/
+
+# Language runtimes (downloaded, not committed)
+/Runtime/langs/**/*.wasm
+/Runtime/langs/**/*.cwasm
+/Runtime/**/bin/
+/Runtime/**/obj/
