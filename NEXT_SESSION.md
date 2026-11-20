@@ -5,6 +5,12 @@
 - Testes: 50/50 EditMode; áudio sintetizado feito; menu de opções/acessibilidade feito (Esc); criaturas/torres feitas; antes 42/42 EditMode; investigação feita (tecla T, laboratório programável); antes 39/39 EditMode; estufa, montadora e Computador Avançado feitos. Antes: 36/36 EditMode + 8/8 runtime SQL; dia/noite/clima feito; linguagens JS, TS, Python e SQL; sobrevivência feita. Antes: 25/25 EditMode + 12/12 runtime JS + 13/13 runtime Python. HUD programável HTML/CSS feito. Linguagens: JavaScript, TypeScript, Python. Build Windows com Node + Python incluídos, self-test PASS nas 3. Verificado em Play Mode: programa JS minerou 5 pedras para um baú, eventos dispararam, save/load restaurou tudo e reiniciou o programa.
 - Requisito de desenvolvimento: **Node.js no PATH** (testado com v24.13.0).
 
+## Git / GitHub
+- Repositório local na raiz `Jogo_CODEFACT/` (branch `main`) → remoto `origin` = `https://github.com/Geadas11/Codebound`, branch **`desktop`** (`git push` envia para lá).
+- O mesmo repositório tem outro branch, `claude/intelligent-bohr-nfkoxs`, com **outra versão** do Codebound (sandbox em Wasmtime, estrutura `Assets/_Codebound/...`), sem histórico comum. Não misturar.
+- Graphify (MCP) indexa o branch principal do repositório; para indexar este código, o branch principal no GitHub tem de ser `desktop`.
+- `Codebound/Tools/python/` não está no git (ver README para o obter).
+
 ## Mapa do código
 - Core: `Codebound/Assets/Codebound/Scripts/Core/` — `GameState.cs` (agregado + `SaveSystem`), `Factory.cs` (energia/ações/logística), `Machines.cs` (estados), `Buildings.cs`, `World.cs`, `Inventory.cs`, `Items.cs`, `Json.cs`.
 - Game: `.../Scripts/Game/` — `GameBootstrap.cs` (arranque, tick 20 Hz, F5/F9), `ProgramManager.cs` (ponte runtime + API), `MachinePanel.cs` (painel E + editor de código), `BuildController.cs`, `MiningController.cs`, `ChunkRenderer.cs`, `DebugHud.cs`.

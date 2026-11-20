@@ -141,3 +141,8 @@
 - Equilíbrio: isolamento do fato aumentado (0,12 → 0,08): ao meio-dia no deserto (~54 °C) o corpo fica no limite em vez de sofrer dano contínuo; lava continua perigosa.
 - Play Mode: perfuradora + gerador + computador com vozes ativas, camada "industry" a 0,09, ambiente do deserto; com uma criatura perto a camada de perigo subiu; legenda do alarme programável visível (fundo opaco após correção do contraste). Build + self-test PASS.
 - Não verificado: setas de direção nas legendas (o teste via Editor usa outro relógio), e não se ouviu o som (sem colunas na verificação automática).
+
+## Sessão 2 (cont.): git e Graphify
+- Repositório git criado (`.gitignore` sem Library/Builds/Tools/python/Screenshots; `.gitattributes`), commit inicial `37ef698`, enviado para `Geadas11/Codebound` no branch `desktop` (a pedido do utilizador).
+- Graphify ligado: indexa o branch principal do repositório, que contém outra versão do jogo; para indexar este código o branch principal tem de passar a `desktop`.
+- Correção: o runtime Python escrevia `__pycache__` em StreamingAssets (ia para os builds) → `-B` e `sys.dont_write_bytecode`.
