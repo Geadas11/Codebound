@@ -1,0 +1,22 @@
+{
+    "name": "Codebound.Game",
+    "rootNamespace": "Codebound.Game",
+    "references": [
+        "Codebound.Core",
+        "Codebound.Items",
+        "Codebound.Inventory",
+        "Codebound.World",
+        "Codebound.Building",
+        "Codebound.Player",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

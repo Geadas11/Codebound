@@ -51,6 +51,38 @@ namespace Codebound.Tests
         }
 
         [Test]
+        public void Generator_StarterResourcesAreReachableOnFoot([Values(1, 2, 3, 99, 2026, 777, 31337)] long seed)
+        {
+            var map = TestWorldGenerator.Generate(seed);
+            // Flood fill walkable cells from spawn.
+            var seen = new System.Collections.Generic.HashSet<GridPos> { map.SpawnPoint };
+            var queue = new System.Collections.Generic.Queue<GridPos>();
+            queue.Enqueue(map.SpawnPoint);
+            while (queue.Count > 0)
+            {
+                var c = queue.Dequeue();
+                for (int d = 0; d < 4; d++)
+                {
+                    var n = c + ((Direction)d).ToOffset();
+                    if (map.IsWalkable(n) && seen.Add(n)) queue.Enqueue(n);
+                }
+            }
+            bool Reachable(string item)
+            {
+                foreach (var node in map.Nodes)
+                {
+                    if (node.ItemId != item) continue;
+                    for (int d = 0; d < 4; d++)
+                        if (seen.Contains(node.Cell + ((Direction)d).ToOffset())) return true;
+                }
+                return false;
+            }
+            foreach (var item in new[] { ItemCatalog.Scrap, ItemCatalog.Wood, ItemCatalog.Stone, ItemCatalog.IronOre, ItemCatalog.CopperOre, ItemCatalog.Coal })
+                Assert.IsTrue(Reachable(item), $"seed {seed}: no reachable {item}");
+            Assert.Greater(seen.Count, 2000, $"seed {seed}: walkable area around spawn too small");
+        }
+
+        [Test]
         public void Motor_MovesAndNormalizesDiagonal()
         {
             var map = new WorldMap(20, 20, 0);
