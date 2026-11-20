@@ -1,0 +1,16 @@
+# Normalise line endings in the repository; Unity reads both
+* text=auto
+
+# Unity YAML (scenes, prefabs, assets, meta) stays text
+*.unity text
+*.prefab text
+*.asset text
+*.meta text
+*.mat text
+
+# binaries
+*.png binary
+*.jpg binary
+*.dll binary
+*.exe binary
+*.zip binary

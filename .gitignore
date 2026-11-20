@@ -1,0 +1,42 @@
+# ---- Unity: generated, machine-specific (rebuilt by the Editor)
+Codebound/[Ll]ibrary/
+Codebound/[Tt]emp/
+Codebound/[Oo]bj/
+Codebound/[Ll]ogs/
+Codebound/[Uu]ser[Ss]ettings/
+Codebound/[Mm]emoryCaptures/
+Codebound/[Rr]ecordings/
+Codebound/[Bb]uild/
+Codebound/[Bb]uilds/
+Codebound/*.csproj
+Codebound/*.sln
+Codebound/*.slnx
+Codebound/*.user
+Codebound/.vs/
+Codebound/.idea/
+Codebound/.vscode/
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+sysinfo.txt
+crashlytics-build.properties
+
+# ---- Codebound
+# CPython embeddable (26 MB) is downloaded, not versioned: see THIRD_PARTY_NOTICES.md for URL + SHA-256
+Codebound/Tools/python/
+# screenshots taken by automated play-mode checks
+Codebound/Screenshots/
+# test and tool output
+test-results.xml
+err.txt
+*.log
+__pycache__/
+
+# ---- OS
+.DS_Store
+Thumbs.db
+desktop.ini
