@@ -11,7 +11,8 @@ namespace Codebound.Building
         Ok,
         TerrainBlocked,     // rock, water, resource node, out of bounds
         Occupied,           // another structure is there
-        InsufficientResources
+        InsufficientResources,
+        NoResourceUnderneath // OverResource structures must cover a deposit
     }
 
     public enum RemovalStatus { Ok, NothingThere, NoSpaceForRefund }
@@ -70,9 +71,12 @@ namespace Codebound.Building
             var cells = Footprint.Cells(origin, def.Width, def.Height, facing);
             var blocked = new List<GridPos>();
             var status = PlacementStatus.Ok;
+            bool overResource = def.Placement == PlacementRule.OverResource;
+            bool coversResource = false;
             foreach (var c in cells)
             {
-                if (!_terrain.IsBuildable(c))
+                if (overResource && _terrain.HasResource(c)) coversResource = true;
+                if (overResource ? !_terrain.IsBuildableTerrain(c) : !_terrain.IsBuildable(c))
                 {
                     blocked.Add(c);
                     if (status == PlacementStatus.Ok) status = PlacementStatus.TerrainBlocked;
@@ -83,6 +87,8 @@ namespace Codebound.Building
                     if (status == PlacementStatus.Ok) status = PlacementStatus.Occupied;
                 }
             }
+            if (status == PlacementStatus.Ok && overResource && !coversResource)
+                status = PlacementStatus.NoResourceUnderneath;
             if (status == PlacementStatus.Ok && payer != null && !payer.HasAll(def.Cost))
                 status = PlacementStatus.InsufficientResources;
             return new PlacementCheck(status, cells, blocked);

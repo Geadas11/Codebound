@@ -9,7 +9,9 @@
         "Codebound.Inventory",
         "Codebound.World",
         "Codebound.Building",
-        "Codebound.Player"
+        "Codebound.Player",
+        "Codebound.Energy",
+        "Codebound.Machines"
     ],
     "includePlatforms": ["Editor"],
     "excludePlatforms": [],

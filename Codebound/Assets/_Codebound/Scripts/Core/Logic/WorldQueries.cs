@@ -9,6 +9,10 @@ namespace Codebound.Core
     /// <summary>Answers whether terrain at a cell allows building (ignores existing structures).</summary>
     public interface ITerrainBuildQuery
     {
+        /// <summary>Buildable terrain with no resource deposit on it.</summary>
         bool IsBuildable(GridPos cell);
+        /// <summary>Buildable terrain, whether or not a resource deposit is on it (used by drills).</summary>
+        bool IsBuildableTerrain(GridPos cell);
+        bool HasResource(GridPos cell);
     }
 }

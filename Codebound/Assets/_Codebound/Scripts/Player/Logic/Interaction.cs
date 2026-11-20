@@ -74,9 +74,11 @@ namespace Codebound.Player
 
         public InteractionTarget TargetAt(GridPos c)
         {
-            if (_world.TryGetNode(c, out var node)) return new InteractionTarget(InteractionKind.Harvest, c, node, null);
+            // Structures win over deposits underneath them (e.g. a drill standing on ore).
             var s = _grid.GetAt(c);
-            if (s != null && s.Inventory != null) return new InteractionTarget(InteractionKind.OpenStorage, c, null, s);
+            if (s != null)
+                return s.Inventory != null ? new InteractionTarget(InteractionKind.OpenStorage, c, null, s) : InteractionTarget.None;
+            if (_world.TryGetNode(c, out var node)) return new InteractionTarget(InteractionKind.Harvest, c, node, null);
             return InteractionTarget.None;
         }
 

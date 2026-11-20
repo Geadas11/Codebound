@@ -44,6 +44,10 @@ namespace Codebound.World
 
         public bool IsBuildable(GridPos c) => InBounds(c) && GetTerrain(c).IsBuildable() && !_nodes.ContainsKey(c);
 
+        public bool IsBuildableTerrain(GridPos c) => InBounds(c) && GetTerrain(c).IsBuildable();
+
+        public bool HasResource(GridPos c) => _nodes.ContainsKey(c);
+
         public IReadOnlyCollection<ResourceNode> Nodes => _nodes.Values;
 
         public bool TryGetNode(GridPos c, out ResourceNode node) => _nodes.TryGetValue(c, out node);

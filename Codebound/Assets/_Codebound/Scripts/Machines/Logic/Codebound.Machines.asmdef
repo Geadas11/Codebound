@@ -1,0 +1,14 @@
+{
+    "name": "Codebound.Machines",
+    "rootNamespace": "Codebound.Machines",
+    "references": ["Codebound.Core", "Codebound.Items", "Codebound.Inventory", "Codebound.World", "Codebound.Building", "Codebound.Energy"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}
