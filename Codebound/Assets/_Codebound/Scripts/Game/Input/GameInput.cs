@@ -38,11 +38,11 @@ namespace Codebound.Game
         public static bool Held(Action a) => HeldKey(Bindings[a]);
         public static bool Pressed(Action a) => PressedKey(Bindings[a]);
 
-        /// <summary>Number row key 1..9 pressed this frame, or 0.</summary>
+        /// <summary>Number row key pressed this frame: 1..9, key "0" = 10; returns 0 if none.</summary>
         public static int NumberPressed()
         {
             for (int i = 1; i <= 9; i++) if (PressedKey(i.ToString())) return i;
-            return 0;
+            return PressedKey("0") ? 10 : 0;
         }
 
 #if ENABLE_INPUT_SYSTEM
@@ -61,6 +61,7 @@ namespace Codebound.Game
                 case "escape": return kb.escapeKey;
                 case "tab": return kb.tabKey;
                 case "f1": return kb.f1Key;
+                case "0": return kb.digit0Key;
                 case "f5": return kb.f5Key;
                 case "f9": return kb.f9Key;
                 case "up": return kb.upArrowKey;

@@ -24,7 +24,7 @@ namespace Codebound.Save
     public static class SaveSystem
     {
         private const uint Magic = 0x56534243; // "CBSV"
-        public const int CurrentVersion = 1;
+        public const int CurrentVersion = 2; // v2: conveyor contents
 
         public static void Save(GameState state, Stream stream)
         {
@@ -74,6 +74,13 @@ namespace Codebound.Save
                     foreach (var linked in c.Links) links.Add((c.Structure.Origin, linked.Structure.Origin));
             w.Write(links.Count);
             foreach (var (cp, mp) in links) { WritePos(w, cp); WritePos(w, mp); }
+
+            // v2: items on belts
+            var loaded = new List<Belt>();
+            foreach (var b in state.Machines.Conveyors.Belts) if (!b.IsEmpty) loaded.Add(b);
+            loaded.Sort((a, b) => a.Structure.InstanceId.CompareTo(b.Structure.InstanceId));
+            w.Write(loaded.Count);
+            foreach (var b in loaded) { WritePos(w, b.Cell); w.Write(b.Item); w.Write(b.Progress); }
         }
 
         public static GameState Load(Stream stream, ItemRegistry items = null)
@@ -127,6 +134,19 @@ namespace Codebound.Save
                     if (computer == null || machine == null) throw new SaveFormatException("Broken computer link");
                     computer.Link(machine);
                 }
+
+                if (version >= 2)
+                {
+                    int beltCount = r.ReadInt32();
+                    for (int i = 0; i < beltCount; i++)
+                    {
+                        var cell = ReadPos(r);
+                        string item = r.ReadString();
+                        double progress = r.ReadDouble();
+                        if (!items.Contains(item)) throw new SaveFormatException($"Unknown item '{item}'");
+                        state.Machines.Conveyors.Restore(cell, item, progress);
+                    }
+                }
                 return state;
             }
             catch (EndOfStreamException) { throw new SaveFormatException("Save file is truncated"); }
@@ -134,13 +154,15 @@ namespace Codebound.Save
 
         // ---------- machine state ----------
         // Each structure writes a tag byte then its fields, so new machine types can be added in later versions.
-        private const byte TagNone = 0, TagDrill = 1, TagGenerator = 2, TagComputer = 3, TagBattery = 4;
+        private const byte TagNone = 0, TagDrill = 1, TagGenerator = 2, TagComputer = 3, TagBattery = 4, TagFurnace = 5;
 
         private static void WriteMachineState(BinaryWriter w, GameState state, PlacedStructure s)
         {
             var battery = state.Machines.GetBattery(s);
             switch (state.Machines.Get(s))
             {
+                case Furnace f:
+                    w.Write(TagFurnace); w.Write(f.CyclePending); w.Write(f.Current?.Input ?? string.Empty); w.Write(f.Progress); w.Write(f.TotalProduced); return;
                 case Drill d:
                     w.Write(TagDrill); w.Write(d.CyclePending); w.Write(d.Progress); w.Write(d.TotalMined); return;
                 case CoalGenerator g:
@@ -180,6 +202,12 @@ namespace Codebound.Save
                     int lang = r.ReadInt32(); string source = r.ReadString(); int status = r.ReadInt32(); string err = r.ReadString();
                     state.Machines.Get<Computer>(s)?.RestoreProgram(lang < 0 ? (ProgrammingLanguage?)null : (ProgrammingLanguage)lang,
                         source, (ProgramStatus)status, err.Length == 0 ? null : err);
+                    return;
+                }
+                case TagFurnace:
+                {
+                    bool pending = r.ReadBoolean(); string input = r.ReadString(); double progress = r.ReadDouble(); int produced = r.ReadInt32();
+                    state.Machines.Get<Furnace>(s)?.RestoreState(pending, input.Length == 0 ? null : SmeltingRecipe.ForInput(input), progress, produced);
                     return;
                 }
                 case TagBattery:

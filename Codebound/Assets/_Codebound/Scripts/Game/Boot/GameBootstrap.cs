@@ -52,6 +52,7 @@ namespace Codebound.Game
             var worldView = Create<WorldView>("WorldView");
             worldView.Init(Session);
             Create<StructureView>("Structures").Init(Session);
+            Create<BeltItemView>("BeltItems").Init(Session);
             var player = Create<PlayerController>("Player");
             player.Init(Session);
             cam.gameObject.AddComponent<CameraController>().Init(player.transform);

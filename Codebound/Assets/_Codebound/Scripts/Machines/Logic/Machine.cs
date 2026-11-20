@@ -24,6 +24,12 @@ namespace Codebound.Machines
 
         public Codebound.World.WorldMap World { get; }
         public BuildGrid Grid { get; }
+
+        /// <summary>
+        /// Delivers one item into whatever accepts items at <paramref name="cell"/> (a conveyor or a storage).
+        /// Set by <see cref="MachineSystem"/>. Returns false if nothing accepted it.
+        /// </summary>
+        public System.Func<Codebound.Core.GridPos, string, bool> Deliver { get; internal set; } = (c, i) => false;
         public double TickSeconds { get; }
         public long Tick { get; internal set; }
     }

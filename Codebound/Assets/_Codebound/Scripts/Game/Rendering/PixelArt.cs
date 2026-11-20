@@ -75,6 +75,26 @@ namespace Codebound.Game
             }
         }));
 
+        /// <summary>Inventory/belt icon for an item: processed materials get their own look, raw ones reuse the deposit art.</summary>
+        public static Sprite Icon(string itemId)
+        {
+            switch (itemId)
+            {
+                case ItemCatalog.IronPlate: return Plate(itemId, new Color32(176, 184, 196, 255));
+                case ItemCatalog.CopperPlate: return Plate(itemId, new Color32(214, 128, 70, 255));
+                case ItemCatalog.StoneBrick: return Plate(itemId, new Color32(150, 140, 128, 255));
+                default: return Node(itemId);
+            }
+        }
+
+        private static Sprite Plate(string id, Color32 col) => Get("icon." + id, () => Build(PPU, PPU, c =>
+        {
+            Rect(c, 2, 4, 12, 8, col);
+            Rect(c, 2, 10, 12, 2, Shade(col, 30));
+            Rect(c, 2, 4, 12, 1, Shade(col, -30));
+            OutlinePass(c, PPU, PPU);
+        }));
+
         public static Sprite Node(string itemId) => Get("node." + itemId, () => Build(PPU, PPU, c =>
         {
             if (itemId == ItemCatalog.Wood) { DrawTree(c); return; }
@@ -226,6 +246,34 @@ namespace Codebound.Game
                     for (int y = 8; y < h - 1; y += 16) for (int x = 1; x < w - 1; x++) Set(c, w, x, y, panel);
                     RectW(c, w, 1, 2, w - 2, 2, stripe);
                     RectW(c, w, w / 2 - 3, h / 2, 6, 4, window);
+                    break;
+                }
+                case StructureCatalog.Conveyor:
+                {
+                    var belt = new Color32(64, 64, 72, 255);
+                    var rail = new Color32(200, 170, 60, 255);
+                    var arrow = new Color32(120, 120, 132, 255);
+                    RectW(c, w, 0, 0, w, h, belt);
+                    RectW(c, w, 0, 0, 2, h, rail); RectW(c, w, w - 2, 0, 2, h, rail);
+                    // chevrons pointing North (rotated with the structure)
+                    for (int k = 0; k < 2; k++)
+                    for (int i = 0; i < 4; i++)
+                    {
+                        int y0 = 4 + k * 6;
+                        Set(c, w, 7 - i, y0 + i, arrow); Set(c, w, 8 + i, y0 + i, arrow);
+                    }
+                    return; // no outline: belts tile seamlessly
+                }
+                case StructureCatalog.Furnace:
+                {
+                    var brick = new Color32(150, 92, 70, 255);
+                    var dark = new Color32(60, 40, 36, 255);
+                    var glow = new Color32(255, 170, 60, 255);
+                    RectW(c, w, 1, 1, w - 2, h - 2, brick);
+                    for (int y = 4; y < h - 1; y += 5) RectW(c, w, 1, y, w - 2, 1, Shade(brick, -25));
+                    RectW(c, w, 9, 6, 14, 10, dark);
+                    RectW(c, w, 11, 7, 10, 5, glow);
+                    RectW(c, w, w / 2 - 2, h - 5, 4, 4, dark); // output side marker
                     break;
                 }
                 case StructureCatalog.PowerPole:

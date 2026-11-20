@@ -153,7 +153,7 @@ namespace Codebound.Game
                 if (GUI.Button(row, GUIContent.none)) _build.Select(i);
                 GUI.backgroundColor = prev;
                 var size = d.Width == d.Height ? "" : $" {d.Width}x{d.Height}";
-                GUI.Label(new Rect(row.x + 6, row.y + 2, row.width, 20), $"{i + 1}. {Loc.Get(d.NameKey)}{size}", _label);
+                GUI.Label(new Rect(row.x + 6, row.y + 2, row.width, 20), $"{(i + 1) % 10}. {Loc.Get(d.NameKey)}{size}", _label);
                 GUI.Label(new Rect(row.x + 6, row.y + 21, row.width, 20),
                     $"<color={(affordable ? "#cfc" : "#f99")}>{CostText(d.Cost)}</color>", _small);
             }
@@ -196,7 +196,7 @@ namespace Codebound.Game
                 var sr = new Rect(x + 8 + (i % cols) * SlotSize, y + 30 + (i / cols) * SlotSize, SlotSize - 4, SlotSize - 4);
                 if (GUI.Button(sr, GUIContent.none) && target != null && !slot.IsEmpty) inv.TransferSlotTo(i, target);
                 if (slot.IsEmpty) continue;
-                var icon = PixelArt.Node(slot.ItemId);
+                var icon = PixelArt.Icon(slot.ItemId);
                 DrawSprite(new Rect(sr.x + 6, sr.y + 4, sr.width - 12, sr.height - 12), icon);
                 GUI.Label(new Rect(sr.x, sr.y, sr.width - 3, sr.height - 1), slot.Count.ToString(), _slotCount);
                 if (sr.Contains(Event.current.mousePosition))
@@ -260,6 +260,7 @@ namespace Codebound.Game
             else
                 lines.Add(m.ControlledBy != null ? Loc.Get("hud.controlled") : Loc.Get("hud.not_controlled"));
             if (m is Drill d) lines.Add(Loc.Format("hud.drill", (d.Progress * 100).ToString("0"), d.TotalMined, d.OreRemaining(_session.World)));
+            if (m is Furnace f) lines.Add(Loc.Format("hud.furnace", (f.Progress * 100).ToString("0"), f.Current != null ? Loc.Get("name." + f.Current.Output) : "—", f.TotalProduced));
             if (m is CoalGenerator g) lines.Add(Loc.Format("hud.generator", g.LastOutputWatts.ToString("0"), CoalGenerator.MaxWatts, g.FuelCount));
             return string.Join("\n", lines);
         }

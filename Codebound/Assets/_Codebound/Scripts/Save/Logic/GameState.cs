@@ -30,6 +30,8 @@ namespace Codebound.Save
             Machines = new MachineSystem(World, Grid, Clock.TickDuration);
             Interaction.IsInspectable = s => Machines.GetPowerNode(s) != null;
             Clock.Ticked += Machines.Tick;
+            // Item carried by a deconstructed belt goes to the player (lost only if the inventory is full).
+            Machines.BeltItemDropped += (_, item) => PlayerInventory.Add(item, 1);
         }
 
         /// <summary>Fresh world from a seed, with the crash-site wreckage placed.</summary>

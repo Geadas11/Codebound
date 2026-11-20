@@ -27,13 +27,35 @@ namespace Codebound.Machines
             _grid = grid ?? throw new ArgumentNullException(nameof(grid));
             Power = new PowerGrid();
             _ctx = new MachineContext(world, grid, tickSeconds);
+            Conveyors = new ConveyorSystem(grid);
+            _ctx.Deliver = Deliver;
             foreach (var s in grid.Structures) OnPlaced(s);
             grid.Placed += OnPlaced;
             grid.Removed += OnRemoved;
         }
 
         public PowerGrid Power { get; }
+        public ConveyorSystem Conveyors { get; }
+
+        /// <summary>Puts one item into the conveyor or storage at <paramref name="cell"/>.</summary>
+        public bool Deliver(GridPos cell, string itemId)
+        {
+            if (Conveyors.TryInsert(cell, itemId)) return true;
+            return DeliverToStructure(cell, itemId);
+        }
+
+        private bool DeliverToStructure(GridPos cell, string itemId)
+        {
+            var target = _grid.GetAt(cell);
+            if (target?.Inventory == null) return false;
+            // Furnaces only accept smeltable inputs from logistics.
+            if (Get(target) is Furnace && SmeltingRecipe.ForInput(itemId) == null) return false;
+            return target.Inventory.SpaceFor(itemId) > 0 && target.Inventory.Add(itemId, 1) == 0;
+        }
         public IReadOnlyCollection<Machine> Machines => _machines.Values;
+
+        /// <summary>Raised when a removed belt was carrying an item (the caller decides where it goes).</summary>
+        public event Action<PlacedStructure, string> BeltItemDropped;
 
         public Machine Get(PlacedStructure s) => s != null && _machines.TryGetValue(s.InstanceId, out var m) ? m : null;
         public T Get<T>(PlacedStructure s) where T : Machine => Get(s) as T;
@@ -46,6 +68,7 @@ namespace Codebound.Machines
         {
             _ctx.Tick = tick;
             Power.Tick(_ctx.TickSeconds);
+            Conveyors.Tick(DeliverToStructure);
             // Computers first so machines see this tick's program state.
             foreach (var m in _tickOrder) if (m is Computer) m.Tick(_ctx);
             foreach (var m in _tickOrder) if (!(m is Computer)) m.Tick(_ctx);
@@ -56,6 +79,8 @@ namespace Codebound.Machines
             switch (s.Definition.Id)
             {
                 case StructureCatalog.Drill: AddMachine(new Drill(s)); break;
+                case StructureCatalog.Furnace: AddMachine(new Furnace(s)); break;
+                case StructureCatalog.Conveyor: Conveyors.Add(s); break;
                 case StructureCatalog.CoalGenerator: AddMachine(new CoalGenerator(s)); break;
                 case StructureCatalog.Computer: AddMachine(new Computer(s, ComputerHardware.Basic)); break;
                 case StructureCatalog.PowerPole: Power.AddPole(new PowerPole(s.Origin)); break;
@@ -90,6 +115,11 @@ namespace Codebound.Machines
                 Power.RemoveNode(b);
             }
             if (s.Definition.Id == StructureCatalog.PowerPole) Power.RemovePoleAt(s.Origin);
+            if (s.Definition.Id == StructureCatalog.Conveyor)
+            {
+                string carried = Conveyors.Remove(s);
+                if (carried != null) BeltItemDropped?.Invoke(s, carried);
+            }
         }
     }
 }

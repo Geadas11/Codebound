@@ -55,25 +55,11 @@ namespace Codebound.Machines
         }
 
         /// <summary>Cell just outside the footprint, centred on the facing side, where output is delivered.</summary>
-        public GridPos OutputCell
-        {
-            get
-            {
-                var (w, h) = Footprint.RotatedSize(Structure.Definition.Width, Structure.Definition.Height, Structure.Facing);
-                var o = Structure.Origin;
-                switch (Structure.Facing)
-                {
-                    case Direction.North: return new GridPos(o.X + (w - 1) / 2, o.Y + h);
-                    case Direction.East: return new GridPos(o.X + w, o.Y + (h - 1) / 2);
-                    case Direction.South: return new GridPos(o.X + (w - 1) / 2, o.Y - 1);
-                    default: return new GridPos(o.X - 1, o.Y + (h - 1) / 2);
-                }
-            }
-        }
+        public GridPos OutputCell => MachineGeometry.FrontCell(Structure);
 
         public override void Tick(MachineContext ctx)
         {
-            PushOutput(ctx.Grid);
+            PushOutput(ctx);
             if (!CanOperate()) return;
             if (OreRemaining(ctx.World) == 0) { State = MachineState.Depleted; CyclePending = false; Progress = 0; return; }
             if (!CyclePending) { State = MachineState.Idle; return; }
@@ -92,7 +78,7 @@ namespace Codebound.Machines
             TotalMined += taken;
             Progress = 0;
             CyclePending = false;
-            PushOutput(ctx.Grid);
+            PushOutput(ctx);
         }
 
         private GridPos NextOreCell(WorldMap world)
@@ -106,13 +92,18 @@ namespace Codebound.Machines
             return cells[0];
         }
 
-        /// <summary>Moves output into a storage structure in front of the drill, if any.</summary>
-        private void PushOutput(BuildGrid grid)
+        /// <summary>Moves output one unit at a time into a conveyor or storage in front of the drill.</summary>
+        private void PushOutput(MachineContext ctx)
         {
-            var target = grid.GetAt(OutputCell);
-            if (target?.Inventory == null || target == Structure) return;
             var inv = Structure.Inventory;
-            for (int i = 0; i < inv.SlotCount; i++) inv.TransferSlotTo(i, target.Inventory);
+            for (int i = 0; i < inv.SlotCount; i++)
+            {
+                var slot = inv.GetSlot(i);
+                if (slot.IsEmpty) continue;
+                if (ctx.Grid.GetAt(OutputCell) == Structure) return;
+                if (ctx.Deliver(OutputCell, slot.ItemId)) inv.TryRemove(slot.ItemId, 1);
+                return; // at most one item per tick
+            }
         }
     }
 }

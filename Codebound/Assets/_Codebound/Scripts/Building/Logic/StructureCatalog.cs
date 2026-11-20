@@ -16,6 +16,8 @@ namespace Codebound.Building
         public const string Drill = "structure.drill";
         public const string CoalGenerator = "structure.coal_generator";
         public const string EmergencyBattery = "structure.emergency_battery";
+        public const string Conveyor = "structure.conveyor";
+        public const string Furnace = "structure.furnace";
 
         public static readonly IReadOnlyList<StructureDefinition> Default = new[]
         {
@@ -29,6 +31,10 @@ namespace Codebound.Building
                 inventorySlots: 1, placement: PlacementRule.OverResource),
             new StructureDefinition(CoalGenerator, 2, 2, new[] { new ItemStack(ItemCatalog.Scrap, 8), new ItemStack(ItemCatalog.Stone, 6) },
                 inventorySlots: 2),
+            new StructureDefinition(Conveyor, 1, 1, new[] { new ItemStack(ItemCatalog.Scrap, 1), new ItemStack(ItemCatalog.Wood, 1) },
+                blocksMovement: false),
+            new StructureDefinition(Furnace, 2, 2, new[] { new ItemStack(ItemCatalog.Stone, 10), new ItemStack(ItemCatalog.Scrap, 4) },
+                inventorySlots: 4),
             // Salvaged from the crashed ship; placed by world setup, not buildable.
             new StructureDefinition(EmergencyBattery, 2, 1, Array.Empty<ItemStack>(), rotatable: false, playerBuildable: false),
         };

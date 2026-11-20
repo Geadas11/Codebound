@@ -32,7 +32,8 @@ namespace Codebound.Game
             go.transform.position = new Vector3(s.Origin.X, s.Origin.Y, 0);
             var sr = go.AddComponent<SpriteRenderer>();
             sr.sprite = PixelArt.Structure(s.Definition, s.Facing);
-            sr.sortingOrder = s.Definition.BlocksMovement ? SortingOrder.ForY(s.Origin.Y) : SortingOrder.Floor;
+            sr.sortingOrder = s.Definition.BlocksMovement ? SortingOrder.ForY(s.Origin.Y)
+                : s.Definition.Id == StructureCatalog.Conveyor ? SortingOrder.Floor + 5 : SortingOrder.Floor;
             _views[s.InstanceId] = go;
         }
 
