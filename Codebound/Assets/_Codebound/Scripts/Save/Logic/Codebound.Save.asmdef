@@ -1,0 +1,14 @@
+{
+    "name": "Codebound.Save",
+    "rootNamespace": "Codebound.Save",
+    "references": ["Codebound.Core", "Codebound.Items", "Codebound.Inventory", "Codebound.World", "Codebound.Building", "Codebound.Energy", "Codebound.Machines", "Codebound.Player"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

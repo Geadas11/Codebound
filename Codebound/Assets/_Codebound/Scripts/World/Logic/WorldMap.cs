@@ -61,6 +61,8 @@ namespace Codebound.World
 
         public bool RemoveNode(GridPos c) => _nodes.Remove(c);
 
+        public void ClearNodes() => _nodes.Clear();
+
         /// <summary>Harvests one yield from the node at <paramref name="c"/>. Depleted nodes are removed.</summary>
         public int Harvest(GridPos c, out string itemId, int max = -1)
         {

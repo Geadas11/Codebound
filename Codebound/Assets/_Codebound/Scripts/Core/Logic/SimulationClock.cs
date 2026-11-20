@@ -29,6 +29,14 @@ namespace Codebound.Core
         /// <summary>Raised once per simulation tick with the new tick number.</summary>
         public event Action<long> Ticked;
 
+        /// <summary>Restores the tick counter (save games). Does not raise <see cref="Ticked"/>.</summary>
+        public void RestoreTick(long tick)
+        {
+            if (tick < 0) throw new ArgumentOutOfRangeException(nameof(tick));
+            CurrentTick = tick;
+            _accumulator = 0;
+        }
+
         /// <summary>Feeds elapsed real seconds; runs as many whole ticks as are due. Returns ticks run.</summary>
         public int Advance(double deltaSeconds)
         {

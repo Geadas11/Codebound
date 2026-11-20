@@ -20,6 +20,13 @@ namespace Codebound.Machines
         /// <summary>Set by the player's program. Generators start disabled.</summary>
         public bool Enabled { get; set; }
         public double BufferedJoules { get; private set; }
+
+        /// <summary>Restores burner state (save games).</summary>
+        public void RestoreState(bool enabled, double bufferedJoules)
+        {
+            Enabled = enabled;
+            BufferedJoules = System.Math.Max(0, bufferedJoules);
+        }
         public int FuelCount => Structure.Inventory.CountOf(ItemCatalog.Coal);
         public double LastOutputWatts { get; private set; }
 

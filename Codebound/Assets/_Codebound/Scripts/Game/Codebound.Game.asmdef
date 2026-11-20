@@ -10,6 +10,7 @@
         "Codebound.Player",
         "Codebound.Energy",
         "Codebound.Machines",
+        "Codebound.Save",
         "Unity.InputSystem"
     ],
     "includePlatforms": [],

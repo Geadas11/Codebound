@@ -52,6 +52,9 @@ namespace Codebound.Energy
         public double CapacityJoules { get; }
         public double MaxRateWatts { get; }
         public double StoredJoules { get; internal set; }
+
+        /// <summary>Restores stored energy (save games), clamped to capacity.</summary>
+        public void RestoreCharge(double joules) => StoredJoules = Math.Min(CapacityJoules, Math.Max(0, joules));
         public double ChargeFraction => StoredJoules / CapacityJoules;
     }
 

@@ -11,7 +11,8 @@
         "Codebound.Building",
         "Codebound.Player",
         "Codebound.Energy",
-        "Codebound.Machines"
+        "Codebound.Machines",
+        "Codebound.Save"
     ],
     "includePlatforms": ["Editor"],
     "excludePlatforms": [],

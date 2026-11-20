@@ -88,6 +88,16 @@ namespace Codebound.Machines
             return true;
         }
 
+        /// <summary>Restores program state (save games). Running programs come back as Loaded: the runtime must restart them.</summary>
+        public void RestoreProgram(ProgrammingLanguage? language, string source, ProgramStatus status, string lastError)
+        {
+            Language = language;
+            Source = source ?? string.Empty;
+            ProgramStatus = status == ProgramStatus.Running ? ProgramStatus.Loaded : status;
+            if (Source.Length == 0) ProgramStatus = ProgramStatus.None;
+            LastError = lastError;
+        }
+
         /// <summary>Called by the execution runtime once the program started successfully.</summary>
         public void MarkRunning()
         {

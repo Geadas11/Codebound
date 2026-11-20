@@ -4,60 +4,36 @@ using Codebound.Inventory;
 using Codebound.Items;
 using Codebound.Machines;
 using Codebound.Player;
+using Codebound.Save;
 using Codebound.World;
 
 namespace Codebound.Game
 {
     /// <summary>
-    /// Plain container of the simulation objects for one running world. Created by <see cref="GameBootstrap"/>
-    /// and handed to every presentation component. Holds no Unity objects.
+    /// Presentation-side view of one running world: the simulation <see cref="GameState"/> plus a UI event bus.
+    /// Holds no Unity objects.
     /// </summary>
     public sealed class GameSession
     {
-        public const int PlayerInventorySlots = 24;
-
-        public GameSession(long seed)
+        public GameSession(GameState state)
         {
+            State = state ?? throw new System.ArgumentNullException(nameof(state));
             Events = new EventBus();
-            Clock = new SimulationClock();
-            Items = ItemCatalog.CreateDefault();
-            World = TestWorldGenerator.Generate(seed);
-            Grid = new BuildGrid(World, Items);
-            Walkability = Grid.WithTerrain(World);
-            PlayerInventory = new ItemInventory(PlayerInventorySlots, Items);
-            Motor = new PlayerMotor(World.SpawnPoint.Center);
-            Interaction = new InteractionSystem(World, Grid);
-            Machines = new MachineSystem(World, Grid, Clock.TickDuration);
-            Interaction.IsInspectable = s => Machines.GetPowerNode(s) != null;
-            Clock.Ticked += Machines.Tick;
-            PlaceWreckage();
         }
 
-        /// <summary>Puts the crashed ship's emergency battery next to the spawn point.</summary>
-        private void PlaceWreckage()
-        {
-            var def = StructureCatalog.Find(StructureCatalog.EmergencyBattery);
-            var spawn = World.SpawnPoint;
-            for (int r = 2; r < 8; r++)
-            for (int dy = -r; dy <= r; dy++)
-            for (int dx = -r; dx <= r; dx++)
-            {
-                var origin = new GridPos(spawn.X + dx, spawn.Y + dy);
-                if (Grid.TryPlace(def, origin, Direction.North, null, out _) == PlacementStatus.Ok) return;
-            }
-            CbLog.Warn("World", "Could not place the emergency battery near spawn");
-        }
+        public static GameSession CreateNew(long seed) => new GameSession(GameState.CreateNew(seed));
 
+        public GameState State { get; }
         public EventBus Events { get; }
-        public SimulationClock Clock { get; }
-        public ItemRegistry Items { get; }
-        public WorldMap World { get; }
-        public BuildGrid Grid { get; }
-        public IWalkabilityQuery Walkability { get; }
-        public ItemInventory PlayerInventory { get; }
-        public PlayerMotor Motor { get; }
-        public InteractionSystem Interaction { get; }
-        public MachineSystem Machines { get; }
+        public SimulationClock Clock => State.Clock;
+        public ItemRegistry Items => State.Items;
+        public WorldMap World => State.World;
+        public BuildGrid Grid => State.Grid;
+        public IWalkabilityQuery Walkability => State.Walkability;
+        public ItemInventory PlayerInventory => State.PlayerInventory;
+        public PlayerMotor Motor => State.Motor;
+        public InteractionSystem Interaction => State.Interaction;
+        public MachineSystem Machines => State.Machines;
     }
 
     /// <summary>Published on the session event bus for short on-screen feedback messages.</summary>

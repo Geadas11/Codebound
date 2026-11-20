@@ -13,7 +13,7 @@ namespace Codebound.Game
     /// </summary>
     public static class GameInput
     {
-        public enum Action { Up, Down, Left, Right, Interact, ToggleBuild, Rotate, Cancel, ToggleInventory, CycleLanguage }
+        public enum Action { Up, Down, Left, Right, Interact, ToggleBuild, Rotate, Cancel, ToggleInventory, CycleLanguage, QuickSave, QuickLoad }
 
         /// <summary>Current binding per action, as a key name understood by both input backends (lowercase letters, "tab", "escape", "f1").</summary>
         public static readonly System.Collections.Generic.Dictionary<Action, string> Bindings =
@@ -22,6 +22,7 @@ namespace Codebound.Game
                 { Action.Up, "w" }, { Action.Down, "s" }, { Action.Left, "a" }, { Action.Right, "d" },
                 { Action.Interact, "e" }, { Action.ToggleBuild, "b" }, { Action.Rotate, "r" },
                 { Action.Cancel, "escape" }, { Action.ToggleInventory, "tab" }, { Action.CycleLanguage, "f1" },
+                { Action.QuickSave, "f5" }, { Action.QuickLoad, "f9" },
             };
 
         public static Vector2 Move
@@ -60,6 +61,8 @@ namespace Codebound.Game
                 case "escape": return kb.escapeKey;
                 case "tab": return kb.tabKey;
                 case "f1": return kb.f1Key;
+                case "f5": return kb.f5Key;
+                case "f9": return kb.f9Key;
                 case "up": return kb.upArrowKey;
                 case "down": return kb.downArrowKey;
                 case "left": return kb.leftArrowKey;

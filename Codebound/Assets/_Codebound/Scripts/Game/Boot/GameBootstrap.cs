@@ -1,4 +1,7 @@
+using System;
+using System.IO;
 using Codebound.Core;
+using Codebound.Save;
 using UnityEngine;
 
 namespace Codebound.Game
@@ -30,10 +33,22 @@ namespace Codebound.Game
             DefaultStrings.RegisterAll();
             Application.targetFrameRate = 120;
 
-            Session = new GameSession(_seed);
-            CbLog.Info("Boot", $"World seed {_seed}: {Session.World.Width}x{Session.World.Height}, {Session.World.Nodes.Count} resource nodes");
+            StartSession(GameSession.CreateNew(_seed));
+        }
+
+        /// <summary>Quick-save file: &lt;persistentDataPath&gt;/saves/quick.cbsave</summary>
+        public static string QuickSavePath => Path.Combine(Application.persistentDataPath, "saves", "quick.cbsave");
+
+        /// <summary>(Re)builds every presentation component for <paramref name="session"/>.</summary>
+        private void StartSession(GameSession session)
+        {
+            foreach (Transform child in transform) Destroy(child.gameObject);
+            Session = session;
+            CbLog.Info("Boot", $"World seed {Session.World.Seed}: {Session.World.Width}x{Session.World.Height}, {Session.World.Nodes.Count} resource nodes");
 
             var cam = EnsureCamera();
+            var oldCamCtrl = cam.GetComponent<CameraController>();
+            if (oldCamCtrl != null) Destroy(oldCamCtrl);
             var worldView = Create<WorldView>("WorldView");
             worldView.Init(Session);
             Create<StructureView>("Structures").Init(Session);
@@ -50,7 +65,49 @@ namespace Codebound.Game
 
         private void Update()
         {
+            if (GameInput.Pressed(GameInput.Action.QuickSave)) QuickSave();
+            else if (GameInput.Pressed(GameInput.Action.QuickLoad)) QuickLoad();
             Session.Clock.Advance(Time.deltaTime);
+        }
+
+        public void QuickSave()
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(QuickSavePath));
+                string tmp = QuickSavePath + ".tmp";
+                using (var fs = File.Create(tmp)) SaveSystem.Save(Session.State, fs);
+                if (File.Exists(QuickSavePath)) File.Delete(QuickSavePath);
+                File.Move(tmp, QuickSavePath); // write-then-rename: a crash never leaves a half-written save
+                Session.Events.Publish(new ToastEvent(Loc.Get("toast.saved")));
+                CbLog.Info("Save", "Saved to " + QuickSavePath);
+            }
+            catch (Exception e)
+            {
+                CbLog.Error("Save", e.ToString());
+                Session.Events.Publish(new ToastEvent(Loc.Get("toast.save_failed"), true));
+            }
+        }
+
+        public void QuickLoad()
+        {
+            if (!File.Exists(QuickSavePath))
+            {
+                Session.Events.Publish(new ToastEvent(Loc.Get("toast.no_save"), true));
+                return;
+            }
+            try
+            {
+                GameState state;
+                using (var fs = File.OpenRead(QuickSavePath)) state = SaveSystem.Load(fs);
+                StartSession(new GameSession(state));
+                Session.Events.Publish(new ToastEvent(Loc.Get("toast.loaded")));
+            }
+            catch (Exception e)
+            {
+                CbLog.Error("Save", e.ToString());
+                Session.Events.Publish(new ToastEvent(Loc.Get("toast.load_failed"), true));
+            }
         }
 
         private T Create<T>(string name) where T : Component

@@ -30,6 +30,14 @@ namespace Codebound.Machines
 
         public override double DemandWatts => HasValidProgram ? (CyclePending ? WorkingWatts : IdleWatts) : 0;
 
+        /// <summary>Restores cycle state (save games).</summary>
+        public void RestoreState(bool cyclePending, double progress, int totalMined)
+        {
+            CyclePending = cyclePending;
+            Progress = System.Math.Max(0, System.Math.Min(1, progress));
+            TotalMined = System.Math.Max(0, totalMined);
+        }
+
         /// <summary>Queues one mining cycle. Returns false if a cycle is already queued (API: drill.mine()).</summary>
         public bool RequestMine()
         {
