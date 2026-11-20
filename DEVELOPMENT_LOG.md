@@ -2,6 +2,16 @@
 
 Entradas mais recentes no topo.
 
+## 2026-11-20 — Sessão 1 (continuação 2) — Etapa 4 iniciada
+
+**Feito:** tapetes transportadores básicos (D17), entrega unificada de itens (D19), forno elétrico com receitas (placas de ferro e cobre, tijolos), novos itens, gravação v2 (conteúdo dos tapetes e estado do forno; a v1 continua a carregar), teste de arranque a frio (D18). Unity: itens visíveis nos tapetes, sprites novos, ícones de itens processados, estado do forno no HUD, tecla 0 para a 10.ª estrutura.
+
+**Verificado:** `dotnet test` → **67/67**; `Tools/UnityCompileCheck` compila. Não verificado no Unity.
+
+**Problemas / bloqueios:** sem alterações. O sandbox continua por executar e as máquinas não funcionam no jogo sem runtime. Os tapetes funcionam no jogo porque não precisam de programa.
+
+**Commits:** `5dc793b` · (este) documentação
+
 ## 2026-11-20 — Sessão 1 (continuação) — Etapa 2 e gravação
 
 **Feito:**

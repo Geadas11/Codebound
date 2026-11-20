@@ -1,10 +1,10 @@
 # Próxima sessão
-_Atualizado: 2026-11-20 (Sessão 1, continuação)_
+_Atualizado: 2026-11-20 (Sessão 1, continuação 2)_
 
 ## Estado atual
-- Etapa em curso: Etapas 1 e 2 concluídas na lógica, com gravação; **Etapa 3 (sandbox) bloqueada** à espera de autorização.
+- Etapa em curso: Etapas 1 e 2 concluídas na lógica, com gravação; Etapa 4 iniciada (tapetes, forno); **Etapa 3 (sandbox) bloqueada** à espera de autorização.
 - Funciona e foi verificado:
-  - Lógica de Core, Items, Inventory, World, Building, Player, Energy, Machines e Save: 59 testes passam (`Tools/LogicTests`).
+  - Lógica de Core, Items, Inventory, World, Building, Player, Energy, Machines (com tapetes e forno) e Save: 67 testes passam (`Tools/LogicTests`).
   - O código Unity (`Scripts/Game`) compila contra UnityEngine 2021.3 (`Tools/UnityCompileCheck`).
 - Existe mas não foi verificado:
   - Projeto Unity nunca aberto no editor Unity 6 (pacotes, asmdefs, Input System, cena, jogabilidade).
@@ -22,7 +22,7 @@ _Atualizado: 2026-11-20 (Sessão 1, continuação)_
    (b) protocolo por linhas em stdin/stdout com FIFO ou implementação própria de `fd_read`.
    Primeira API: `drill.mine()`, `energy.available()`, `computer.on(event, fn)`. Ficheiros: `Runtime/api/` (esquema), `Runtime/host/`.
 4. **Ligar o runtime às máquinas** (quando o passo 2 passar): `Codebound.Execution` envia para o host o programa do `Computer` (linguagem + código + limites do `ComputerHardware`), chama `MarkRunning`/`MarkError`, e traduz as chamadas da API em métodos C#: `drill.mine()` → `Drill.RequestMine()`, `generator.enable(b)` → `CoalGenerator.Enabled`, `energy.available()` → satisfação da rede do computador. Depois, o editor de código mínimo no painel do computador.
-4b. **Se o sandbox continuar bloqueado**, avançar com o que não depende dele: Etapa 4 lógica (transportadores básicos, fabricação/fundição) ou Etapa 5 lógica (sobrevivência: vida/fome/sede/oxigénio/temperatura; dia/noite).
+4b. **Se o sandbox continuar bloqueado**, avançar com o que não depende dele: Etapa 4 (montadora de componentes e circuitos, armazém) ou Etapa 5 lógica (sobrevivência: vida, fome, sede, oxigénio, temperatura; dia/noite). Decidir também D18 (alternativa de arranque a frio sem bateria).
 5. Quando houver Unity: abrir `Codebound/` no Unity 6, menu *Codebound → Create Test Scene*, Play, corrigir erros, migrar para URP 2D e registar o resultado.
 
 ## Bloqueios e limitações conhecidas

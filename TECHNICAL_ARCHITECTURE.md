@@ -58,7 +58,7 @@ _Última revisão: 2026-11-20 (Sessão 1, continuação)_
 | Building | Codebound.Building | Core, Items, Inventory | `StructureDefinition`, `StructureCatalog`, `Footprint`, `BuildGrid` (validar/colocar/remover/reembolsar), `PlacedStructure` |
 | Player | Codebound.Player | Core, Items, Inventory, World, Building | `PlayerMotor` (colisão AABB vs grelha, sub-passos anti-túnel), `InteractionSystem` (recolher, abrir armazenamento, inspecionar) |
 | Energy | Codebound.Energy | Core | `PowerNode`, `Battery`, `PowerPole` (raio de alimentação 2, ligação 7), `PowerGrid` (redes por union-find, equilíbrio produção/consumo/baterias, *brown-out* proporcional) |
-| Machines | Codebound.Machines | Core, Items, Inventory, World, Building, Energy | `Machine` (regra: só funciona controlada por um computador com programa a correr), `Computer` (hardware, programa, estado, ligações com alcance e portas), `Drill`, `CoalGenerator`, `MachineSystem` (sincronizado com o `BuildGrid`, corre no tick) |
+| Machines | Codebound.Machines | Core, Items, Inventory, World, Building, Energy | `Machine` (regra: só funciona controlada por um computador com programa a correr), `Computer` (hardware, programa, estado, ligações com alcance e portas), `Drill`, `CoalGenerator`, `Furnace` + `SmeltingRecipe`, `ConveyorSystem`/`Belt`, `MachineSystem` (sincronizado com o `BuildGrid`, corre no tick, `Deliver`) |
 | Save | Codebound.Save | todos os de lógica | `GameState` (liga todos os objetos da simulação), `SaveSystem` (formato binário versionado) |
 | Game | Codebound.Game | todos + Unity.InputSystem | apresentação Unity (ver §1) |
 | Editor | Codebound.Editor | Game | menu `Codebound/Create Test Scene` |
@@ -86,6 +86,9 @@ Regras: sem dependências cíclicas; comunicação entre módulos por interfaces
 | D14 | Unidades: watts e joules; 1 tick = 1/20 s. Gerador a carvão 300 W, 9 kJ por carvão, só gasta combustível pela carga pedida; perfuradora 90 W a trabalhar, 5 W em espera, 40 ticks por ciclo à potência total | Números simples e afináveis |
 | D15 | Gravação: o terreno não é guardado (regenera-se da seed); formato binário com magic `CBSV` e versão; escrita para ficheiro temporário e depois rename | Ficheiros pequenos, migráveis, sem corrupção a meio da escrita |
 | D16 | Ao carregar, programas que estavam `Running` voltam como `Loaded`: o runtime tem de os reiniciar | O estado interno do programa (memória Wasm) não é persistido nesta versão |
+| D17 | Transportadores **básicos** são infraestrutura logística passiva (sem programa); os inteligentes/programáveis serão máquinas. Um item por célula, 8 ticks por célula, movimento independente da ordem de iteração | Interpretação da regra "todas as máquinas precisam de programa": um tapete simples não é uma máquina |
+| D18 | Arranque a frio (*black start*): uma rede só com gerador não arranca sozinha (o gerador precisa do programa, o computador precisa de energia). É preciso uma bateria com carga. Coberto por teste | Consequência intencional de D12/D13; mais tarde: manivela manual ou painel solar sem programa como alternativa (a decidir) |
+| D19 | Entrega de itens unificada (`MachineSystem.Deliver`): primeiro o tapete na célula, depois o armazenamento; os fornos só aceitam entradas fundíveis | Uma só regra para máquinas e tapetes |
 | D11 | Verificação sem Unity: `UnityEngine.Modules` 2021.3.33 (NuGet) só como referência de compilação local, nunca no repositório nem no jogo | Apanhar erros de API Unity sem o editor. Limitação: API 2021.3, sem Input System nem UnityEditor |
 
 ## 5. Execução de código do jogador (Etapa 3 — primeiro código em `Runtime/host`, **ainda não verificado**)

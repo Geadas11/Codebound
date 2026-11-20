@@ -43,9 +43,11 @@ Legenda: `[x]` feito e verificado (o método está entre parênteses) · `[~]` f
 - [ ] Restantes linguagens: JavaScript, TypeScript, Python, PHP, SQL, C, C++, C#; HTML/CSS no HUD
 
 ## Etapa 4 — Automação
-- [ ] Transportadores básicos, inteligentes e programáveis
+- [x] Transportadores básicos (testes: movimento, entrega, acumulação, remoção, gravação) · [~] Unity
+- [ ] Transportadores inteligentes e programáveis
 - [ ] Armazéns e armazenamento automático (SQL)
-- [ ] Fabricação: fundição, processamento, componentes, circuitos
+- [x] Fundição: forno elétrico, placas de ferro/cobre, tijolos (testes; cadeia perfuradora → tapete → forno → caixa) · [~] Unity
+- [ ] Fabricação: processamento, componentes, circuitos (montadora)
 - [ ] Redes (routers, switches, fibra, antenas, servidores, firewalls)
 - [ ] HUD programável HTML/CSS com botão "+" e painéis móveis, redimensionáveis e guardáveis
 
@@ -82,4 +84,4 @@ Legenda: `[x]` feito e verificado (o método está entre parênteses) · `[~]` f
 
 ## Concluídas (resumo)
 - [x] Skills do projeto: `codebound-session`, `unity-conventions`
-- [x] Ferramentas: `Tools/LogicTests` (59 testes), `Tools/UnityCompileCheck`, `Tools/WorldPreview`
+- [x] Ferramentas: `Tools/LogicTests` (67 testes), `Tools/UnityCompileCheck`, `Tools/WorldPreview`
