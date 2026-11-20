@@ -24,7 +24,7 @@ namespace Codebound.Game
         public bool Active { get; private set; }
         public int SelectedIndex { get; private set; }
         public Direction Facing { get; private set; } = Direction.North;
-        public StructureDefinition Selected => StructureCatalog.Default[SelectedIndex];
+        public StructureDefinition Selected => StructureCatalog.Buildable[SelectedIndex];
         public PlacementCheck LastCheck => _lastCheck;
 
         /// <summary>Set by the HUD every frame: true when the mouse is over a HUD panel.</summary>
@@ -50,7 +50,7 @@ namespace Codebound.Game
 
         public void Select(int index)
         {
-            if (index < 0 || index >= StructureCatalog.Default.Count) return;
+            if (index < 0 || index >= StructureCatalog.Buildable.Count) return;
             SelectedIndex = index;
             if (!Active) SetActive(true);
         }
@@ -85,12 +85,19 @@ namespace Codebound.Game
                 case PlacementStatus.Ok: Toast(Loc.Format("toast.placed", Loc.Get(placed.Definition.NameKey))); break;
                 case PlacementStatus.InsufficientResources: Toast(Loc.Get("toast.no_resources"), true); break;
                 case PlacementStatus.Occupied: Toast(Loc.Get("toast.occupied"), true); break;
+                case PlacementStatus.NoResourceUnderneath: Toast(Loc.Get("toast.needs_ore"), true); break;
                 default: Toast(Loc.Get("toast.blocked"), true); break;
             }
         }
 
         private void Deconstruct(GridPos cell)
         {
+            var existing = _session.Grid.GetAt(cell);
+            if (existing != null && !existing.Definition.PlayerBuildable)
+            {
+                Toast(Loc.Get("toast.cannot_deconstruct"), true);
+                return;
+            }
             var status = _session.Grid.TryRemove(cell, _session.PlayerInventory, out var removed);
             if (status == RemovalStatus.Ok) Toast(Loc.Format("toast.removed", Loc.Get(removed.Definition.NameKey)));
             else if (status == RemovalStatus.NoSpaceForRefund) Toast(Loc.Get("toast.no_space_refund"), true);

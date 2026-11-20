@@ -40,6 +40,13 @@ namespace Codebound.Game
             if (_session == null) return;
             _cooldown -= Time.deltaTime;
 
+            if (_hud.LinkSource != null)
+            {
+                _highlight.enabled = false;
+                if (GameInput.PrimaryPressed && !_hud.PointerOverHud()) TryLink();
+                return;
+            }
+
             if (_build.Active)
             {
                 Current = InteractionTarget.None;
@@ -73,6 +80,23 @@ namespace Codebound.Game
             {
                 _hud.OpenStorage(Current.Structure);
             }
+            else if (Current.Kind == InteractionKind.Inspect && pressedNow)
+            {
+                _hud.Inspect(Current.Structure);
+            }
+        }
+
+        private void TryLink()
+        {
+            var computer = _hud.LinkSource;
+            _hud.LinkSource = null;
+            var m = GameInput.MousePosition;
+            var w = _cam.ScreenToWorldPoint(new Vector3(m.x, m.y, -_cam.transform.position.z));
+            var target = _session.Machines.Get(_session.Grid.GetAt(GridPos.FromWorld(w.x, w.y)));
+            if (target == null) { _session.Events.Publish(new ToastEvent(Loc.Get("toast.link.no_machine"), true)); return; }
+            var result = computer.Link(target);
+            bool ok = result == Codebound.Machines.LinkResult.Ok;
+            _session.Events.Publish(new ToastEvent(Loc.Get("toast.link." + result), !ok));
         }
     }
 }

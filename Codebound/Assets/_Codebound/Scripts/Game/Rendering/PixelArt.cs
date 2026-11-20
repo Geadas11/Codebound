@@ -93,10 +93,30 @@ namespace Codebound.Game
             DrawBoulder(c, rock, speck, itemId.GetHashCode());
         }));
 
+        /// <summary>Structure sprite: drawn facing North, then rotated clockwise for the given facing.</summary>
         public static Sprite Structure(StructureDefinition def, Direction facing)
         {
-            var (w, h) = Footprint.RotatedSize(def.Width, def.Height, facing);
-            return Get($"structure.{def.Id}.{w}x{h}", () => Build(w * PPU, h * PPU, c => DrawStructure(c, def.Id, w * PPU, h * PPU)));
+            if (!def.Rotatable) facing = Direction.North;
+            int w = def.Width * PPU, h = def.Height * PPU;
+            return Get($"structure.{def.Id}.{facing}", () =>
+            {
+                var px = new Color32[w * h];
+                DrawStructure(px, def.Id, w, h);
+                int cw = w, ch = h;
+                for (int i = 0; i < (int)facing; i++) { px = RotateClockwise(px, cw, ch); (cw, ch) = (ch, cw); }
+                var result = px;
+                return Build(cw, ch, c => System.Array.Copy(result, c, c.Length));
+            });
+        }
+
+        private static Color32[] RotateClockwise(Color32[] src, int w, int h)
+        {
+            // Destination is h wide, w tall. Rows go bottom-to-top (y up).
+            var dst = new Color32[w * h];
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+                dst[(w - 1 - x) * h + y] = src[y * w + x];
+            return dst;
         }
 
         /// <summary>Little astronaut, 12x16 inside a 16x16 sprite. Frame 0/1 for walking.</summary>
@@ -208,6 +228,61 @@ namespace Codebound.Game
                     RectW(c, w, w / 2 - 3, h / 2, 6, 4, window);
                     break;
                 }
+                case StructureCatalog.PowerPole:
+                {
+                    var wood = new Color32(120, 84, 52, 255);
+                    var metal = new Color32(170, 176, 186, 255);
+                    var insul = new Color32(90, 190, 120, 255);
+                    RectW(c, w, 7, 1, 2, 12, wood);
+                    RectW(c, w, 3, 11, 10, 2, metal);
+                    Set(c, w, 3, 13, insul); Set(c, w, 12, 13, insul); Set(c, w, 7, 13, insul);
+                    break;
+                }
+                case StructureCatalog.Computer:
+                {
+                    var casing = new Color32(70, 74, 86, 255);
+                    var screen = new Color32(24, 40, 36, 255);
+                    var glow = new Color32(90, 230, 140, 255);
+                    RectW(c, w, 1, 1, w - 2, h - 2, casing);
+                    RectW(c, w, 3, 6, w - 6, 7, screen);
+                    for (int i = 0; i < 3; i++) RectW(c, w, 4, 8 + i * 2, 3 + (i * 3) % 6, 1, glow);
+                    RectW(c, w, 3, 2, 4, 2, new Color32(120, 126, 140, 255));
+                    Set(c, w, 11, 3, new Color32(240, 80, 60, 255));
+                    break;
+                }
+                case StructureCatalog.Drill:
+                {
+                    var frame = new Color32(196, 150, 40, 255);
+                    var dark = new Color32(84, 70, 40, 255);
+                    var bit = new Color32(160, 168, 180, 255);
+                    RectW(c, w, 1, 1, w - 2, h - 2, frame);
+                    for (int i = 1; i < w - 1; i += 4) RectW(c, w, i, 1, 2, 2, dark);
+                    Circle2(c, w, w / 2f, h / 2f, 7f, dark);
+                    Circle2(c, w, w / 2f, h / 2f, 4f, bit);
+                    RectW(c, w, w / 2 - 1, h - 6, 2, 5, dark); // output chute marker (top = facing side when north)
+                    break;
+                }
+                case StructureCatalog.CoalGenerator:
+                {
+                    var body = new Color32(110, 70, 60, 255);
+                    var steel = new Color32(150, 150, 160, 255);
+                    var fire = new Color32(250, 150, 40, 255);
+                    RectW(c, w, 1, 1, w - 2, h - 6, body);
+                    RectW(c, w, w - 9, h - 8, 6, 7, steel); // chimney
+                    RectW(c, w, 5, 5, 10, 6, new Color32(40, 30, 30, 255));
+                    RectW(c, w, 7, 6, 6, 3, fire);
+                    break;
+                }
+                case StructureCatalog.EmergencyBattery:
+                {
+                    var shell = new Color32(60, 90, 140, 255);
+                    var cell = new Color32(120, 220, 160, 255);
+                    var burn = new Color32(40, 34, 32, 255);
+                    RectW(c, w, 1, 2, w - 2, h - 4, shell);
+                    for (int i = 0; i < 4; i++) RectW(c, w, 4 + i * 6, 5, 4, 6, cell);
+                    RectW(c, w, w - 7, 3, 5, 3, burn); // scorch from the crash
+                    break;
+                }
                 default:
                     Fill(c, w, h, new Color32(255, 0, 255, 255));
                     break;
@@ -268,6 +343,17 @@ namespace Codebound.Game
             {
                 float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
                 if (dx * dx + dy * dy <= r * r) Set(c, PPU, x, y, col);
+            }
+        }
+
+        private static void Circle2(Color32[] c, int w, float cx, float cy, float r, Color32 col)
+        {
+            int h = c.Length / w;
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                float dx = x + 0.5f - cx, dy = y + 0.5f - cy;
+                if (dx * dx + dy * dy <= r * r) Set(c, w, x, y, col);
             }
         }
 

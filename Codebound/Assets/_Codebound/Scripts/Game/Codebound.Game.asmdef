@@ -8,6 +8,8 @@
         "Codebound.World",
         "Codebound.Building",
         "Codebound.Player",
+        "Codebound.Energy",
+        "Codebound.Machines",
         "Unity.InputSystem"
     ],
     "includePlatforms": [],

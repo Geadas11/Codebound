@@ -6,7 +6,7 @@ using Codebound.World;
 
 namespace Codebound.Player
 {
-    public enum InteractionKind { None, Harvest, OpenStorage }
+    public enum InteractionKind { None, Harvest, OpenStorage, Inspect }
 
     /// <summary>What the player would interact with if they pressed the interact key now.</summary>
     public readonly struct InteractionTarget
@@ -41,6 +41,9 @@ namespace Codebound.Player
         }
 
         public float Range { get; set; } = DefaultRange;
+
+        /// <summary>Structures without storage that can still be interacted with (machines, computers). Default: none.</summary>
+        public Func<PlacedStructure, bool> IsInspectable { get; set; } = _ => false;
 
         /// <summary>
         /// Picks a target. If <paramref name="preferredCell"/> (e.g. under the mouse) is in range and interactable it wins;
@@ -77,7 +80,10 @@ namespace Codebound.Player
             // Structures win over deposits underneath them (e.g. a drill standing on ore).
             var s = _grid.GetAt(c);
             if (s != null)
-                return s.Inventory != null ? new InteractionTarget(InteractionKind.OpenStorage, c, null, s) : InteractionTarget.None;
+            {
+                if (s.Inventory != null) return new InteractionTarget(InteractionKind.OpenStorage, c, null, s);
+                return IsInspectable(s) ? new InteractionTarget(InteractionKind.Inspect, c, null, s) : InteractionTarget.None;
+            }
             if (_world.TryGetNode(c, out var node)) return new InteractionTarget(InteractionKind.Harvest, c, node, null);
             return InteractionTarget.None;
         }
