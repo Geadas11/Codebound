@@ -1,0 +1,23 @@
+{
+    "name": "Codebound.Tests.EditMode",
+    "rootNamespace": "Codebound.Tests",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Codebound.Core",
+        "Codebound.Items",
+        "Codebound.Inventory",
+        "Codebound.World",
+        "Codebound.Building",
+        "Codebound.Player"
+    ],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": ["nunit.framework.dll"],
+    "autoReferenced": false,
+    "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

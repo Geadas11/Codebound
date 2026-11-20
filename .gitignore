@@ -1,0 +1,25 @@
+# Unity
+/Codebound/[Ll]ibrary/
+/Codebound/[Tt]emp/
+/Codebound/[Oo]bj/
+/Codebound/[Bb]uild/
+/Codebound/[Bb]uilds/
+/Codebound/[Ll]ogs/
+/Codebound/[Uu]ser[Ss]ettings/
+/Codebound/MemoryCaptures/
+/Codebound/*.csproj
+/Codebound/*.sln
+/Codebound/.vs/
+/Codebound/.idea/
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+crashlytics-build.properties
+# dotnet test harness
+/Tools/**/bin/
+/Tools/**/obj/
+/Tools/**/TestResults/
+# misc
+.DS_Store
+node_modules/
+__pycache__/

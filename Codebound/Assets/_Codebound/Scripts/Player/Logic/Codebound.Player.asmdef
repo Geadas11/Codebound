@@ -1,0 +1,14 @@
+{
+    "name": "Codebound.Player",
+    "rootNamespace": "Codebound.Player",
+    "references": ["Codebound.Core", "Codebound.Items", "Codebound.Inventory", "Codebound.World", "Codebound.Building"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

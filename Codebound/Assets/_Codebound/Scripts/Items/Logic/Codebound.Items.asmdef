@@ -1,0 +1,14 @@
+{
+    "name": "Codebound.Items",
+    "rootNamespace": "Codebound.Items",
+    "references": ["Codebound.Core"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

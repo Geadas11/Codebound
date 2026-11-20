@@ -1,0 +1,14 @@
+{
+    "name": "Codebound.Inventory",
+    "rootNamespace": "Codebound.Inventory",
+    "references": ["Codebound.Core", "Codebound.Items"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}
