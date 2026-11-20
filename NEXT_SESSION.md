@@ -6,7 +6,7 @@
 - Requisito de desenvolvimento: **Node.js no PATH** (testado com v24.13.0).
 
 ## Git / GitHub
-- Repositório local na raiz `Jogo_CODEFACT/` (branch `main`) → remoto `origin` = `https://github.com/Geadas11/Codebound`, branch **`desktop`** (`git push` envia para lá).
+- Repositório local na raiz `Jogo_CODEFACT/` (branch `main`) → remoto `origin` = `https://github.com/Geadas11/Codebound`, branch **`desktop`** (`git push` envia para lá: `push.default=upstream` está configurado neste repositório).
 - O mesmo repositório tem outro branch, `claude/intelligent-bohr-nfkoxs`, com **outra versão** do Codebound (sandbox em Wasmtime, estrutura `Assets/_Codebound/...`), sem histórico comum. Não misturar.
 - Graphify (MCP) indexa o branch principal do repositório; para indexar este código, o branch principal no GitHub tem de ser `desktop`.
 - `Codebound/Tools/python/` não está no git (ver README para o obter).
