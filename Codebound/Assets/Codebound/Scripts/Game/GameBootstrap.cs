@@ -20,16 +20,26 @@ namespace Codebound.Game
         public float MessageTime { get; private set; }
 
         public static string SavePath => Path.Combine(Application.persistentDataPath, "saves", "quicksave.cbsave");
+        public static string AutoSavePath => Path.Combine(Application.persistentDataPath, "saves", "autosave.cbsave");
+        public const float AutoSaveSeconds = 300f;
+        float autoSaveTimer = AutoSaveSeconds;
+        static int? newGameSeed;
+
+        /// <summary>Starts a fresh world with the given seed (title screen).</summary>
+        public static void NewGame(int seed) { newGameSeed = seed; SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); }
 
         // Play Mode without domain reload keeps statics and event subscriptions: reset them every session.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
-            Session = null; pendingLoad = null;
+            Session = null; pendingLoad = null; newGameSeed = null;
             SceneManager.sceneLoaded -= OnSceneLoaded;
         }
 
         static void OnSceneLoaded(Scene s, LoadSceneMode m) => Spawn();
+
+        /// <summary>Replaces the running world (multiplayer guests receiving the host's world).</summary>
+        public static void LoadState(GameState s) { pendingLoad = s; SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void AutoStart()
@@ -55,11 +65,13 @@ namespace Codebound.Game
 
         void Awake()
         {
+            Settings.ApplyLanguage();
             GameState state;
             if (pendingLoad != null) { state = pendingLoad; pendingLoad = null; }
             else
             {
-                state = new GameState(ResolveSeed());
+                state = new GameState(newGameSeed ?? ResolveSeed());
+                newGameSeed = null;
                 state.GiveStartingKit();
                 state.Hud.Add(Codebound.Core.Hud.HudLayout.Starter());
                 var sp = state.World.Generator.FindSpawn();
@@ -101,20 +113,36 @@ namespace Codebound.Game
             hud.Init(Session, programs);
             gameObject.AddComponent<HudEditor>().Init(Session, hud);
             gameObject.AddComponent<ResearchPanel>().Init(Session);
+            gameObject.AddComponent<ExplorationController>().Init(Session, build);
+            gameObject.AddComponent<NetSession>().Init(Session, programs, cam);
+            gameObject.AddComponent<SpaceView>().Init(Session);
+            gameObject.AddComponent<TitleMenu>().Init(Session, this);
             gameObject.AddComponent<OptionsMenu>().Init(Session, this, build);
             gameObject.AddComponent<CreatureViews>().Init(Session);
             gameObject.AddComponent<AudioDirector>().Init(Session);
             var cr = state.Creatures;
-            cr.WaveArrived += n => state.Hud.Notify($"{n} hostile creature{(n > 1 ? "s" : "")} approaching — your industry is noisy!");
-            cr.BuildingDestroyed += b => state.Hud.Notify($"{b.Def.DisplayName} was destroyed");
-            cr.ComputerCompromised += b => state.Hud.Notify($"SECURITY: PC-{b.InstanceId} was compromised by a rogue drone");
+            cr.WaveArrived += n => state.Hud.Notify(Loc.T("notify.wave", "{0} hostile creature(s) approaching — your industry is noisy!", n));
+            cr.BuildingDestroyed += b => state.Hud.Notify(Loc.T("notify.destroyed", "{0} was destroyed", Loc.Building(b.Def)));
+            cr.IntrusionStarted += (b, c) => state.Hud.Notify(Loc.T("notify.intrusion", "INTRUSION: a drone is breaking into PC-{0} ({1} s)", b.InstanceId, Mathf.RoundToInt(cr.HackTime((ComputerState)b.State))));
+            cr.ComputerCompromised += b => state.Hud.Notify(Loc.T("notify.compromised", "SECURITY: PC-{0} was compromised by a rogue drone", b.InstanceId));
             state.Research.Completed += t =>
             {
                 var r = state.Research;
-                state.Hud.Notify(t.MainLine ? $"Ship progress {r.MainLineDone}/{r.MainLineTotal}: {t.Name} complete" : $"Research complete: {t.Name}");
-                if (t.Id == "ship_launch")   // honest: the space phase (Etapa 7) does not exist yet
-                    state.Hud.Notify("The ship is rebuilt! Launching and the space phase arrive in a future update — keep building.");
+                state.Hud.Notify(t.MainLine ? Loc.T("notify.ship", "Ship progress {0}/{1}: {2} complete", r.MainLineDone, r.MainLineTotal, Loc.Tech(t)) : Loc.T("notify.research", "Research complete: {0}", Loc.Tech(t)));
+                if (t.Id == "ship_launch")
+                    state.Hud.Notify(Loc.T("notify.rebuilt", "The ship is rebuilt! Build a Launch Pad near a computer, fuel it with coal or crude oil, and fly the ascent with a program."));
             };
+            state.Factory.FlightEnded += (pad, result) =>
+            {
+                if (result == "orbit")
+                {
+                    var here = StarSystem.Get(state.HomeSeed, state.PlanetId);
+                    state.Hud.Notify(Loc.T("notify.orbit", "ORBIT REACHED above {0}! Programs can now list worlds with pad.planets() and fly with pad.travel(id).", here?.Name ?? state.PlanetId));
+                    AudioDirector.Instance?.Play("chime", null, "[chime] orbit reached");
+                }
+                else state.Hud.Notify(Loc.T("notify.aborted", "Launch {0}. The capsule parachuted back to the pad.", result));
+            };
+            ProgramManager.TravelRequested += OnTravel;
             gameObject.AddComponent<DebugHud>().Init(Session, build, mining, this);
             if (SelfTest.Requested) gameObject.AddComponent<SelfTest>();
         }
@@ -126,18 +154,26 @@ namespace Codebound.Game
             while (tickAccumulator >= TickSeconds)
             {
                 Session.Factory.Daylight = Session.State.Clock.Daylight;
-                Session.Factory.Tick(TickSeconds);
-                Session.State.Creatures.Tick(TickSeconds, Session.Player.position.x, Session.Player.position.y);
+                Session.Factory.SolarFactor = Session.State.Clock.SolarFactor(Session.Surroundings.Weather);
+                if (!Net.IsGuest)   // guests mirror the host's simulation instead of running their own
+                {
+                    Session.Factory.Tick(TickSeconds);
+                    Session.State.Creatures.Tick(TickSeconds, Session.Player.position.x, Session.Player.position.y);
+                    Session.State.Ecology.Tick(TickSeconds);
+                }
                 tickAccumulator -= TickSeconds;
             }
             Session.State.PlayerX = Session.Player.position.x;
             Session.State.PlayerY = Session.Player.position.y;
             TickSurvival();
+            // autosave: a crash or power cut costs at most 5 minutes (guests do not own the world; the title screen has not started a game yet)
+            if (!Net.IsGuest && !TitleMenu.IsOpen && (autoSaveTimer -= Time.unscaledDeltaTime) <= 0) { autoSaveTimer = AutoSaveSeconds; Save(AutoSavePath, quiet: true); }
 
             var kb = Keyboard.current;
             if (kb == null || Session.KeyboardCaptured) return;
-            if (Controls.Pressed("save")) Save();
-            if (Controls.Pressed("load")) Load();
+            if ((Controls.Pressed("save") || Controls.Pressed("load")) && Net.IsGuest) Say("In a multiplayer game the host saves the world");
+            else if (Controls.Pressed("save")) Save();
+            else if (Controls.Pressed("load")) Load();
             if (Controls.Pressed("eat") && !OptionsMenu.IsOpen) Eat();
         }
 
@@ -146,6 +182,7 @@ namespace Codebound.Game
             var vitals = Session.State.Vitals;
             Session.State.Clock.Seconds += Time.deltaTime;
             var env = Vitals.At(Session.World.Generator, GameSession.CellAt(Session.Player.position), Session.State.Clock);
+            if (Session.State.Ecology.IsSmog(GameSession.CellAt(Session.Player.position))) env.Breathable = false;   // smog: suit air only
             Session.Surroundings = env;
             vitals.Tick(Time.deltaTime, env);
             if (!vitals.Dead) return;
@@ -154,7 +191,7 @@ namespace Codebound.Game
             Session.Player.position = new Vector3(spawn.X + 0.5f, spawn.Y + 0.5f, 0);
             vitals.Respawn();
             Say("You collapsed. The emergency beacon brought you back to the crash site.");
-            Session.State.Hud.Notify("You collapsed — back at the crash site");
+            Session.State.Hud.Notify(Loc.T("notify.collapsed", "You collapsed — back at the crash site"));
         }
 
         void Eat()
@@ -162,35 +199,63 @@ namespace Codebound.Game
             var vitals = Session.State.Vitals;
             if (Session.Inventory.Count(ItemDatabase.AlienFruit) == 0) { Say("Nothing to eat (alien fruit grows on trees)"); return; }
             if (vitals.Hunger >= Vitals.Max - 1) { Say("You are not hungry"); return; }
+            if (Net.IsGuest) Net.SendAct(new System.Collections.Generic.Dictionary<string, object> { { "a", "consume" }, { "item", ItemDatabase.AlienFruit } });
             Session.Inventory.TryRemove(ItemDatabase.AlienFruit, 1);
             vitals.Eat(ItemDatabase.AlienFruit);
             AudioDirector.Instance?.Play("eat", null, null);
             Say($"Ate an alien fruit (food {vitals.Hunger:0})");
         }
 
-        void Say(string m) { LastMessage = m; MessageTime = Time.time; Debug.Log("[Codebound] " + m); }
+        void OnDestroy() => ProgramManager.TravelRequested -= OnTravel;
 
-        public void Save()
+        static string PlanetPath(int homeSeed, string id) => Path.Combine(Application.persistentDataPath, "saves", $"planet_{homeSeed}_{id}.cbsave");
+
+        /// <summary>Etapa 7: the ship in orbit flies to another world. The world left behind is saved to its own file
+        /// (so you can come back to your base there); the destination is loaded from its file or generated.</summary>
+        void OnTravel(PlacedBuilding pad, Planet to)
         {
+            var from = Session.State;
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(SavePath));
-                string tmp = SavePath + ".tmp";
+                GameState saved = null;
+                string dest = PlanetPath(from.HomeSeed, to.Id);
+                if (File.Exists(dest)) using (var r = new StreamReader(dest)) saved = SaveSystem.Read(r);
+                var arrived = Voyage.Arrive(from, pad, to, saved);   // removes the pad from `from`
+                using (var w = new StreamWriter(PlanetPath(from.HomeSeed, from.PlanetId), false, new System.Text.UTF8Encoding(false))) SaveSystem.Write(from, w);
+                arrived.Hud.Notify(Loc.T("notify.landed", "Landed on {0}. Your base on the previous world was saved and waits for you.", to.Name));
+                LoadState(arrived);
+            }
+            catch (Exception e) { Say("Travel failed: " + e.Message); Debug.LogException(e); }
+        }
+
+        void Say(string m) { LastMessage = m; MessageTime = Time.time; Debug.Log("[Codebound] " + m); }
+
+        public void Save() => Save(SavePath, quiet: false);
+
+        void Save(string path, bool quiet)
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                string tmp = path + ".tmp";
                 using (var w = new StreamWriter(tmp, false, new System.Text.UTF8Encoding(false))) SaveSystem.Write(Session.State, w);
                 // atomic-ish replace: never leave a half-written save behind
-                if (File.Exists(SavePath)) File.Replace(tmp, SavePath, SavePath + ".bak");
-                else File.Move(tmp, SavePath);
-                Say("Saved (F9 to load)");
+                if (File.Exists(path)) File.Replace(tmp, path, path + ".bak");
+                else File.Move(tmp, path);
+                if (!quiet) Say("Saved (F9 to load)");
             }
             catch (Exception e) { Say("Save failed: " + e.Message); Debug.LogException(e); }
         }
 
-        public void Load()
+        public void Load() => LoadFrom(SavePath);
+
+        public void LoadFrom(string path)
         {
-            if (!File.Exists(SavePath)) { Say("No save yet (F5 to save)"); return; }
+            if (!File.Exists(path)) { Say("No save yet (F5 to save)"); return; }
             try
             {
-                using (var r = new StreamReader(SavePath)) pendingLoad = SaveSystem.Read(r);
+                using (var r = new StreamReader(path)) pendingLoad = SaveSystem.Read(r);
             }
             catch (Exception e) { Say("Load failed: " + e.Message); Debug.LogException(e); return; }
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); // rebuilds everything from pendingLoad

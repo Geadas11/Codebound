@@ -47,27 +47,28 @@ namespace Codebound.Game
             var rect = new Rect(UiGui.W * 0.12f, UiGui.H * 0.06f, UiGui.W * 0.76f, UiGui.H * 0.84f);
             GUILayout.BeginArea(rect, box);
             GUILayout.BeginHorizontal();
-            GUILayout.Label("Research", title);
+            GUILayout.Label(Loc.T("research.title", "Research"), title);
             GUILayout.FlexibleSpace();
-            GUILayout.Label($"<color=#ffd43b>Ship rebuilt: {r.MainLineDone}/{r.MainLineTotal}</color>   (T / Esc to close)", label);
+            GUILayout.Label($"<color=#ffd43b>{Loc.T("research.ship", "Ship rebuilt: {0}/{1}", r.MainLineDone, r.MainLineTotal)}</color>   {Loc.T("research.close", "(T / Esc to close)")}", label);
             GUILayout.EndHorizontal();
-            GUILayout.Label("Research runs in a <b>Research Lab</b> commanded by a program. Put the cost items in the lab (E), then:  " +
+            GUILayout.Label(Loc.T("research.how", "Research runs in a Research Lab commanded by a program. Put the cost items in the lab (E), then:") + "  " +
                             "<color=#9cdcfe>lab.research(\"logistics\")</color>   ·   SQL: <color=#9cdcfe>INSERT INTO commands VALUES ('m5','research','logistics');</color>", small);
             scroll = GUILayout.BeginScrollView(scroll);
-            foreach (var group in Research.Tree.GroupBy(t => t.MainLine ? "Main line — rebuild the ship" : t.Area))
+            foreach (var group in Research.Tree.GroupBy(t => t.MainLine ? Loc.T("research.mainline", "Main line — rebuild the ship") : Loc.T("area." + t.Area, t.Area)))
             {
                 GUILayout.Space(6);
                 GUILayout.Label($"<b>{group.Key}</b>", label);
                 foreach (var t in group)
                 {
                     string status = r.Status(t);
+                    string statusText = Loc.T("research." + status, status);
                     string col = status == "done" ? "#5ef0a0" : status == "available" ? "#ffe066" : "#8a8f99";
-                    var cost = string.Join(", ", t.Cost.Select(c => $"{c.Count} {ItemDatabase.Get(c.ItemId).DisplayName}"));
+                    var cost = string.Join(", ", t.Cost.Select(c => $"{c.Count} {Loc.Item(c.ItemId)}"));
                     var sb = new StringBuilder();
-                    sb.Append($"<color={col}><b>{t.Name}</b> [{status}]</color>  <color=#8a8f99>id:</color> <color=#9cdcfe>{t.Id}</color>  · {t.Seconds:0}s\n");
-                    sb.Append($"{t.Description}\n<size=11>Cost: {cost}");
-                    if (t.Prereqs.Length > 0) sb.Append("   Needs: " + string.Join(", ", t.Prereqs.Select(p => Research.Get(p).Name)));
-                    if (t.Unlocks.Length > 0) sb.Append("   Unlocks: " + string.Join(", ", t.Unlocks.Select(b => BuildingDatabase.Get(b).DisplayName)));
+                    sb.Append($"<color={col}><b>{Loc.Tech(t)}</b> [{statusText}]</color>  <color=#8a8f99>id:</color> <color=#9cdcfe>{t.Id}</color>  · {t.Seconds:0}s\n");
+                    sb.Append($"{t.Description}\n<size=11>{Loc.T("research.cost", "Cost")}: {cost}");
+                    if (t.Prereqs.Length > 0) sb.Append($"   {Loc.T("research.needs", "Needs")}: " + string.Join(", ", t.Prereqs.Select(p => Loc.Tech(Research.Get(p)))));
+                    if (t.Unlocks.Length > 0) sb.Append($"   {Loc.T("research.unlocks", "Unlocks")}: " + string.Join(", ", t.Unlocks.Select(b => Loc.Building(BuildingDatabase.Get(b)))));
                     sb.Append("</size>");
                     GUILayout.Label(sb.ToString(), small);
                 }

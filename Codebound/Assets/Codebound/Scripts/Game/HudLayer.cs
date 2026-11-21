@@ -48,6 +48,7 @@ namespace Codebound.Game
             appliedSettings = Settings.Version;
             doc.panelSettings.scale = Settings.UiScale;
             root.style.fontSize = 13 * Settings.TextScale;
+            root.style.unityFontDefinition = FontDefinition.FromFont(Settings.UiFont ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
             root.style.color = Settings.HighContrast ? Color.white : TextCol;
             foreach (var v in views.Values)
             {
@@ -208,6 +209,24 @@ namespace Codebound.Game
                 case "player.x": return Mathf.FloorToInt(pos.x).ToString(CultureInfo.InvariantCulture);
                 case "player.y": return Mathf.FloorToInt(pos.y).ToString(CultureInfo.InvariantCulture);
                 case "player.biome": return st.World.Generator.BiomeAt(GameSession.CellAt(pos)).ToString();
+                case "planet.name": return StarSystem.Get(st.HomeSeed, st.PlanetId)?.Name ?? st.PlanetId;
+                case "ship.phase": case "ship.altitude": case "ship.velocity": case "ship.heat": case "ship.fuel":
+                {
+                    LaunchPadState lp = null;
+                    foreach (var b in st.Grid.Buildings) if (b.State is LaunchPadState l) { lp = l; break; }
+                    if (lp == null) return key == "ship.phase" ? "no launch pad" : "0";
+                    var f = lp.Flight;
+                    switch (key)
+                    {
+                        case "ship.phase": return lp.Phase;
+                        case "ship.altitude": return (f?.Altitude ?? 0).ToString("0.0", CultureInfo.InvariantCulture);
+                        case "ship.velocity": return (f?.Velocity ?? 0).ToString("0.00", CultureInfo.InvariantCulture);
+                        case "ship.heat": return Mathf.RoundToInt(f?.Heat ?? 0).ToString(CultureInfo.InvariantCulture);
+                        default: return Mathf.RoundToInt(f?.Fuel ?? lp.FuelUnits).ToString(CultureInfo.InvariantCulture);
+                    }
+                }
+                case "pollution.here": return Mathf.RoundToInt(st.Ecology.At(GameSession.CellAt(pos))).ToString(CultureInfo.InvariantCulture);
+                case "pollution.total": return Mathf.RoundToInt(st.Ecology.Total).ToString(CultureInfo.InvariantCulture);
                 case "player.health": return Mathf.RoundToInt(st.Vitals.Health).ToString(CultureInfo.InvariantCulture);
                 case "player.hunger": return Mathf.RoundToInt(st.Vitals.Hunger).ToString(CultureInfo.InvariantCulture);
                 case "player.thirst": return Mathf.RoundToInt(st.Vitals.Thirst).ToString(CultureInfo.InvariantCulture);
@@ -230,11 +249,9 @@ namespace Codebound.Game
                 case "inventory.free":
                     int free = 0; for (int i = 0; i < st.Inventory.SlotCount; i++) if (st.Inventory[i].IsEmpty) free++;
                     return free.ToString(CultureInfo.InvariantCulture);
-                case "power.capacityKW": case "power.demandKW": case "power.usage":
-                    float cap = 0, used = 0;
-                    foreach (var b in st.Grid.Buildings)
-                        if (b.State is GeneratorState g) { used += g.LoadKW; if (g.BurnLeftKJ > 0 || g.Fuel.Count(ItemDatabase.Coal) > 0) cap += Factory.GeneratorKW; }
-                    float v = key == "power.capacityKW" ? cap : key == "power.demandKW" ? used : (cap > 0 ? 100f * used / cap : 0);
+                case "power.capacityKW": case "power.demandKW": case "power.usage": case "power.storedKJ":
+                    var (cap, used, kj) = session.Factory.Totals();
+                    float v = key == "power.capacityKW" ? cap : key == "power.demandKW" ? used : key == "power.storedKJ" ? kj : (cap > 0 ? 100f * used / cap : 0);
                     return Mathf.RoundToInt(v).ToString(CultureInfo.InvariantCulture);
             }
             if (key.StartsWith("inventory.")) { string id = key.Substring(10); return ItemDatabase.Exists(id) ? st.Inventory.Count(id).ToString(CultureInfo.InvariantCulture) : null; }
@@ -244,7 +261,7 @@ namespace Codebound.Game
         public static readonly string[] BuiltInKeys =
         {
             "player.x", "player.y", "player.biome", "player.health", "player.hunger", "player.thirst", "player.oxygen", "player.temp", "player.warning", "player.ambient", "game.day", "game.clock", "game.season", "game.weather", "game.daylight", "research.done", "ship.progress", "game.seed", "game.fps", "game.time", "machines.count", "programs.running",
-            "inventory.<item id>", "inventory.free", "power.capacityKW", "power.demandKW", "power.usage",
+            "inventory.<item id>", "inventory.free", "power.capacityKW", "power.demandKW", "power.usage", "power.storedKJ", "pollution.here", "pollution.total", "planet.name", "ship.phase", "ship.altitude", "ship.velocity", "ship.heat", "ship.fuel",
         };
 
         // ---------------------------------------------------------------- update

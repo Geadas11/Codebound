@@ -44,6 +44,12 @@ namespace Codebound.Core
         public event Action<PlacedBuilding> BuildingDestroyed;
         public event Action<PlacedBuilding> ComputerCompromised;
         public event Action<int> WaveArrived;
+        /// <summary>A drone started breaking into a computer (programs get an "intrusion" event).</summary>
+        public event Action<PlacedBuilding, Creature> IntrusionStarted;
+
+        /// <summary>Seconds a drone needs to compromise a computer: the firewall (research) triples it, a password doubles it.</summary>
+        public float HackTime(ComputerState cs) =>
+            HackSeconds * (game.Research.IsDone("cybersecurity") ? 3f : 1f) * (cs.HasPassword ? 2f : 1f);
 
         public CreatureSystem(GameState g) { game = g; rng = new Random(g.Seed ^ 0x5eed); }
 
@@ -66,8 +72,11 @@ namespace Codebound.Core
                     case BuildingKind.Generator: n += ((GeneratorState)b.State).LoadKW / Factory.GeneratorKW * 1.5f; break;
                 }
             }
-            return n;
+            return n + game.Ecology.Total / 500f;   // a polluted land is restless too
         }
+
+        /// <summary>Multiplayer guests show the host's creatures (they do not simulate them).</summary>
+        public void ReplaceAll(IEnumerable<Creature> list) { creatures.Clear(); creatures.AddRange(list); }
 
         public Creature Spawn(CreatureType type, double x, double y)
         {
@@ -173,8 +182,9 @@ namespace Codebound.Core
                 if (c.ChasingPlayer) { game.Vitals.Health = Math.Max(0, game.Vitals.Health - CrawlerPlayerDamage * dt); return; }
                 if (c.Type == CreatureType.Drone)
                 {
+                    if (c.HackProgress == 0) IntrusionStarted?.Invoke(target, c);
                     c.HackProgress += dt;
-                    if (c.HackProgress >= HackSeconds && target.State is ComputerState cs)
+                    if (target.State is ComputerState cs && c.HackProgress >= HackTime(cs))
                     {
                         cs.Compromised = true; cs.Running = false;
                         ComputerCompromised?.Invoke(target);

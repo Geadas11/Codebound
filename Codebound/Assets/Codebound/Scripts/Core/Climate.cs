@@ -71,6 +71,9 @@ namespace Codebound.Core
             return swing * Sun + season + weather;
         }
 
+        /// <summary>Sunlight on solar panels 0..1: daylight dimmed by clouds, rain and storms.</summary>
+        public float SolarFactor(Weather w) => Daylight * (w == Weather.Storm ? 0.15f : w == Weather.Rain ? 0.4f : w == Weather.Cloudy ? 0.7f : 1f);
+
         public string SaveLine() => "clock " + Seconds.ToString("R", CultureInfo.InvariantCulture);
         public void Load(string[] p) => Seconds = double.Parse(p[1], CultureInfo.InvariantCulture);
     }

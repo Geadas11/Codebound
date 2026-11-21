@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Codebound.Core
 {
-    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret }
+    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad }
 
     public sealed class BuildingDef
     {
@@ -21,7 +21,8 @@ namespace Codebound.Core
 
         /// <summary>Production machines only work when a program drives them (Prompt rule). Infrastructure is passive.</summary>
         public bool Programmable => Kind == BuildingKind.Drill || Kind == BuildingKind.Furnace || Kind == BuildingKind.Conveyor
-            || Kind == BuildingKind.Greenhouse || Kind == BuildingKind.Assembler || Kind == BuildingKind.Lab || Kind == BuildingKind.Turret;
+            || Kind == BuildingKind.Greenhouse || Kind == BuildingKind.Assembler || Kind == BuildingKind.Lab || Kind == BuildingKind.Turret
+            || Kind == BuildingKind.LaunchPad;
 
         /// <summary>Belts can be walked over (Factorio-style); everything else blocks the player.</summary>
         public bool Walkable => Kind == BuildingKind.Belt || Kind == BuildingKind.Conveyor;
@@ -60,9 +61,19 @@ namespace Codebound.Core
                 new ItemStack(ItemDatabase.IronPlate, 8), new ItemStack(ItemDatabase.CopperPlate, 4), new ItemStack(ItemDatabase.StoneBrick, 4)),
             new BuildingDef("turret", "Defense Turret", BuildingKind.Turret, 1, 1, 0x7a8590,
                 new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.CopperPlate, 5), new ItemStack(ItemDatabase.StoneBrick, 5)),
+            new BuildingDef("solar", "Solar Panel", BuildingKind.Solar, 2, 2, 0x2a4a8a,
+                new ItemStack(ItemDatabase.IronPlate, 4), new ItemStack(ItemDatabase.Silicon, 4), new ItemStack(ItemDatabase.CopperPlate, 2)),
+            new BuildingDef("battery", "Battery", BuildingKind.Battery, 1, 1, 0x3c5a3c,
+                new ItemStack(ItemDatabase.IronPlate, 4), new ItemStack(ItemDatabase.CopperPlate, 6), new ItemStack(ItemDatabase.Coal, 2)),
+            new BuildingDef("scrubber", "Air Scrubber", BuildingKind.Scrubber, 1, 1, 0x5fa8a0,
+                new ItemStack(ItemDatabase.IronPlate, 6), new ItemStack(ItemDatabase.CopperWire, 6), new ItemStack(ItemDatabase.Silicon, 2)),
+            new BuildingDef("launchpad", "Launch Pad", BuildingKind.LaunchPad, 3, 3, 0xc8ccd4,
+                new ItemStack(ItemDatabase.IronPlate, 40), new ItemStack(ItemDatabase.StoneBrick, 20), new ItemStack(ItemDatabase.Circuit, 10), new ItemStack(ItemDatabase.CopperWire, 20)),
             new BuildingDef("computer2", "Advanced Computer", BuildingKind.Computer, 1, 2, 0x8a3ad5,
                 new ItemStack(ItemDatabase.Circuit, 4), new ItemStack(ItemDatabase.IronGear, 2), new ItemStack(ItemDatabase.CopperWire, 6)),
         };
+
+        public static BuildingDef TryGet(string id) { foreach (var b in All) if (b.Id == id) return b; return null; }
 
         public static BuildingDef Get(string id)
         {

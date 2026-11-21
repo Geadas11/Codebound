@@ -54,7 +54,7 @@ namespace Codebound.Game
                 if (!build.Active && !session.PanelOpen && !session.PointerBlocked && mouse != null && mouse.leftButton.isPressed)
                 {
                     attackTimer -= Time.deltaTime;
-                    if (attackTimer <= 0) { session.State.Creatures.Hurt(foe, AttackDamage); attackTimer = AttackInterval; AudioDirector.Instance?.Play("mine", new Vector2((float)foe.X, (float)foe.Y), null); }
+                    if (attackTimer <= 0) { if (Net.IsGuest) Net.SendAct(new System.Collections.Generic.Dictionary<string, object> { { "a", "attack" }, { "id", (double)foe.Id }, { "damage", (double)AttackDamage } }); else session.State.Creatures.Hurt(foe, AttackDamage); attackTimer = AttackInterval; AudioDirector.Instance?.Play("mine", new Vector2((float)foe.X, (float)foe.Y), null); }
                     progress = 0; Progress01 = 0;
                     return;
                 }
@@ -78,6 +78,22 @@ namespace Codebound.Game
                 return;
             }
 
+            // repairing: hold LMB on a damaged structure (1 stone per 20 HP)
+            var damaged = session.Grid.At(HoverCell);
+            if (canAct && damaged != null && damaged.Health < damaged.Def.MaxHealth)
+            {
+                if (HoverCell != target) { target = HoverCell; progress = 0; }
+                progress += Time.deltaTime;
+                Progress01 = Mathf.Clamp01(progress / 0.5f);
+                if (progress < 0.5f) return;
+                progress = 0;
+                if (Net.IsGuest) { Net.SendAct(new System.Collections.Generic.Dictionary<string, object> { { "a", "repair" }, { "x", (double)damaged.Origin.X }, { "y", (double)damaged.Origin.Y } }); return; }
+                string rerr = session.State.Repair(damaged);
+                if (rerr != null) { LastMessage = $"Can't repair: {rerr}"; MessageTime = Time.time; }
+                else AudioDirector.Instance?.Play("place", new Vector2((float)damaged.CenterX, (float)damaged.CenterY), null);
+                return;
+            }
+
             if (!canAct || dep.IsNone || session.Grid.IsOccupied(HoverCell))
             {
                 progress = 0; Progress01 = 0;
@@ -92,6 +108,12 @@ namespace Codebound.Game
             progress = 0;
 
             string item = WorldRules.ItemFor(dep.Type);
+            if (Net.IsGuest)
+            {
+                Net.SendAct(new System.Collections.Generic.Dictionary<string, object> { { "a", "mine" }, { "x", (double)HoverCell.X }, { "y", (double)HoverCell.Y } });
+                AudioDirector.Instance?.Play("mine", new Vector2(HoverCell.X + 0.5f, HoverCell.Y + 0.5f), null);
+                return;
+            }
             if (session.Inventory.Add(item, 1) > 0) { LastMessage = "Inventory full"; MessageTime = Time.time; return; }
             session.World.Extract(HoverCell, 1);
             AudioDirector.Instance?.Play("mine", new Vector2(HoverCell.X + 0.5f, HoverCell.Y + 0.5f), null);

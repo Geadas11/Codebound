@@ -197,6 +197,25 @@ namespace Codebound.Core
         public override Inventory Extractable => Output;
     }
 
+    /// <summary>Air scrubber: passive, cleans its pollution region while powered (Ecology).</summary>
+    public sealed class ScrubberState : MachineState
+    {
+        public float Cleaned;    // pollution units removed so far
+    }
+
+    public sealed class SolarState : MachineState
+    {
+        public float OutputKW;   // last tick, for UI and programs
+    }
+
+    public sealed class BatteryState : MachineState
+    {
+        public const float CapacityKJ = 5000f, MaxKW = 100f;
+        public float StoredKJ;
+        public override void SaveExtra(IDictionary<string, string> d) => d["kj"] = F(StoredKJ);
+        public override void LoadExtra(string k, string v) { if (k == "kj") StoredKJ = PF(v); }
+    }
+
     public sealed class GeneratorState : MachineState
     {
         public readonly Inventory Fuel = new Inventory(1);
@@ -228,9 +247,42 @@ namespace Codebound.Core
         public string LastError;
         public int LastErrorLine;
         /// <summary>Taken over by a rogue drone: programs stop until the system is restored (Run restores it).</summary>
-        public bool Compromised;        // 0 = unknown
+        public bool Compromised;
+        /// <summary>
+        /// "pbkdf2$iterations$salt$hash" (base64); empty = no password. Players may reuse real passwords, so only a
+        /// salted, slow hash is ever stored or saved.
+        /// </summary>
+        public string PasswordHash = "";
+        public bool HasPassword => PasswordHash.Length > 0;
+        const int Iterations = 20000;
+
+        public void SetPassword(string password)
+        {
+            if (string.IsNullOrEmpty(password)) { PasswordHash = ""; return; }
+            var salt = new byte[16];
+            using (var rng = System.Security.Cryptography.RandomNumberGenerator.Create()) rng.GetBytes(salt);
+            PasswordHash = $"pbkdf2${Iterations}${System.Convert.ToBase64String(salt)}${System.Convert.ToBase64String(Derive(password, salt, Iterations))}";
+        }
+
+        public bool CheckPassword(string password)
+        {
+            if (!HasPassword) return true;
+            var p = PasswordHash.Split('$');
+            if (p.Length != 4 || p[0] != "pbkdf2" || !int.TryParse(p[1], out int it)) return false;
+            var expected = System.Convert.FromBase64String(p[3]);
+            var actual = Derive(password ?? "", System.Convert.FromBase64String(p[2]), it);
+            int diff = expected.Length ^ actual.Length;   // constant-time compare
+            for (int i = 0; i < expected.Length && i < actual.Length; i++) diff |= expected[i] ^ actual[i];
+            return diff == 0;
+        }
+
+        static byte[] Derive(string password, byte[] salt, int iterations)
+        {
+            using (var kdf = new System.Security.Cryptography.Rfc2898DeriveBytes(password, salt, iterations, System.Security.Cryptography.HashAlgorithmName.SHA256))
+                return kdf.GetBytes(32);
+        }        // 0 = unknown
         public readonly HashSet<int> Breakpoints = new HashSet<int>();
-        public static readonly string[] Languages = { "javascript", "typescript", "python", "sql" };
+        public static readonly string[] Languages = { "javascript", "typescript", "python", "sql", "php", "csharp", "c", "cpp" };
         /// <summary>SQL programs: the player's own tables (SQLite dump), kept with the computer.</summary>
         public string SqlDb = "";
         public readonly List<string> Log = new List<string>();
@@ -261,6 +313,7 @@ namespace Codebound.Core
             d["code"] = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(Code ?? ""));
             d["run"] = Running ? "1" : "0";
             if (Compromised) d["comp"] = "1";
+            if (HasPassword) d["pwd"] = PasswordHash;
             if (Breakpoints.Count > 0) d["bps"] = string.Join(",", Breakpoints);
             if (!string.IsNullOrEmpty(SqlDb)) d["sqldb"] = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(SqlDb));
         }
@@ -271,6 +324,7 @@ namespace Codebound.Core
             else if (k == "code") Code = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(v));
             else if (k == "run") Running = v == "1";
             else if (k == "comp") Compromised = v == "1";
+            else if (k == "pwd") PasswordHash = v;
             else if (k == "sqldb") SqlDb = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(v));
             else if (k == "bps") foreach (var part in v.Split(',')) if (int.TryParse(part, out int l)) Breakpoints.Add(l);
         }

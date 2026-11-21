@@ -76,6 +76,8 @@ namespace Codebound.Game
                 : fallout ? new Color(0.45f, 0.95f, 0.3f, 0.2f)
                 : rain ? new Color(0.2f, 0.25f, 0.35f, w == Weather.Storm ? 0.22f : 0.12f)
                 : Color.clear;
+            float smog = Mathf.Clamp01(session.State.Ecology.At(GameSession.CellAt(session.Player.position)) / Ecology.SmogLevel);
+            if (smog > 0.05f && target.a < smog * 0.35f) target = new Color(0.45f, 0.4f, 0.3f, smog * 0.35f);   // brown haze
             if (ReduceEffects) target.a *= 0.5f;
             overlayColor = Color.Lerp(overlayColor, target, 1f - Mathf.Exp(-1.5f * Time.deltaTime));
             overlay.color = overlayColor;

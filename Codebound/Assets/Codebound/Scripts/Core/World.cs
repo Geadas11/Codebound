@@ -62,7 +62,8 @@ namespace Codebound.Core
     public sealed class WorldGenerator
     {
         public readonly int Seed;
-        public WorldGenerator(int seed) { Seed = seed; }
+        public readonly PlanetKind Kind;
+        public WorldGenerator(int seed, PlanetKind kind = PlanetKind.Home) { Seed = seed; Kind = kind; }
 
         // ---------- noise ----------
         static uint Hash(int x, int y, int s)
@@ -108,6 +109,12 @@ namespace Codebound.Core
             double temp = Fbm(c.X / 260.0, c.Y / 260.0, Seed + 11);
             double moist = Fbm(c.X / 220.0, c.Y / 220.0, Seed + 23);
             double weird = Fbm(c.X / 420.0, c.Y / 420.0, Seed + 37, 3);
+            switch (Kind)   // other planets of the system lean towards one kind of land
+            {
+                case PlanetKind.Volcanic: temp += 0.16; moist -= 0.08; break;
+                case PlanetKind.Desert: temp += 0.09; moist -= 0.12; break;
+                case PlanetKind.Ruins: weird += 0.12; temp -= 0.1; break;
+            }
             if (weird > 0.66) return temp < 0.5 ? Biome.Ruins : Biome.Radioactive;
             if (temp > 0.62) return moist < 0.48 ? Biome.Volcanic : Biome.Desert;
             if (temp > 0.54 && moist < 0.45) return Biome.Desert;
@@ -191,7 +198,9 @@ namespace Codebound.Core
                     {
                         if (Math.Abs(x) != r && Math.Abs(y) != r) continue;
                         var c = new Cell(x, y);
-                        if (BiomeAt(c) == Biome.Forest && WorldRules.IsWalkable(TileAt(c)) && DepositAt(c).IsNone) return c;
+                        var b = BiomeAt(c);
+                        bool land = b == Biome.Forest || (Kind != PlanetKind.Home && (b == Biome.Desert || b == Biome.Ruins));   // somewhere the suit can breathe
+                        if (land && WorldRules.IsWalkable(TileAt(c)) && DepositAt(c).IsNone) return c;
                     }
             return new Cell(0, 0);
         }

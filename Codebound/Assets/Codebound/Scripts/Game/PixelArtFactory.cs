@@ -196,6 +196,13 @@ namespace Codebound.Game
                         if (gr < 7) return Outline;
                         if (cy < -8 && Mathf.Abs(cx) < 6) return x % 3 == 0 ? new Color32(255, 150, 40, 255) : new Color32(60, 40, 30, 255);
                         break;
+                    case "solar":
+                        if (x % 8 == 1 || y % 8 == 1) return Shade(body, 1.6f);                       // cell grid
+                        return Shade(body, 0.9f + 0.25f * (y / (float)h));                                // sky reflection
+                    case "battery":
+                        if (y >= h - 4 && x >= 5 && x <= 10) return new Color32(200, 200, 210, 255);    // terminal
+                        if (x >= 4 && x <= 11 && y >= 3 && y <= 10) return y <= 3 + (int)(H(1, 2, 3) * 7) ? new Color32(90, 230, 120, 255) : Shade(body, 0.6f);
+                        break;
                     case "turret":
                         float tr = Mathf.Sqrt(cx * cx + cy * cy);
                         if (x >= 7 && x <= 8 && y >= 8) return new Color32(60, 64, 72, 255);             // barrel
@@ -341,6 +348,37 @@ namespace Codebound.Game
                 default: return Clear;
             }
         }, new Vector2(0.5f, 0.5f));
+
+        /// <summary>Survey outpost props: "terminal" (screen glows) or "cache" (lid open when looted).</summary>
+        public static Sprite Facility(string kind, bool open) => Make("facility_" + kind + open, PPU, PPU, (x, y) =>
+        {
+            bool edge = x == 1 || x == 14 || y == 1 || y == (kind == "terminal" ? 14 : 11);
+            if (kind == "terminal")
+            {
+                if (x < 1 || x > 14 || y < 1 || y > 14) return Clear;
+                if (edge) return Outline;
+                if (x >= 3 && x <= 12 && y >= 6 && y <= 12) return (y % 2 == 0) ? new Color32(60, 230, 110, 255) : new Color32(30, 150, 70, 255);   // screen
+                if (y == 3 && x % 2 == 1 && x > 2 && x < 13) return new Color32(90, 96, 110, 255);                                           // keys
+                return Shade(new Color32(120, 126, 138, 255), 0.85f + 0.2f * (y / 16f));
+            }
+            if (x < 1 || x > 14 || y < 1 || y > (open ? 9 : 11)) return Clear;
+            if (edge || y == (open ? 9 : 11)) return Outline;
+            if (open && y >= 7) return new Color32(30, 26, 22, 255);                                                                    // empty inside
+            if (x == 7 || x == 8) return new Color32(255, 200, 60, 255);                                                                // survey stripe
+            return Shade(new Color32(150, 110, 60, 255), 0.85f + 0.25f * H(x, y, 5));
+        }, Vector2.zero);
+
+        /// <summary>The rebuilt ship standing on its pad (2 cells tall), pivot at the centre of its base.</summary>
+        public static Sprite Ship() => Make("ship", PPU, PPU * 2, (x, y) =>
+        {
+            float half = y > 22 ? (31 - y) * 0.6f : y < 6 ? 6 - y * 0.2f : 4.5f;   // nose cone, body, fins
+            float d = Mathf.Abs(x - 7.5f);
+            if (d > half + 0.5f) return Clear;
+            if (d > half - 0.5f) return Outline;
+            if (y >= 15 && y <= 18 && d < 2) return new Color32(90, 200, 255, 255);                     // window
+            if (y < 6) return new Color32(200, 70, 60, 255);                                              // fins
+            return Shade(new Color32(225, 228, 235, 255), 0.85f + 0.2f * (1 - d / 5f));
+        }, new Vector2(0.5f, 0.25f));
 
         public static Sprite CellOutline() => Make("cell_outline", PPU, PPU, (x, y) =>
             (x == 0 || y == 0 || x == PPU - 1 || y == PPU - 1) ? new Color32(255, 255, 255, 220) : Clear, Vector2.zero);

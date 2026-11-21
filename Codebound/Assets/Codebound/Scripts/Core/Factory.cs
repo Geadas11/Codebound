@@ -26,6 +26,8 @@ namespace Codebound.Core
         {
             public readonly List<PlacedBuilding> Generators = new List<PlacedBuilding>();
             public readonly List<PlacedBuilding> Consumers = new List<PlacedBuilding>();
+            public readonly List<PlacedBuilding> Solars = new List<PlacedBuilding>(), Batteries = new List<PlacedBuilding>();
+            public float StoredKJ;
             public float CapacityKW, DemandKW, Satisfaction;
         }
 
@@ -64,6 +66,10 @@ namespace Codebound.Core
                 case BuildingKind.Assembler: return new AssemblerState();
                 case BuildingKind.Lab: return new LabState();
                 case BuildingKind.Turret: return new TurretState();
+                case BuildingKind.Solar: return new SolarState();
+                case BuildingKind.Battery: return new BatteryState();
+                case BuildingKind.Scrubber: return new ScrubberState { Status = "idle" };
+                case BuildingKind.LaunchPad: return new LaunchPadState();
                 case BuildingKind.Belt: return new ConveyorState { Running = true, Status = "moving" };
                 case BuildingKind.Conveyor: return new ConveyorState { Status = "stopped" };
                 case BuildingKind.Inserter: return new InserterState();
@@ -72,14 +78,21 @@ namespace Codebound.Core
         }
 
         // ------------------------------------------------------------ power
-        static bool IsNode(PlacedBuilding b) => b.Def.Kind == BuildingKind.Pole || b.Def.Kind == BuildingKind.Generator;
+        static bool IsNode(PlacedBuilding b) => b.Def.Kind == BuildingKind.Pole || b.Def.Kind == BuildingKind.Generator
+            || b.Def.Kind == BuildingKind.Solar || b.Def.Kind == BuildingKind.Battery;
+        public const float SolarKW = 40f;
+        /// <summary>Sunlight reaching solar panels 0..1 (daylight × clouds/rain/storm), set every tick by the game.</summary>
+        public float SolarFactor = 1f;
         static bool IsConsumer(PlacedBuilding b) => b.Def.Kind == BuildingKind.Drill || b.Def.Kind == BuildingKind.Computer
-            || b.Def.Kind == BuildingKind.Greenhouse || b.Def.Kind == BuildingKind.Assembler || b.Def.Kind == BuildingKind.Lab || b.Def.Kind == BuildingKind.Turret;
+            || b.Def.Kind == BuildingKind.Greenhouse || b.Def.Kind == BuildingKind.Assembler || b.Def.Kind == BuildingKind.Lab || b.Def.Kind == BuildingKind.Turret
+            || b.Def.Kind == BuildingKind.Scrubber;
         public const float GrowLampKW = 30f, AssemblerKW = 60f, LabKW = 40f;
         /// <summary>Tech progress of the world (set by GameState).</summary>
         public Research Research = new Research();
         /// <summary>Outdoor light 0..1, set every tick by the game from the world clock.</summary>
         public float Daylight = 1f;
+        /// <summary>Set by GameState; null in bare factory tests.</summary>
+        public Ecology Ecology;
 
         void RebuildNetworks()
         {
@@ -98,6 +111,8 @@ namespace Codebound.Core
                 {
                     var n = stack.Pop();
                     if (n.Def.Kind == BuildingKind.Generator) net.Generators.Add(n);
+                    if (n.Def.Kind == BuildingKind.Solar) net.Solars.Add(n);
+                    if (n.Def.Kind == BuildingKind.Battery) net.Batteries.Add(n);
                     foreach (var m in nodes)
                         if (!networkOf.ContainsKey(m.InstanceId) && n.DistanceTo(m) <= PoleReach) { networkOf[m.InstanceId] = net; stack.Push(m); }
                 }
@@ -124,6 +139,7 @@ namespace Codebound.Core
             if (c.Def.Kind == BuildingKind.Assembler) return HasAction(c) ? AssemblerKW : 0f;
             if (c.Def.Kind == BuildingKind.Lab) return HasAction(c) ? LabKW : 0f;
             if (c.Def.Kind == BuildingKind.Turret) return 10f;
+            if (c.Def.Kind == BuildingKind.Scrubber) return Ecology.ScrubberKW;
             if (c.State is GreenhouseState gh) { foreach (var g in gh.Growth) if (g >= 0 && g < 1) return GrowLampKW; return 0f; }
             return 0f;
         }
@@ -139,12 +155,36 @@ namespace Codebound.Core
             {
                 var running = new List<GeneratorState>();
                 foreach (var g in net.Generators) { var gs = (GeneratorState)g.State; gs.LoadKW = 0; if (GeneratorCanRun(gs)) running.Add(gs); }
-                net.CapacityKW = running.Count * GeneratorKW;
+                float solarKW = net.Solars.Count * SolarKW * SolarFactor;
+                foreach (var s in net.Solars) ((SolarState)s.State).OutputKW = SolarKW * SolarFactor;
+                float genKW = running.Count * GeneratorKW, battKW = 0;
+                foreach (var b in net.Batteries) battKW += Math.Min(BatteryState.MaxKW, ((BatteryState)b.State).StoredKJ / Math.Max(dt, 1e-4f));
+                net.CapacityKW = solarKW + genKW + battKW;
                 net.DemandKW = 0;
                 foreach (var c in net.Consumers) net.DemandKW += DemandOf(c);
-                net.Satisfaction = net.DemandKW <= 0 ? (net.CapacityKW > 0 ? 1f : 0f) : Math.Min(1f, net.CapacityKW / net.DemandKW);
 
-                float used = Math.Min(net.DemandKW, net.CapacityKW);
+                // supply order: free sunlight, then coal, then stored energy
+                float rem = net.DemandKW;
+                float useSolar = Math.Min(rem, solarKW); rem -= useSolar;
+                float useGen = Math.Min(rem, genKW); rem -= useGen;
+                float useBatt = Math.Min(rem, battKW); rem -= useBatt;
+                net.Satisfaction = net.DemandKW <= 0 ? (net.CapacityKW > 0 ? 1f : 0f) : 1f - rem / net.DemandKW;
+
+                // batteries: discharge what was used, charge from spare sunlight (never burn coal just to fill them)
+                float spare = solarKW - useSolar;
+                net.StoredKJ = 0;
+                foreach (var b in net.Batteries)
+                {
+                    var bs = (BatteryState)b.State;
+                    float take = useBatt > 0 ? Math.Min(useBatt, Math.Min(BatteryState.MaxKW, bs.StoredKJ / Math.Max(dt, 1e-4f))) : 0;
+                    useBatt -= take; bs.StoredKJ -= take * dt;
+                    float give = Math.Min(spare, Math.Min(BatteryState.MaxKW, (BatteryState.CapacityKJ - bs.StoredKJ) / Math.Max(dt, 1e-4f)));
+                    spare -= give; bs.StoredKJ = Math.Max(0, Math.Min(BatteryState.CapacityKJ, bs.StoredKJ + give * dt));
+                    bs.Status = $"{bs.StoredKJ / BatteryState.CapacityKJ * 100:0}% ({(take > 0 ? "-" + take.ToString("0") : give > 0 ? "+" + give.ToString("0") : "0")} kW)";
+                    net.StoredKJ += bs.StoredKJ;
+                }
+
+                float used = useGen;
                 foreach (var gs in running)
                 {
                     float share = used / running.Count;
@@ -162,13 +202,25 @@ namespace Codebound.Core
         public bool HasPower(PlacedBuilding b)
         {
             if (powerDirty) RebuildNetworks();
-            return networkOf.TryGetValue(b.InstanceId, out var net) && net.Generators.Exists(g => GeneratorCanRun((GeneratorState)g.State));
+            return networkOf.TryGetValue(b.InstanceId, out var net) && (net.Generators.Exists(g => GeneratorCanRun((GeneratorState)g.State))
+                || (net.Solars.Count > 0 && SolarFactor > 0.01f) || net.Batteries.Exists(x => ((BatteryState)x.State).StoredKJ > 1f));
         }
 
         public (float capacityKW, float demandKW) NetworkStats(PlacedBuilding b)
         {
             if (powerDirty) RebuildNetworks();
             return networkOf.TryGetValue(b.InstanceId, out var n) ? (n.CapacityKW, n.DemandKW) : (0f, 0f);
+        }
+
+        /// <summary>Energy stored in the batteries of a building's network (kJ).</summary>
+        public float NetworkStoredKJ(PlacedBuilding b) => networkOf.TryGetValue(b.InstanceId, out var n) ? n.StoredKJ : 0f;
+
+        /// <summary>All networks together: supply capacity, demand served, stored energy (for the HUD).</summary>
+        public (float capacityKW, float usedKW, float storedKJ) Totals()
+        {
+            float cap = 0, used = 0, kj = 0;
+            foreach (var n in networks) { cap += n.CapacityKW; used += Math.Min(n.CapacityKW, n.DemandKW); kj += n.StoredKJ; }
+            return (cap, used, kj);
         }
 
         // ------------------------------------------------------------ actions
@@ -364,6 +416,27 @@ namespace Codebound.Core
             TickConveyors(dt);
             TickInserters(dt);
             TickGreenhouses(dt);
+            TickLaunchPads(dt);
+        }
+
+        /// <summary>(pad, "orbit" | "aborted") when an ascent ends.</summary>
+        public event Action<PlacedBuilding, string> FlightEnded;
+
+        void TickLaunchPads(float dt)
+        {
+            foreach (var b in grid.Buildings)
+            {
+                if (!(b.State is LaunchPadState lp) || lp.Phase != "ascent" || lp.Flight == null) continue;
+                lp.Flight.Step(dt);
+                var f = lp.Flight;
+                lp.Status = $"ascent {f.Altitude:0} km {f.Velocity:0.0} km/s heat {f.Heat:0}% fuel {f.Fuel:0}";
+                if (f.Phase == "orbit") { lp.Phase = "orbit"; lp.Status = "in orbit"; lp.LastResult = "orbit"; FlightEnded?.Invoke(b, "orbit"); }
+                else if (f.Phase == "aborted")
+                {
+                    lp.Phase = "ready"; lp.Status = "ready"; lp.LastResult = "aborted: " + f.Reason; lp.Flight = null;   // capsule parachutes back, fuel is spent
+                    FlightEnded?.Invoke(b, "aborted: " + f.Reason);
+                }
+            }
         }
 
         // ------------------------------------------------------------ agriculture
@@ -394,7 +467,7 @@ namespace Codebound.Core
                     growing++;
                     if (g.Soil[i] <= 0) continue;   // dry soil: no growth
                     g.Soil[i] = Math.Max(0, g.Soil[i] - GreenhouseState.WaterPerSecond * dt);
-                    g.Growth[i] = Math.Min(1f, g.Growth[i] + dt / GreenhouseState.GrowSeconds * g.Light);
+                    g.Growth[i] = Math.Min(1f, g.Growth[i] + dt / GreenhouseState.GrowSeconds * g.Light * (Ecology?.GrowthFactor(b.Origin) ?? 1f));
                 }
                 g.Status = growing + ripe == 0 ? "empty" : $"{growing} growing, {ripe} ripe, tank {g.Tank:0}";
             }

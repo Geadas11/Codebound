@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Codebound C# runtime host. Built offline with the .NET SDK that ships inside the Unity Editor:
+       "<Unity>/Editor/Data/DotNetSdk/dotnet.exe" build Codebound/Tools/cshost -c Release
+       Output: Codebound/Tools/cshost/out (Editor); BuildScript copies it into builds. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <AssemblyName>cshost</AssemblyName>
+    <RootNamespace>Codebound</RootNamespace>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <UseAppHost>false</UseAppHost>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <OutDir>$(MSBuildThisFileDirectory)out\</OutDir>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <RoslynDir>$(MSBuildBinPath)\Roslyn\bincore\</RoslynDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.CodeAnalysis"><HintPath>$(RoslynDir)Microsoft.CodeAnalysis.dll</HintPath></Reference>
+    <Reference Include="Microsoft.CodeAnalysis.CSharp"><HintPath>$(RoslynDir)Microsoft.CodeAnalysis.CSharp.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

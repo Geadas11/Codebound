@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Codebound.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -33,36 +34,52 @@ namespace Codebound.Game
         public void Init(GameSession s, GameBootstrap b, BuildController bc)
         {
             session = s; boot = b; build = bc;
-            items.Add(new Item { Label = "Resume", Change = _ => Close() });
-            items.Add(new Item { Label = "Save game (" + Controls.Name("save") + ")", Change = _ => boot.Save() });
-            items.Add(new Item { Label = "Load game (" + Controls.Name("load") + ")", Change = _ => { Close(); boot.Load(); } });
-            items.Add(new Item { Header = true, Label = "Gameplay" });
-            items.Add(new Item { Label = "Peaceful mode (no creatures)", Value = () => OnOff(Settings.Peaceful), Change = _ => Settings.Peaceful = !Settings.Peaceful });
-            items.Add(new Item { Header = true, Label = "Accessibility" });
-            items.Add(new Item { Label = "Interface scale", Value = () => $"{Settings.UiScale:0.00}x", Change = d => Settings.UiScale = Mathf.Round((Settings.UiScale + 0.25f * d) * 4) / 4 });
-            items.Add(new Item { Label = "Text size (HUD boxes, code editor)", Value = () => $"{Settings.TextScale:0.00}x", Change = d => Settings.TextScale = Mathf.Round((Settings.TextScale + 0.25f * d) * 4) / 4 });
-            items.Add(new Item { Label = "High contrast", Value = () => OnOff(Settings.HighContrast), Change = _ => Settings.HighContrast = !Settings.HighContrast });
-            items.Add(new Item { Label = "Colour-blind friendly palette", Value = () => OnOff(Settings.ColorblindPalette), Change = _ => Settings.ColorblindPalette = !Settings.ColorblindPalette });
-            items.Add(new Item { Label = "Reduce flashes and particles", Value = () => OnOff(Settings.ReduceEffects), Change = _ => Settings.ReduceEffects = !Settings.ReduceEffects });
-            items.Add(new Item { Header = true, Label = "Audio" });
-            AddVolume("Master volume", () => Settings.MasterVolume, v => Settings.MasterVolume = v);
-            AddVolume("Music", () => Settings.MusicVolume, v => Settings.MusicVolume = v);
-            AddVolume("Ambience & weather", () => Settings.AmbientVolume, v => Settings.AmbientVolume = v);
-            AddVolume("Machines", () => Settings.MachineVolume, v => Settings.MachineVolume = v);
-            AddVolume("Effects & alarms", () => Settings.EffectsVolume, v => Settings.EffectsVolume = v);
-            items.Add(new Item { Label = "Sound captions (visual indicators)", Value = () => OnOff(Settings.SoundCaptions), Change = _ => Settings.SoundCaptions = !Settings.SoundCaptions });
-            items.Add(new Item { Header = true, Label = "Controls (Enter, then press a key)" });
+            BuildItems();
+        }
+
+        void BuildItems()
+        {
+            items.Clear();
+            items.Add(new Item { Label = Loc.T("menu.resume", "Resume"), Change = _ => Close() });
+            items.Add(new Item { Label = Loc.T("menu.save", "Save game") + " (" + Controls.Name("save") + ")", Change = _ => boot.Save() });
+            items.Add(new Item { Label = Loc.T("menu.load", "Load game") + " (" + Controls.Name("load") + ")", Change = _ => { Close(); boot.Load(); } });
+            items.Add(new Item { Header = true, Label = Loc.T("menu.gameplay", "Gameplay") });
+            items.Add(new Item { Label = Loc.T("menu.peaceful", "Peaceful mode (no creatures)"), Value = () => OnOff(Settings.Peaceful), Change = _ => Settings.Peaceful = !Settings.Peaceful });
+            items.Add(new Item { Header = true, Label = Loc.T("menu.accessibility", "Accessibility") });
+            items.Add(new Item { Label = "Language / Idioma / 言語", Value = () => LanguageName(Settings.Language), Change = d => { CycleLanguage(d); BuildItems(); } });
+            items.Add(new Item { Label = Loc.T("menu.uiscale", "Interface scale"), Value = () => $"{Settings.UiScale:0.00}x", Change = d => Settings.UiScale = Mathf.Round((Settings.UiScale + 0.25f * d) * 4) / 4 });
+            items.Add(new Item { Label = Loc.T("menu.textsize", "Text size (HUD boxes, code editor)"), Value = () => $"{Settings.TextScale:0.00}x", Change = d => Settings.TextScale = Mathf.Round((Settings.TextScale + 0.25f * d) * 4) / 4 });
+            items.Add(new Item { Label = Loc.T("menu.contrast", "High contrast"), Value = () => OnOff(Settings.HighContrast), Change = _ => Settings.HighContrast = !Settings.HighContrast });
+            items.Add(new Item { Label = Loc.T("menu.colorblind", "Colour-blind friendly palette"), Value = () => OnOff(Settings.ColorblindPalette), Change = _ => Settings.ColorblindPalette = !Settings.ColorblindPalette });
+            items.Add(new Item { Label = Loc.T("menu.effects", "Reduce flashes and particles"), Value = () => OnOff(Settings.ReduceEffects), Change = _ => Settings.ReduceEffects = !Settings.ReduceEffects });
+            items.Add(new Item { Header = true, Label = Loc.T("menu.audio", "Audio") });
+            AddVolume(Loc.T("menu.vol.master", "Master volume"), () => Settings.MasterVolume, v => Settings.MasterVolume = v);
+            AddVolume(Loc.T("menu.vol.music", "Music"), () => Settings.MusicVolume, v => Settings.MusicVolume = v);
+            AddVolume(Loc.T("menu.vol.ambient", "Ambience & weather"), () => Settings.AmbientVolume, v => Settings.AmbientVolume = v);
+            AddVolume(Loc.T("menu.vol.machines", "Machines"), () => Settings.MachineVolume, v => Settings.MachineVolume = v);
+            AddVolume(Loc.T("menu.vol.effects", "Effects & alarms"), () => Settings.EffectsVolume, v => Settings.EffectsVolume = v);
+            items.Add(new Item { Label = Loc.T("menu.captions", "Sound captions (visual indicators)"), Value = () => OnOff(Settings.SoundCaptions), Change = _ => Settings.SoundCaptions = !Settings.SoundCaptions });
+            items.Add(new Item { Header = true, Label = Loc.T("menu.controls", "Controls (Enter, then press a key)") });
             foreach (var a in Controls.Actions)
             {
                 var act = a.action;
-                items.Add(new Item { Label = a.label, Value = () => rebinding == act ? "press a key…" : Controls.Name(act), Change = _ => rebinding = act });
+                items.Add(new Item { Label = Controls.Label(act, a.label), Value = () => rebinding == act ? Loc.T("menu.presskey", "press a key…") : Controls.Name(act), Change = _ => rebinding = act });
             }
-            items.Add(new Item { Label = "Reset controls to defaults", Change = _ => Controls.ResetAll() });
+            items.Add(new Item { Label = Loc.T("menu.resetcontrols", "Reset controls to defaults"), Change = _ => Controls.ResetAll() });
             items.Add(new Item { Header = true, Label = "" });
-            items.Add(new Item { Label = "Quit game", Change = _ => { boot.Save(); Application.Quit(); } });
+            items.Add(new Item { Label = Loc.T("menu.quit", "Quit game"), Change = _ => { boot.Save(); Application.Quit(); } });
         }
 
-        static string OnOff(bool v) => v ? "ON" : "off";
+        static string OnOff(bool v) => v ? Loc.T("menu.on", "ON") : Loc.T("menu.off", "off");
+
+        static string LanguageName(string code) { foreach (var l in Loc.Languages) if (l.code == code) return l.native; return code; }
+
+        static void CycleLanguage(int d)
+        {
+            int n = Loc.Languages.Length, i = 0;
+            for (int k = 0; k < n; k++) if (Loc.Languages[k].code == Settings.Language) i = k;
+            Settings.Language = Loc.Languages[((i + (d < 0 ? -1 : 1)) % n + n) % n].code;
+        }
 
         void AddVolume(string label, Func<float> get, Action<float> set) =>
             items.Add(new Item { Label = label, Value = () => $"{Mathf.RoundToInt(get() * 100)}%", Change = d => set(Mathf.Clamp01(Mathf.Round((get() + 0.1f * d) * 10) / 10)) });
@@ -142,8 +159,8 @@ namespace Codebound.Game
             Styles();
             float w = Mathf.Min(560, UiGui.W - 40), h = Mathf.Min(UiGui.H - 40, 640);
             GUILayout.BeginArea(new Rect((UiGui.W - w) / 2, (UiGui.H - h) / 2, w, h), box);
-            GUILayout.Label("PAUSED — Options", title);
-            GUILayout.Label("↑/↓ select · ←/→ or Enter change · Esc back · mouse works too", small);
+            GUILayout.Label(Loc.T("menu.title", "PAUSED — Options"), title);
+            GUILayout.Label(Loc.T("menu.help", "Up/Down select · Left/Right or Enter change · Esc back · mouse works too"), small);
             scroll = GUILayout.BeginScrollView(scroll);
             for (int i = 0; i < items.Count; i++)
             {

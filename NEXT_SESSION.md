@@ -1,8 +1,8 @@
 # NEXT SESSION — como retomar
 
-## Estado (sessão 2: + clima, agricultura, fabricação, investigação, criaturas, opções, áudio)
+## Estado (sessão 3: + segurança informática, reparação, energia renovável, localização)
 - Etapas 1 e 2 (base) feitas; Etapa 3 com **JavaScript real a correr isolado** e a comandar máquinas. Ver TASKS.md.
-- Testes: 50/50 EditMode; áudio sintetizado feito; menu de opções/acessibilidade feito (Esc); criaturas/torres feitas; antes 42/42 EditMode; investigação feita (tecla T, laboratório programável); antes 39/39 EditMode; estufa, montadora e Computador Avançado feitos. Antes: 36/36 EditMode + 8/8 runtime SQL; dia/noite/clima feito; linguagens JS, TS, Python e SQL; sobrevivência feita. Antes: 25/25 EditMode + 12/12 runtime JS + 13/13 runtime Python. HUD programável HTML/CSS feito. Linguagens: JavaScript, TypeScript, Python. Build Windows com Node + Python incluídos, self-test PASS nas 3. Verificado em Play Mode: programa JS minerou 5 pedras para um baú, eventos dispararam, save/load restaurou tudo e reiniciou o programa.
+- Testes: 58/58 EditMode; localização em 10 línguas (tabelas em `StreamingAssets/Localization`, geradas por `Codebound/Tools/localization/build_tables.py` — editar o script, não os JSON); energia solar/baterias; 53/53 antes; segurança informática e reparação feitas; áudio sintetizado feito; menu de opções/acessibilidade feito (Esc); criaturas/torres feitas; antes 42/42 EditMode; investigação feita (tecla T, laboratório programável); antes 39/39 EditMode; estufa, montadora e Computador Avançado feitos. Antes: 36/36 EditMode + 8/8 runtime SQL; dia/noite/clima feito; linguagens JS, TS, Python e SQL; sobrevivência feita. Antes: 25/25 EditMode + 12/12 runtime JS + 13/13 runtime Python. HUD programável HTML/CSS feito. Linguagens: JavaScript, TypeScript, Python. Build Windows com Node + Python incluídos, self-test PASS nas 3. Verificado em Play Mode: programa JS minerou 5 pedras para um baú, eventos dispararam, save/load restaurou tudo e reiniciou o programa.
 - Requisito de desenvolvimento: **Node.js no PATH** (testado com v24.13.0).
 
 ## Git / GitHub
@@ -32,11 +32,13 @@ unity test Codebound --mode EditMode --output test-results.xml
 Play Mode por CLI: `editor set_auto_tick` → `editor.playmode start` → `status --until-ready` → `script eval` → `capture game_view -- --source camera --output-path Screenshots/x.png`. Cenário de teste pronto: ver o script de montagem usado na sessão 1 (perfuradora + baú + gerador + poste + computador) — reescrever a partir de `FactoryTests.WorldWithOre`.
 
 ## Próximos passos (por ordem)
-1. **Segurança informática**: firewall e palavra-passe nos computadores (bloqueiam/atrasam drones), deteção de intrusão como evento, backups explícitos; reparação de estruturas (multiferramenta + materiais).
-2. **Energia**: painel solar (depende de `Daylight` e do tempo), baterias, investigação Energy.
-3. **Localização**: extrair textos de UI para tabelas (pt-PT, pt-BR, en, es, fr, de, it, ja, zh-Hans, ko); seletor no menu.
-4. **Exploração**: instalações abandonadas nas Ruínas com registos/terminais (narrativa), subsolo.
-5. Linguagens restantes: PHP, C, C++, C#.
+1. ~~Energia~~ e ~~Localização~~ feitas (falta traduzir descrições das tecnologias e o painel de máquinas; textos novos: `Loc.T("chave", "inglês")` + linha no `build_tables.py`).
+3. ~~Exploração~~ (postos nas Ruínas, diário J) e ~~Ecologia~~ (poluição, purificador) feitas; falta subsolo.
+3b. ~~Multijogador LAN~~ (Etapa 6 base) feito — `Core/Multiplayer.cs`, `Game/NetSession.cs`; testar com `Builds/Windows/Codebound.exe -batchmode -nographics -host` + Editor `Net.Join("127.0.0.1","nome")`.
+3c. ~~Etapa 7 base~~ (plataforma, subida programada, viagem entre mundos) feita — `Core/Space.cs`, `Game/SpaceView.cs`.
+4. Equipamento do jogador (armas/ferramentas melhores), minas/barreiras.
+5. ~~PHP~~ e ~~C#~~ feitos (testes: `Tests/runtime/php_host_test.py`, `csharp_host_test.py`; depois de mudar `Tools/cshost`, recompilar com o `dotnet.exe` do Unity). C e C++ feitos (`Tests/runtime/c_host_test.py`). Todas as 10 linguagens funcionam. Estado das ferramentas nesta máquina: PHP 8.0.30 em `C:\wamp64` (não incluído no projeto), .NET SDK instalado (Roslyn), nenhum compilador C/C++. Plano proposto: C e C++ compilados para WebAssembly (clang + wasi-sdk, ~150 MB, exige download autorizado) e executados no Node já incluído (isolamento do próprio WASM); PHP com o PHP oficial para Windows (download autorizado) num processo com Job Object e `disable_functions`/`open_basedir`; C# com Roslyn num processo separado e lista branca de APIs verificada na árvore sintática + Job Object.
+6. Etapa 8: arte final, tutorial, desempenho.
 
 ## Avisos
 - HUD/painéis são IMGUI de desenvolvimento — o HUD programável HTML/CSS é Etapa 4.

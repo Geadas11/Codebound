@@ -8,6 +8,9 @@ Etapas 1–2, partes das 3–5 e da 8: quatro linguagens reais (**JavaScript**, 
 ## Requisitos
 - Unity **6000.6.10f1** (Unity 6) — instalado via Unity Hub ou `unity install 6000.6.10f1`.
 - **Node.js** (≥ 22; testado 24.13) no PATH — runtime isolado do código JavaScript/TypeScript.
+- **C/C++**: wasi-sdk 34 para Windows em `Codebound/Tools/wasi-sdk/` — não está no git (619 MB comprimido, 1,5 GB extraído). Descarregar `wasi-sdk-34.0-x86_64-windows.tar.gz` do GitHub (WebAssembly/wasi-sdk), confirmar o SHA-256 em [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), extrair com `--strip-components=1` e pôr os ficheiros de licença em `Codebound/Tools/wasi-sdk/licenses/`.
+- **PHP**: PHP 8.5.13 NTS x64 em `Codebound/Tools/php/` — não está no git. Descarregar `php-8.5.13-nts-Win32-vs17-x64.zip` de windows.php.net, confirmar o SHA-256 em [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) e extrair para essa pasta.
+- **C#**: copiar do Unity Editor (`<Unity>/Editor/Data/DotNetSdk`) `dotnet.exe`, `host/`, `LICENSE.txt`, `ThirdPartyNotices.txt` e `shared/Microsoft.NETCore.App/8.0.21` para `Codebound/Tools/dotnet/`, e compilar o anfitrião: `"<Unity>/Editor/Data/DotNetSdk/dotnet.exe" build Codebound/Tools/cshost -c Release`. Nada disto precisa de internet.
 - **Python** (runtime de Python e SQL): CPython 3.15.2 embeddable para Windows em `Codebound/Tools/python/` — **não está no git** (26 MB). Num clone novo, descarregar `python-3.15.2-embed-amd64.zip` de python.org, confirmar o SHA-256 indicado em [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) e extrair para essa pasta.
 - Unity CLI (`unity`) opcional, para testes/automação.
 

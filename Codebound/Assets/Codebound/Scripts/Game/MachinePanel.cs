@@ -30,7 +30,20 @@ namespace Codebound.Game
             s.Grid.Removed += r => { if (r == open) Close(); };
         }
 
-        void Close() { open = null; session.PanelOpen = false; session.KeyboardCaptured = false; GUIUtility.keyboardControl = 0; }
+        /// <summary>The building whose panel is open (multiplayer guests keep their unsent code while snapshots arrive).</summary>
+        public static PlacedBuilding Editing { get; private set; }
+        readonly System.Collections.Generic.Dictionary<int, string> guestPasswords = new System.Collections.Generic.Dictionary<int, string>();
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void ResetEditing() => Editing = null;
+
+        void SendProgram(string op)
+        {
+            var cs = (ComputerState)open.State;
+            Net.Program(open.Origin, cs.Language, cs.Code, op, guestPasswords.TryGetValue(open.InstanceId, out var pw) ? pw : null);
+        }
+
+        void Close() { Editing = null; open = null; session.PanelOpen = false; session.KeyboardCaptured = false; GUIUtility.keyboardControl = 0; }
 
         void Update()
         {
@@ -46,7 +59,7 @@ namespace Codebound.Game
             var target = session.Grid.At(build.MouseCell());
             if (target?.State == null) return;
             if (Vector2.Distance(new Vector2((float)target.CenterX, (float)target.CenterY), session.Player.position) > Reach) return;
-            open = target;
+            open = target; Editing = target;
             session.PanelOpen = true;
             session.KeyboardCaptured = target.State is ComputerState; // typing code must not move the player
         }
@@ -100,7 +113,10 @@ namespace Codebound.Game
                     var s = inv[i];
                     if (s.IsEmpty) continue;
                     any = true;
-                    if (GUILayout.Button($"{ItemDatabase.Get(s.ItemId).DisplayName} x{s.Count}  take", btn))
+                    bool take = GUILayout.Button($"{Loc.Item(s.ItemId)} x{s.Count}  take", btn);
+                    if (take && Net.IsGuest)
+                        Net.SendAct(new System.Collections.Generic.Dictionary<string, object> { { "a", "take" }, { "x", (double)open.Origin.X }, { "y", (double)open.Origin.Y }, { "item", s.ItemId }, { "count", (double)s.Count } });
+                    else if (take)
                     {
                         int left = session.Inventory.Add(s.ItemId, s.Count);
                         inv.TryRemove(s.ItemId, s.Count - left);
@@ -120,7 +136,9 @@ namespace Codebound.Game
                 var s = session.Inventory[i];
                 if (s.IsEmpty || !seen.Add(s.ItemId)) continue;
                 int have = session.Inventory.Count(s.ItemId);
-                if (GUILayout.Button($"{ItemDatabase.Get(s.ItemId).DisplayName} x{have}  put", btn))
+                bool put = GUILayout.Button($"{Loc.Item(s.ItemId)} x{have}  put", btn);
+                if (put && Net.IsGuest) Net.SendAct(new System.Collections.Generic.Dictionary<string, object> { { "a", "put" }, { "x", (double)open.Origin.X }, { "y", (double)open.Origin.Y }, { "item", s.ItemId }, { "count", (double)have } });
+                else if (put)
                 {
                     int moved = 0;
                     // insert one at a time so partial fits (e.g. a nearly full slot) still move what they can
@@ -142,6 +160,36 @@ namespace Codebound.Game
             ("Power alarm", "-- Publish the grid state to the HUD: write {{grid}} in a HUD box.\nINSERT OR REPLACE INTO hud (key, value)\nSELECT 'grid', CASE WHEN available = 1 THEN demand_kw || ' / ' || capacity_kw || ' kW' ELSE 'NO POWER' END\nFROM energy;\n"),
         };
 
+        static readonly (string name, string code)[] CExamples =
+        {
+            ("Drill loop", "/* Codebound - Basic Computer (C). Compiled to WebAssembly when you press Run. */\n#include <codebound.h>\n\nint main(void) {\n    char drill[32], item[64];\n    if (!cb_find(\"drill\", drill, sizeof drill)) { puts(\"no drill within 8 cells\"); return 0; }\n    for (;;) {\n        if (cb_op(drill, \"mine\", \"[]\", item, sizeof item) > 0) printf(\"mined %s\\n\", item);\n        else cb_sleep(1);\n    }\n}\n"),
+            ("Furnace", "#include <codebound.h>\n\nint main(void) {\n    char furnace[32], plate[64];\n    if (!cb_find(\"furnace\", furnace, sizeof furnace)) return 0;\n    for (;;) {\n        if (cb_op(furnace, \"smelt\", \"[]\", plate, sizeof plate) > 0) printf(\"made %s\\n\", plate);\n        else cb_sleep(2); /* nothing to do: wait instead of spinning */\n    }\n}\n"),
+            ("Power report", "#include <codebound.h>\n\nint main(void) {\n    char s[512];\n    for (;;) {\n        if (cb_call(\"energy\", \"stats\", \"[]\", s, sizeof s) > 0)\n            printf(\"grid %.0f / %.0f kW\\n\", cb_num(s, \"demandKW\"), cb_num(s, \"capacityKW\"));\n        else printf(\"no grid: %s\\n\", cb_error());\n        cb_sleep(5);\n    }\n}\n"),
+            ("Events", "#include <codebound.h>\n\nint main(void) {\n    char e[512];\n    cb_subscribe(\"item_mined\");\n    cb_subscribe(\"power_lost\");\n    puts(\"listening...\");\n    while (cb_wait_event(e, sizeof e) > 0) puts(e);\n}\n"),
+        };
+
+        static readonly (string name, string code)[] CppExamples =
+        {
+            ("Drill loop", "// Codebound - Basic Computer (C++17, compiled to WebAssembly)\n#include <codebound.h>\n#include <cstdio>\n\nint main() {\n    cb::Machine drill(\"drill\");\n    if (!drill.found()) { std::puts(\"no drill within 8 cells\"); return 0; }\n    for (;;) {\n        std::string item = drill.op(\"mine\");\n        if (!item.empty()) std::printf(\"mined %s\\n\", item.c_str());\n        else cb::sleep(1);\n    }\n}\n"),
+            ("Totals", "// Count what the drill mines with a std::map\n#include <codebound.h>\n#include <map>\n#include <string>\n#include <cstdio>\n\nint main() {\n    cb::Machine drill(\"drill\");\n    std::map<std::string, int> total;\n    for (int i = 1; drill.found(); i++) {\n        std::string item = drill.op(\"mine\");\n        if (item.empty()) { cb::sleep(1); continue; }\n        total[item]++;\n        if (i % 10 == 0) for (auto &[k, v] : total) std::printf(\"%s: %d\\n\", k.c_str(), v);\n    }\n}\n"),
+        };
+
+        static readonly (string name, string code)[] PhpExamples =
+        {
+            ("Drill loop", "<?php\n// Codebound - Basic Computer (PHP)\n// Machines within 8 cells are yours to command: $drill, $furnace, ... or $machines->find('drill').\necho \"Hello from {$computer->name}\\n\";\nwhile (true) {\n    if ($energy->available() && $drill) {\n        $item = $drill->mine();\n        if ($item) echo \"mined $item\\n\";\n    } else {\n        sleep(1);\n    }\n}\n"),
+            ("Furnace", "<?php\n// Smelt whatever is in the furnace input (needs coal as fuel)\nwhile (true) {\n    $plate = $furnace->smelt();\n    if ($plate) echo \"made $plate\\n\";\n    else sleep(2); // nothing to do: wait instead of spinning\n}\n"),
+            ("Events", "<?php\n// Event mode: react instead of polling\n$computer->on('item_mined', function ($e) { echo \"mined {$e['item']} by {$e['machine']}\\n\"; });\n$computer->on('power_lost', fn($e) => print(\"ALERT: power lost!\\n\"));\necho \"listening...\\n\";\n"),
+            ("Inventory", "<?php\n// Machine data comes back as PHP arrays\nforeach ($machines->list() as $m) {\n    echo $m->name, ' ', $m->status()['status'], ' ', json_encode($m->contents()), \"\\n\";\n}\n"),
+        };
+
+        static readonly (string name, string code)[] CsExamples =
+        {
+            ("Drill loop", "// Codebound - Basic Computer (C#)\n// Machines within 8 cells are yours to command: Drill, Furnace, ... or Machines.Find(\"drill\").\nLog(\"Hello from\", Computer.Name);\nwhile (true)\n{\n    if (Energy.Available() && Drill != null)\n    {\n        var item = Drill.Mine();\n        if (item != null) Log(\"mined\", item);\n    }\n    else Sleep(1);\n}\n"),
+            ("Furnace", "// Smelt whatever is in the furnace input (needs coal as fuel)\nwhile (true)\n{\n    var plate = Furnace.Smelt();\n    if (plate != null) Log(\"made\", plate);\n    else Sleep(2); // nothing to do: wait instead of spinning\n}\n"),
+            ("Events", "// Event mode: react instead of polling\nComputer.On(\"item_mined\", e => Log(\"mined\", e[\"item\"], \"by\", e[\"machine\"]));\nComputer.On(\"power_lost\", e => Log(\"ALERT: power lost!\"));\nLog(\"listening...\");\n"),
+            ("Inventory", "// Results are JsonNode: index them and cast, e.g. (string)s[\"status\"]\nforeach (var m in Machines.List())\n{\n    var s = m.Status();\n    Log(m.Name, (string)s[\"status\"], m.Contents());\n}\n"),
+        };
+
         static readonly (string name, string code)[] PyExamples =
         {
             ("Drill loop", "# Codebound - Basic Computer (Python)\n# Machines within 8 cells are yours to command.\nlog(\"Hello from\", computer.name)\nwhile True:\n    if energy.available() and drill:\n        item = drill.mine()\n        if item:\n            log(\"mined\", item)\n    else:\n        sleep(1)\n"),
@@ -161,13 +209,13 @@ namespace Codebound.Game
         const string ApiRef =
             "<b>Globals</b>\nlog(...)  print(...)\nsleep(seconds)\n\n" +
             "<b>computer</b>\n.name  .cps\n.on(event, fn)\n.time()\n<i>events: tick, item_mined, item_smelted, power_lost, power_restored</i>\n\n" +
-            "<b>energy</b>\n.available() → bool\n.stats() → {capacityKW, demandKW, satisfaction}\n\n" +
+            "<b>energy</b>\n.available() → bool\n.stats() → {capacityKW, demandKW, satisfaction, storedKJ}\n\n" +
             "<b>machines</b>\n.list()  .get(id)  .find(type)\n\n" +
             "<b>drill</b> (nearest)\n.mine() → item | null\n.status()  .contents()\n\n" +
             "<b>furnace</b> (nearest)\n.smelt() → product | null\n\n" +
             "<b>conveyor</b> (programmable), <b>inserter</b>\n.start()  .stop()\n.setFilter(itemId | null)\n\n" +
             "<b>greenhouse</b>\n.plant(plot?)  .water(plot?)  .harvest(plot?)\n.plots() → {plots:[{plot,planted,growth,ripe,water}], tank, light}\n<i>seeds = alien fruit; harvest gives 3</i>\n\n" +
-            "<b>turret</b>\n.targets() → [{id,type,health,distance}] (range 10)\n.fire(id) → true | false  (cooldown 0.6 s, needs power)\n<i>event: creature_detected</i>\n\n" +
+            "<b>turret</b>\n.targets() → [{id,type,health,distance}] (range 10)\n.fire(id) → true | false  (cooldown 0.6 s, needs power)\n<i>events: creature_detected, intrusion {computer, drone, seconds}</i>\n\n" +
             "<b>lab</b>\n.research(\"tech id\") → id | null (waits until done)\n.techs() → [{id,name,area,status,cost}]  — T shows the tree\n\n" +
             "<b>assembler</b>\n.craft(\"iron_gear\" | \"copper_wire\" | \"circuit\") → product | null\n\n" +
             "<b>generator</b>, <b>chest</b>\n.status()  .contents()\n\n" +
@@ -177,8 +225,39 @@ namespace Codebound.Game
             "<b>Python</b>: same API in snake_case (set_filter), print() = log(), @computer.on(\"tick\") works as a decorator. Allowed imports: math, random, json, collections, itertools, functools, re, statistics...\n\n" +
             "<i>Each call uses CPU time: a Basic Computer runs 20 calls/s. Machines must be within 8 cells.</i>";
 
+        // computers unlocked with their password during this play session (never saved)
+        readonly System.Collections.Generic.HashSet<int> unlocked = new System.Collections.Generic.HashSet<int>();
+        string passwordInput = "", newPassword = "", lockMessage;
+
+        bool DrawLock(ComputerState cs)
+        {
+            if (!cs.HasPassword || unlocked.Contains(open.InstanceId)) return false;
+            float w = 380, h = 170;
+            GUILayout.BeginArea(new Rect((UiGui.W - w) / 2, (UiGui.H - h) / 2, w, h), box);
+            GUILayout.Label($"PC-{open.InstanceId} is locked", title);
+            GUILayout.Label("Enter the computer's password:", small);
+            GUI.SetNextControlName("pwd");
+            passwordInput = GUILayout.PasswordField(passwordInput, '*', 64);
+            var e = Event.current;
+            bool submit = e.type == EventType.KeyDown && (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter);
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Unlock", btn) || submit)
+            {
+                if (Net.IsGuest) { guestPasswords[open.InstanceId] = passwordInput; unlocked.Add(open.InstanceId); lockMessage = null; }   // the host checks it
+                else if (cs.CheckPassword(passwordInput)) { unlocked.Add(open.InstanceId); lockMessage = null; }
+                else lockMessage = "Wrong password";
+                passwordInput = "";
+            }
+            if (GUILayout.Button("Close (Esc)", btn)) Close();
+            GUILayout.EndHorizontal();
+            if (lockMessage != null) GUILayout.Label(lockMessage, err);
+            GUILayout.EndArea();
+            return true;
+        }
+
         void DrawEditor(ComputerState cs)
         {
+            if (open == null || DrawLock(cs)) return;
             var rect = new Rect(UiGui.W * 0.04f, UiGui.H * 0.04f, UiGui.W * 0.92f, UiGui.H * 0.86f);
             GUILayout.BeginArea(rect, box);
             bool running = programs.IsRunning(open);
@@ -203,16 +282,17 @@ namespace Codebound.Game
                     int li = System.Array.IndexOf(ComputerState.Languages, cs.Language);
                     cs.Language = ComputerState.Languages[(li + 1) % ComputerState.Languages.Length];
                 }
-                if (GUILayout.Button("Run", btn, GUILayout.Width(70))) programs.StartProgram(open);
-                if (GUILayout.Button("Debug", btn, GUILayout.Width(70))) programs.StartProgram(open, debug: true);
+                if (GUILayout.Button("Run", btn, GUILayout.Width(70))) { if (Net.IsGuest) SendProgram("run"); else programs.StartProgram(open); }
+                if (!Net.IsGuest && GUILayout.Button("Debug", btn, GUILayout.Width(70))) programs.StartProgram(open, debug: true);
+                if (Net.IsGuest && GUILayout.Button("Save", btn, GUILayout.Width(70))) SendProgram("");
             }
             else
             {
                 if (paused && GUILayout.Button("Continue (F8)", btn)) programs.Resume(open, false);
                 if (paused && GUILayout.Button("Step (F10)", btn)) programs.Resume(open, true);
-                if (GUILayout.Button("Stop", btn, GUILayout.Width(70))) programs.Stop(open);
+                if (GUILayout.Button("Stop", btn, GUILayout.Width(70))) { if (Net.IsGuest) SendProgram("stop"); else programs.Stop(open); }
             }
-            foreach (var ex in cs.Language == "python" ? PyExamples : cs.Language == "sql" ? SqlExamples : Examples)
+            foreach (var ex in cs.Language == "python" ? PyExamples : cs.Language == "sql" ? SqlExamples : cs.Language == "php" ? PhpExamples : cs.Language == "csharp" ? CsExamples : cs.Language == "c" ? CExamples : cs.Language == "cpp" ? CppExamples : Examples)
                 if (GUILayout.Button(ex.name, btn) && !running) cs.Code = ex.code;
             if (GUILayout.Button("Clear log", btn)) cs.Log.Clear();
             if (GUILayout.Button("Close (Esc)", btn)) { Close(); GUILayout.EndHorizontal(); GUILayout.EndArea(); return; }
@@ -273,6 +353,15 @@ namespace Codebound.Game
             GUILayout.BeginVertical(box);
             sideScroll = GUILayout.BeginScrollView(sideScroll);
             int bytes = Encoding.UTF8.GetByteCount(cs.Code);
+            GUILayout.Label("<b>Security</b>", small);
+            bool firewall = session.State.Research.IsDone("cybersecurity");
+            GUILayout.Label($"Firewall: {(firewall ? "<color=" + Settings.Good + ">ON</color>" : "off (research Cybersecurity)")}   Password: {(cs.HasPassword ? "set" : "none")}   drone break-in: {session.State.Creatures.HackTime(cs):0}s", small);
+            GUILayout.BeginHorizontal();
+            newPassword = GUILayout.PasswordField(newPassword, '*', 64, GUILayout.Width(150));
+            if (GUILayout.Button(cs.HasPassword ? "Change" : "Set password", btn)) { cs.SetPassword(newPassword); newPassword = ""; unlocked.Add(open.InstanceId); }
+            if (cs.HasPassword && GUILayout.Button("Remove", btn)) cs.SetPassword(null);
+            GUILayout.EndHorizontal();
+            GUILayout.Label("<i>Game password: don't reuse a real one.</i>", small);
             GUILayout.Label("<b>Hardware</b>", small);
             GUILayout.Label($"CPU {cs.CallsPerSecond} calls/s   RAM {cs.RamMb} MB   Storage {bytes / 1024f:0.0}/{cs.MaxCodeBytes / 1024} KB", small);
             bool powered = session.Factory.HasPower(open);

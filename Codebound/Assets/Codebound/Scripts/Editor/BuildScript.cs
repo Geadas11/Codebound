@@ -53,7 +53,48 @@ namespace Codebound.EditorTools
             if (pyOk) CopyDir(py, Path.Combine(dataDir, "StreamingAssets", "Runtime", "python"));
             else Debug.LogWarning("[Build] Python runtime not bundled (needs Tools/python for Windows) — Python programs will not run in this build.");
 
-            string msg = $"[Build] {sum.result} {target} -> {output} ({sum.totalSize / (1024 * 1024)} MB player, {sum.totalTime.TotalSeconds:0}s); node: {node}; node license: {(license != null ? "yes" : "MISSING")}; python: {(pyOk ? "bundled" : "no")}";
+            // PHP: php.exe + php8.dll are enough with -n (no extensions); VC++ runtime copied app-locally (Microsoft redistributable)
+            string php = Path.Combine(ToolsDir, "php"), phpBin = Path.Combine(dataDir, "StreamingAssets", "Runtime", "php", "bin");
+            bool phpOk = target == BuildTarget.StandaloneWindows64 && File.Exists(Path.Combine(php, "php.exe"));
+            if (phpOk)
+            {
+                Directory.CreateDirectory(phpBin);
+                foreach (var f in new[] { "php.exe", "php8.dll", "license.txt" }) File.Copy(Path.Combine(php, f), Path.Combine(phpBin, f), true);
+                foreach (var f in new[] { "vcruntime140.dll", "vcruntime140_1.dll" })
+                {
+                    string sys = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), f);
+                    if (File.Exists(sys)) File.Copy(sys, Path.Combine(phpBin, f), true);
+                }
+            }
+            else Debug.LogWarning("[Build] PHP runtime not bundled (needs Tools/php) — PHP programs will not run in this build.");
+
+            // C#: the .NET 8 runtime from Tools/dotnet (copied from the Unity Editor's DotNetSdk) + the Roslyn host built into Tools/cshost/out
+            string dn = Path.Combine(ToolsDir, "dotnet"), csOut = Path.Combine(ToolsDir, "cshost", "out"), csDir = Path.Combine(dataDir, "StreamingAssets", "Runtime", "csharp");
+            bool csOk = target == BuildTarget.StandaloneWindows64 && File.Exists(Path.Combine(dn, "dotnet.exe")) && File.Exists(Path.Combine(csOut, "cshost.dll"));
+            if (csOk)
+            {
+                CopyDir(dn, Path.Combine(csDir, "dotnet"));
+                Directory.CreateDirectory(Path.Combine(csDir, "host"));
+                foreach (var f in Directory.GetFiles(csOut)) if (!f.EndsWith(".pdb")) File.Copy(f, Path.Combine(csDir, "host", Path.GetFileName(f)), true);   // no satellite resource folders
+            }
+            else Debug.LogWarning("[Build] C# runtime not bundled (needs Tools/dotnet and a built Tools/cshost) — C# programs will not run in this build.");
+
+            // C/C++: the parts of wasi-sdk the compiler needs (clang, wasm-ld, builtin headers, the wasm32-wasip1 sysroot) + licenses
+            string wsdk = Path.Combine(ToolsDir, "wasi-sdk"), cDir = Path.Combine(dataDir, "StreamingAssets", "Runtime", "c", "sdk");
+            bool cOk = target == BuildTarget.StandaloneWindows64 && File.Exists(Path.Combine(wsdk, "bin", "clang.exe"));
+            if (cOk)
+            {
+                Directory.CreateDirectory(Path.Combine(cDir, "bin"));
+                foreach (var f in new[] { "clang.exe", "wasm-ld.exe" }) File.Copy(Path.Combine(wsdk, "bin", f), Path.Combine(cDir, "bin", f), true);
+                CopyDir(Path.Combine(wsdk, "lib", "clang"), Path.Combine(cDir, "lib", "clang"));
+                CopyDir(Path.Combine(wsdk, "share", "wasi-sysroot", "include", "wasm32-wasip1"), Path.Combine(cDir, "share", "wasi-sysroot", "include", "wasm32-wasip1"));
+                CopyDir(Path.Combine(wsdk, "share", "wasi-sysroot", "lib", "wasm32-wasip1"), Path.Combine(cDir, "share", "wasi-sysroot", "lib", "wasm32-wasip1"));
+                Directory.CreateDirectory(Path.Combine(cDir, "share", "wasi-sysroot", "include", "c++", "v1"));   // the driver looks for it before the per-target libc++ headers
+                CopyDir(Path.Combine(wsdk, "licenses"), Path.Combine(cDir, "licenses"));
+            }
+            else Debug.LogWarning("[Build] C/C++ compiler not bundled (needs Tools/wasi-sdk) — C and C++ programs will not run in this build.");
+
+            string msg = $"[Build] {sum.result} {target} -> {output} ({sum.totalSize / (1024 * 1024)} MB player, {sum.totalTime.TotalSeconds:0}s); node: {node}; node license: {(license != null ? "yes" : "MISSING")}; python: {(pyOk ? "bundled" : "no")}; php: {(phpOk ? "bundled" : "no")}; csharp: {(csOk ? "bundled" : "no")}; c/c++: {(cOk ? "bundled" : "no")}";
             Debug.Log(msg);
             return msg;
         }

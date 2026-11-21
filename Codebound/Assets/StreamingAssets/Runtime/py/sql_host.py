@@ -3,7 +3,7 @@
 # Each cycle sees read-only TEMP tables with live game data and controls the world by writing rows:
 #   machines(id, type, name, status, power, busy, distance)   contents(machine, role, item, count)
 #   energy(capacity_kw, demand_kw, satisfaction, available)    events(name, machine, item, time)
-#   game(time, cycle)
+#   game(time, cycle, pollution)
 #   commands(machine, action, arg)  -> executed by the game after the cycle (start, stop, set_filter, mine, smelt)
 #   hud(key, value)                 -> published like hud.set(key, value)
 # Tables the player creates live in the main database and are saved with the computer (storage limit applies).
@@ -93,7 +93,7 @@ def refresh(db, snap, cycle):
             CREATE TEMP TABLE contents(machine TEXT, role TEXT, item TEXT, count INTEGER);
             CREATE TEMP TABLE energy(capacity_kw REAL, demand_kw REAL, satisfaction REAL, available INTEGER);
             CREATE TEMP TABLE events(name TEXT, machine TEXT, item TEXT, time REAL);
-            CREATE TEMP TABLE game(time REAL, cycle INTEGER);
+            CREATE TEMP TABLE game(time REAL, cycle INTEGER, pollution REAL);
             CREATE TEMP TABLE creatures(id INTEGER, type TEXT, health REAL, distance REAL);
         """)
         db.executemany("INSERT INTO temp.machines VALUES (?,?,?,?,?,?,?)",
@@ -103,7 +103,7 @@ def refresh(db, snap, cycle):
         db.execute("INSERT INTO temp.energy VALUES (?,?,?,?)", (e["capacityKW"], e["demandKW"], e["satisfaction"], 1 if e["available"] else 0))
         db.executemany("INSERT INTO temp.events VALUES (?,?,?,?)",
                        [(ev.get("name"), (ev.get("data") or {}).get("machine"), (ev.get("data") or {}).get("item"), snap["time"]) for ev in snap["events"]])
-        db.execute("INSERT INTO temp.game VALUES (?,?)", (snap["time"], cycle))
+        db.execute("INSERT INTO temp.game VALUES (?,?,?)", (snap["time"], cycle, snap.get("pollution", 0)))
         db.executemany("INSERT INTO temp.creatures VALUES (?,?,?,?)", [(c["id"], c["type"], c["health"], c["distance"]) for c in snap.get("creatures", [])])
         db.commit()
     finally:

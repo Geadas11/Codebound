@@ -39,6 +39,17 @@ namespace Codebound.Core
                 Cost = new[] { new ItemStack(ItemDatabase.Circuit, 10) },
                 Prereqs = new[] { "manufacturing" }, Unlocks = new[] { "computer2" } },
 
+            new Tech { Id = "energy", Name = "Renewable Energy", Area = "Energy", Seconds = 25,
+                Description = "Solar panels (output follows daylight and weather) and batteries that store spare sunlight.",
+                Cost = new[] { new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.CopperPlate, 10), new ItemStack(ItemDatabase.Silicon, 4) },
+                Unlocks = new[] { "solar", "battery" } },
+            new Tech { Id = "ecology", Name = "Ecology", Area = "Science", Seconds = 25,
+                Description = "Air scrubbers clean the pollution of their 16x16 region while powered (30 kW).",
+                Cost = new[] { new ItemStack(ItemDatabase.IronPlate, 8), new ItemStack(ItemDatabase.CopperPlate, 6), new ItemStack(ItemDatabase.Silicon, 2) },
+                Prereqs = new[] { "agriculture" }, Unlocks = new[] { "scrubber" } },
+            new Tech { Id = "cybersecurity", Name = "Cybersecurity", Area = "Security", Seconds = 25,
+                Description = "Firewalls on every computer: rogue drones need 3x longer to break in.",
+                Cost = new[] { new ItemStack(ItemDatabase.CopperPlate, 10), new ItemStack(ItemDatabase.Silicon, 2) } },
             new Tech { Id = "defense", Name = "Defense", Area = "Defense", Seconds = 25,
                 Description = "Programmable turrets: turret.targets() and turret.fire(id).",
                 Cost = new[] { new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.CopperPlate, 10), new ItemStack(ItemDatabase.StoneBrick, 5) },
@@ -62,9 +73,9 @@ namespace Codebound.Core
                 Cost = new[] { new ItemStack(ItemDatabase.TitaniumOre, 40), new ItemStack(ItemDatabase.IronGear, 40) },
                 Prereqs = new[] { "ship_frame" } },
             new Tech { Id = "ship_launch", Name = "Ship: Launch Sequence", Area = "Space", MainLine = true, Seconds = 90,
-                Description = "The final checks. The ship can leave the planet.",
+                Description = "The final checks. Build the Launch Pad and fly the ascent with a program: pad.launch(), pad.throttle(x), pad.flight().",
                 Cost = new[] { new ItemStack(ItemDatabase.Circuit, 30), new ItemStack(ItemDatabase.Oil, 10) },
-                Prereqs = new[] { "ship_reactor", "ship_navigation", "ship_engines" } },
+                Prereqs = new[] { "ship_reactor", "ship_navigation", "ship_engines" }, Unlocks = new[] { "launchpad" } },
         };
 
         static readonly Dictionary<string, Tech> byId = Tree.ToDictionary(t => t.Id);

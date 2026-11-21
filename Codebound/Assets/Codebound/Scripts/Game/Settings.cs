@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.IO;
+using Codebound.Core;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
@@ -28,6 +30,54 @@ namespace Codebound.Game
         public static float EffectsVolume { get => Mathf.Clamp01(F("cb.vol.effects", 0.8f)); set => Set("cb.vol.effects", Mathf.Clamp01(value)); }
         /// <summary>On-screen captions for important sounds, with the direction they come from.</summary>
         public static bool SoundCaptions { get => I("cb.captions", 0) == 1; set => Set("cb.captions", value ? 1 : 0); }
+        /// <summary>UI language code (Loc.Languages). Defaults to the OS language when it is one we ship.</summary>
+        public static string Language
+        {
+            get { try { return PlayerPrefs.GetString("cb.lang", SystemLanguage()); } catch { return "en"; } }
+            set { PlayerPrefs.SetString("cb.lang", value); PlayerPrefs.Save(); ApplyLanguage(); Version++; }
+        }
+
+        static string SystemLanguage()
+        {
+            switch (Application.systemLanguage)
+            {
+                case UnityEngine.SystemLanguage.Portuguese: return "pt-PT";
+                case UnityEngine.SystemLanguage.Spanish: return "es";
+                case UnityEngine.SystemLanguage.French: return "fr";
+                case UnityEngine.SystemLanguage.German: return "de";
+                case UnityEngine.SystemLanguage.Italian: return "it";
+                case UnityEngine.SystemLanguage.Japanese: return "ja";
+                case UnityEngine.SystemLanguage.Chinese: case UnityEngine.SystemLanguage.ChineseSimplified: return "zh-Hans";
+                case UnityEngine.SystemLanguage.Korean: return "ko";
+                default: return "en";
+            }
+        }
+
+        /// <summary>Loads the table for Language from StreamingAssets/Localization; anything missing stays English.</summary>
+        public static void ApplyLanguage()
+        {
+            string code = Language, json = null;
+            if (code != "en")
+                try { json = File.ReadAllText(Path.Combine(Application.streamingAssetsPath, "Localization", code + ".json")); }
+                catch (IOException e) { Debug.LogWarning("Codebound: language table " + code + ": " + e.Message); }
+            if (json == null || !Loc.Load(code, json)) Loc.Load("en", null);
+        }
+
+        static Font cjkFont;
+        /// <summary>OS font with Japanese/Chinese/Korean glyphs (the built-in font has none); null for other languages.</summary>
+        public static Font UiFont
+        {
+            get
+            {
+                if (!Loc.NeedsCjkFont) return null;
+                string[] names = Loc.Current == "ja" ? new[] { "Yu Gothic UI", "Meiryo", "MS Gothic", "Noto Sans CJK JP", "Hiragino Sans" }
+                               : Loc.Current == "ko" ? new[] { "Malgun Gothic", "Gulim", "Noto Sans CJK KR", "Apple SD Gothic Neo" }
+                               : new[] { "Microsoft YaHei UI", "Microsoft YaHei", "SimHei", "Noto Sans CJK SC", "PingFang SC" };
+                if (cjkFont == null || cjkFont.fontNames[0] != names[0]) cjkFont = Font.CreateDynamicFontFromOSFont(names, 16);
+                return cjkFont;
+            }
+        }
+
         public static float TextScale { get => Mathf.Clamp(F("cb.textScale", 1f), 0.75f, 2f); set => Set("cb.textScale", Mathf.Clamp(value, 0.75f, 2f)); }
 
         // status colours that stay distinguishable with red–green colour blindness (blue / orange instead of green / red)
@@ -43,7 +93,14 @@ namespace Codebound.Game
         public static float S => Settings.UiScale;
         public static float W => Screen.width / S;
         public static float H => Screen.height / S;
-        public static void Begin() => GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(S, S, 1));
+        static Font defaultFont;
+        public static void Begin()
+        {
+            GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(S, S, 1));
+            if (defaultFont == null) defaultFont = GUI.skin.font;
+            var f = Settings.UiFont ?? defaultFont;
+            if (GUI.skin.font != f) GUI.skin.font = f;
+        }
         /// <summary>Mouse position (Input System, bottom-left origin) in scaled IMGUI coordinates.</summary>
         public static Vector2 Mouse(Vector2 screen) => new Vector2(screen.x / S, (Screen.height - screen.y) / S);
         public static int Font(int size) => Mathf.RoundToInt(size * Settings.TextScale);
@@ -56,7 +113,7 @@ namespace Codebound.Game
         {
             ("up", "Move up", Key.W), ("down", "Move down", Key.S), ("left", "Move left", Key.A), ("right", "Move right", Key.D),
             ("build", "Build mode", Key.B), ("rotate", "Rotate", Key.R), ("interact", "Open machine / computer", Key.E),
-            ("eat", "Eat", Key.F), ("research", "Research tree", Key.T), ("inventory", "Inventory", Key.Tab),
+            ("eat", "Eat", Key.F), ("research", "Research tree", Key.T), ("inventory", "Inventory", Key.Tab), ("journal", "Journal", Key.J), ("network", "Multiplayer", Key.N),
             ("save", "Quick save", Key.F5), ("load", "Quick load", Key.F9),
         };
 
@@ -88,6 +145,8 @@ namespace Codebound.Game
 
         public static bool Pressed(string action) => Control(action)?.wasPressedThisFrame ?? false;
         public static bool Held(string action) => Control(action)?.isPressed ?? false;
+        public static string Label(string action, string english) => Loc.T("control." + action, english);
+
         public static string Name(string action) { var k = Get(action); return k == Key.None ? "—" : k.ToString(); }
     }
 }

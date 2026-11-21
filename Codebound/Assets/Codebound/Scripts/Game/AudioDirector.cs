@@ -67,6 +67,7 @@ namespace Codebound.Game
             st.Creatures.Died += c => Play("dissolve", new Vector2((float)c.X, (float)c.Y), null);
             st.Creatures.WaveArrived += n => Play("alarm", null, $"[alarm] {n} creature{(n > 1 ? "s" : "")} approaching");
             st.Creatures.BuildingDestroyed += b => Play("error", Pos(b), $"[crash] {b.Def.DisplayName} destroyed");
+            st.Creatures.IntrusionStarted += (b, c) => Play("alarm", Pos(b), $"[intrusion alarm] drone breaking into PC-{b.InstanceId}");
             st.Creatures.ComputerCompromised += b => Play("alarm", Pos(b), $"[security alarm] PC-{b.InstanceId} compromised");
             st.Research.Completed += t => Play("chime", null, $"[chime] research complete: {t.Name}");
         }

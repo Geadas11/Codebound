@@ -96,6 +96,10 @@ const PRELUDE = `
     }
     if (info.type === 'assembler') m.craft = (item) => call(id, 'craft', [String(item)]);
     if (info.type === 'turret') { m.targets = () => call(id, 'targets'); m.fire = (cid) => call(id, 'fire', [Number(cid)]); }
+    if (info.type === 'launchpad') {
+      m.launch = () => call(id, 'launch'); m.throttle = (x) => call(id, 'throttle', [Number(x)]); m.flight = () => call(id, 'flight');
+      m.planets = () => call(id, 'planets'); m.travel = (pid) => call(id, 'travel', [String(pid)]);
+    }
     if (info.type === 'lab') { m.research = (tech) => call(id, 'research', [String(tech)]); m.techs = () => call(id, 'techs'); }
     if (info.type === 'conveyor' || info.type === 'inserter') {
       m.start = () => call(id, 'start');
@@ -136,6 +140,7 @@ const PRELUDE = `
   global.computer = computer;
   global.machines = machines;
   global.energy = energy;
+  global.world = Object.freeze({ pollution: () => call('world', 'pollution') });
   global.hud = Object.freeze({
     set: (key, value) => call('hud', 'set', [String(key), value === undefined ? null : value]),
     notify: (text) => call('hud', 'notify', [String(text)]),

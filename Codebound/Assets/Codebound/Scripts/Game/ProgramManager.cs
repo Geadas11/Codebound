@@ -37,6 +37,7 @@ namespace Codebound.Game
             public bool BreakpointsDirty;
             public RuntimeProcess Proc;                  // Python: one process per program; null = shared JS host
             public double BaselineMb;                    // Python: process memory when the program started
+            public float BusySince = -1;                 // PHP: real time since the program last got an answer (CPU watchdog)
             public readonly HashSet<int> SeenCreatures = new HashSet<int>();
         }
 
@@ -58,8 +59,15 @@ namespace Codebound.Game
             session = s;
             s.Grid.Removed += b => { if (programs.ContainsKey(b.InstanceId)) Stop(b); };
             s.Factory.ActionCompleted += OnActionCompleted;
-            foreach (var b in s.Grid.Buildings)
-                if (b.State is ComputerState cs && cs.Running) StartProgram(b);
+            s.State.Creatures.IntrusionStarted += (target, drone) =>
+            {
+                foreach (var p in programs.Values)
+                    if (p.Computer.DistanceTo(target) <= 12)
+                        Emit(p, "intrusion", new Dictionary<string, object> { { "computer", "m" + target.InstanceId }, { "drone", drone.Id }, { "seconds", session.State.Creatures.HackTime((ComputerState)target.State) } });
+            };
+            if (!Net.IsGuest)   // guests see the host's programs; they never run them locally
+                foreach (var b in s.Grid.Buildings)
+                    if (b.State is ComputerState cs && cs.Running) StartProgram(b);
         }
 
         // ------------------------------------------------------------ host process
@@ -106,6 +114,122 @@ namespace Codebound.Game
             }
         }
 
+        public static string PhpRuntimeDir => Path.Combine(Application.streamingAssetsPath, "Runtime", "php");
+        public const float PhpWatchdogSeconds = 3f;
+
+        /// <summary>Bundled PHP (builds) or the project's Tools/php (Editor).</summary>
+        public static string PhpExecutable()
+        {
+            string bundled = Path.Combine(PhpRuntimeDir, "bin", "php.exe");
+            return File.Exists(bundled) ? bundled : Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Tools", "php", "php.exe"));
+        }
+
+        // everything that reaches outside the program: processes, network, files, environment, configuration, real sleeping
+        public const string PhpDisabled = "exec,shell_exec,system,passthru,proc_open,popen,proc_close,proc_get_status,proc_terminate,proc_nice,pcntl_exec,dl," +
+            "putenv,getenv,mail,fsockopen,pfsockopen,stream_socket_client,stream_socket_server,stream_socket_accept,stream_socket_pair," +
+            "fopen,tmpfile,tempnam,file_get_contents,file_put_contents,file,readfile,unlink,rename,copy,mkdir,rmdir,touch,chmod,chown,chgrp,link,symlink," +
+            "glob,opendir,scandir,dir,parse_ini_file,highlight_file,show_source,php_strip_whitespace,ini_set,ini_alter,ini_restore,set_include_path," +
+            "phpinfo,php_uname,gethostname,get_current_user,getcwd,chdir,error_log,sleep,usleep,time_nanosleep,time_sleep_until,set_time_limit,ignore_user_abort";
+
+        RuntimeProcess StartPhp(ComputerState st)
+        {
+            try
+            {
+                string jail = Path.Combine(PhpRuntimeDir, "no-files-here");   // never created: every file access is outside open_basedir
+                string args = $"-n -d memory_limit={st.RamMb}M \"-d open_basedir={jail}\" -d disable_functions={PhpDisabled} -d display_errors=stderr " +
+                              "-d log_errors=0 -d html_errors=0 -d max_execution_time=0 -d allow_url_fopen=0 -d allow_url_include=0 -d opcache.enable_cli=0 " +
+                              $"-f \"{Path.Combine(PhpRuntimeDir, "host.php")}\"";
+                var proc = RuntimeProcess.Start(PhpExecutable(), args, PhpRuntimeDir, inbox, errors);
+                if (!proc.Confine((ulong)(st.RamMb + 64) * 1048576UL)) st.AddLog("[runtime] warning: OS process limits could not be applied on this platform");
+                return proc;
+            }
+            catch (Exception e)
+            {
+                Fail(st, "PHP runtime not found or failed to start: " + e.Message);
+                return null;
+            }
+        }
+
+        public static string CsRuntimeDir => Path.Combine(Application.streamingAssetsPath, "Runtime", "csharp");
+        static string ToolsDir => Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Tools"));
+
+        /// <summary>C#: Roslyn compiles in a separate .NET process (bundled runtime in builds, Tools/ in the Editor).</summary>
+        RuntimeProcess StartCsharp(ComputerState st)
+        {
+            try
+            {
+                string dotnet = Path.Combine(CsRuntimeDir, "dotnet", "dotnet.exe"), host = Path.Combine(CsRuntimeDir, "host", "cshost.dll");
+                if (!File.Exists(dotnet)) { dotnet = Path.Combine(ToolsDir, "dotnet", "dotnet.exe"); host = Path.Combine(ToolsDir, "cshost", "out", "cshost.dll"); }
+                var env = new Dictionary<string, string>
+                {
+                    // the compiler needs ~200 MB once; the program's own RAM is enforced by the host after compiling
+                    { "DOTNET_GCHeapHardLimit", "0x" + ((long)(st.RamMb + 256) * 1048576).ToString("X") },
+                    { "DOTNET_CLI_TELEMETRY_OPTOUT", "1" }, { "DOTNET_gcServer", "0" },
+                };
+                var proc = RuntimeProcess.Start(dotnet, $"\"{host}\"", Path.GetDirectoryName(host), inbox, errors, env);
+                if (!proc.Confine((ulong)(st.RamMb + 512) * 1048576UL)) st.AddLog("[runtime] warning: OS process limits could not be applied on this platform");
+                return proc;
+            }
+            catch (Exception e)
+            {
+                Fail(st, "C# runtime not found or failed to start: " + e.Message);
+                return null;
+            }
+        }
+
+        // ------------------------------------------------------------ C / C++ (clang -> WebAssembly -> the JS host)
+        public static string CRuntimeDir => Path.Combine(Application.streamingAssetsPath, "Runtime", "c");
+        public const int CompileTimeoutMs = 20000;
+        readonly ConcurrentQueue<(Program p, string wasm, string error, int? line)> compiled = new ConcurrentQueue<(Program, string, string, int?)>();
+
+        static string CSdkDir()
+        {
+            string bundled = Path.Combine(CRuntimeDir, "sdk");
+            return File.Exists(Path.Combine(bundled, "bin", "clang.exe")) ? bundled : Path.Combine(ToolsDir, "wasi-sdk");
+        }
+
+        /// <summary>Compiles on a worker thread; Update() sends the result to the JS host. The source was checked by CSource first.</summary>
+        void CompileC(Program prog, string lang, string code, int ramMb, string tempRoot)
+        {
+            string sdk = CSdkDir(), include = CRuntimeDir;
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                string dir = Path.Combine(tempRoot, "cc-" + Guid.NewGuid().ToString("N"));
+                try
+                {
+                    Directory.CreateDirectory(dir);
+                    string src = lang == "c" ? "computer.c" : "computer.cpp";
+                    File.WriteAllText(Path.Combine(dir, src), code, new UTF8Encoding(false));
+                    string std = lang == "c" ? "-std=c17" : "--driver-mode=g++ -std=c++17 -fno-exceptions -fno-rtti";
+                    long maxMem = Math.Max(4L, ramMb) * 1048576L;
+                    string args = $"{std} --target=wasm32-wasip1 \"--sysroot={Path.Combine(sdk, "share", "wasi-sysroot")}\" -O1 \"-isystem{include}\" " +
+                                  $"-Wl,--import-memory -Wl,--export-memory -Wl,--initial-memory=4194304 -Wl,--max-memory={maxMem} -Wl,-z,stack-size=524288 " +
+                                  $"-fdiagnostics-color=never -o computer.wasm {src}";
+                    var (rc, output) = RuntimeProcess.RunConfined(Path.Combine(sdk, "bin", "clang.exe"), args, dir, CompileTimeoutMs, 1536UL * 1048576UL, 4);
+                    if (rc != 0)
+                    {
+                        string msg = rc == -1 ? $"Compiler stopped: took longer than {CompileTimeoutMs / 1000} s" : CleanDiagnostics(output, dir, sdk, include);
+                        var m = System.Text.RegularExpressions.Regex.Match(output, src.Replace(".", "\\.") + @":(\d+):\d+: (fatal )?error");
+                        compiled.Enqueue((prog, null, msg, m.Success ? int.Parse(m.Groups[1].Value) : (int?)null));
+                    }
+                    else compiled.Enqueue((prog, Convert.ToBase64String(File.ReadAllBytes(Path.Combine(dir, "computer.wasm"))), null, null));
+                }
+                catch (Exception e) { compiled.Enqueue((prog, null, "C compiler not available: " + e.Message, null)); }
+                finally { try { Directory.Delete(dir, true); } catch { } }
+            });
+        }
+
+        /// <summary>First error (and its context lines) without local paths: they would show the player's user name.</summary>
+        static string CleanDiagnostics(string output, string dir, string sdk, string include)
+        {
+            string s = output.Replace(dir + Path.DirectorySeparatorChar, "").Replace(dir, "").Replace(sdk, "<sdk>").Replace(include, "<codebound>")
+                             .Replace(sdk.Replace('\\', '/'), "<sdk>").Replace(include.Replace('\\', '/'), "<codebound>");
+            var lines = s.Replace("\r", "").Split('\n');
+            int start = Array.FindIndex(lines, l => l.Contains("error"));
+            if (start < 0) return s.Trim().Length > 0 ? s.Trim() : "compile failed";
+            return string.Join("\n", lines, start, Math.Min(4, lines.Length - start)).Trim();
+        }
+
         RuntimeProcess StartPython(ComputerState st)
         {
             try
@@ -140,6 +264,9 @@ namespace Codebound.Game
         public int RunningCount => programs.Count;
         public Stats GetStats(PlacedBuilding c) => stats.TryGetValue(c.InstanceId, out var s) ? s : default;
 
+        /// <summary>A program asked the ship (in orbit) to fly to another world; GameBootstrap does the switch.</summary>
+        public static event Action<PlacedBuilding, Planet> TravelRequested;
+
         public bool StartProgram(PlacedBuilding computer, bool debug = false)
         {
             var st = (ComputerState)computer.State;
@@ -150,12 +277,30 @@ namespace Codebound.Game
             if (Encoding.UTF8.GetByteCount(st.Code ?? "") > st.MaxCodeBytes) return Fail(st, $"Program too large: storage is {st.MaxCodeBytes / 1024} KB.");
             RuntimeProcess proc = null;
             if (st.Language == "python" || st.Language == "sql") { if ((proc = StartPython(st)) == null) return false; }
+            else if (st.Language == "php") { if ((proc = StartPhp(st)) == null) return false; }
+            else if (st.Language == "csharp") { if ((proc = StartCsharp(st)) == null) return false; }
+            else if (st.Language == "c" || st.Language == "cpp")
+            {
+                string bad = CSource.Check(st.Code);
+                if (bad != null) return Fail(st, bad);
+                if (!EnsureHost()) return Fail(st, RuntimeError);
+            }
             else if (!EnsureHost()) return Fail(st, RuntimeError);
-            var prog = new Program { Computer = computer, St = st, LastTick = Time.time, Debug = debug, Proc = proc };
+            bool watched = st.Language == "php" || st.Language == "csharp";   // single-threaded hosts: the CPU watchdog lives here
+            if (debug && watched) { st.AddLog($"[debug] the step debugger is not available for {st.Language} yet — running normally"); debug = false; }
+            var prog = new Program { Computer = computer, St = st, LastTick = Time.time, Debug = debug, Proc = proc,
+                                     BusySince = !watched ? -1 : Time.realtimeSinceStartup + (st.Language == "csharp" ? 15f : 0f) };   // C#: compiling first
             programs[computer.InstanceId] = prog;
             stats[computer.InstanceId] = new Stats { Running = true, RamMb = st.RamMb };
             st.Running = true;
             st.AddLog($"[{(debug ? "debug" : "run")}] {DateTime.Now:HH:mm:ss} {st.Language}");
+            if (st.Language == "c" || st.Language == "cpp")
+            {
+                if (debug) st.AddLog($"[debug] the step debugger is not available for {st.Language} yet — running normally");
+                st.AddLog("[compile] clang → WebAssembly…");
+                CompileC(prog, st.Language, st.Code, st.RamMb, Application.temporaryCachePath);
+                return true;
+            }
             Send(prog, new Dictionary<string, object> {
                 { "t", "start" }, { "id", computer.InstanceId }, { "code", st.Code }, { "ram", st.RamMb }, { "name", "PC-" + computer.InstanceId },
                 { "lang", st.Language }, { "debug", debug }, { "bps", new List<object>(BpList(st)) },
@@ -202,6 +347,19 @@ namespace Codebound.Game
         {
             while (errors.TryDequeue(out var e)) Debug.LogWarning("[runtime] " + e);
             while (inbox.TryDequeue(out var item)) Handle(item.src, item.line);
+            while (compiled.TryDequeue(out var c))
+            {
+                if (!programs.TryGetValue(c.p.Computer.InstanceId, out var cur) || cur != c.p) continue;   // stopped while compiling
+                if (c.error != null)
+                {
+                    c.p.St.LastErrorLine = c.line ?? 0;
+                    Fail(c.p.St, c.error);
+                    programs.Remove(c.p.Computer.InstanceId); stats.Remove(c.p.Computer.InstanceId);
+                    continue;
+                }
+                Send(c.p, new Dictionary<string, object> { { "t", "start" }, { "id", c.p.Computer.InstanceId }, { "lang", c.p.St.Language }, { "wasm", c.wasm },
+                                                         { "ram", c.p.St.RamMb }, { "name", "PC-" + c.p.Computer.InstanceId } });
+            }
             if (host != null && host.HasExited && host.Eof && inbox.IsEmpty)
             {
                 RuntimeError = "JavaScript runtime stopped unexpectedly (exit code " + host.ExitCode + ")";
@@ -213,9 +371,17 @@ namespace Codebound.Game
                 foreach (var p in new List<Program>(programs.Values))
                     if (p.Proc != null && p.Proc.HasExited && p.Proc.Eof)
                     {   // the process died without reporting an exit (crash, OS memory kill...)
-                        Fail(p.St, $"Python runtime stopped unexpectedly (exit code {p.Proc.ExitCode})");
+                        Fail(p.St, $"{p.St.Language} runtime stopped unexpectedly (exit code {p.Proc.ExitCode})");
                         programs.Remove(p.Computer.InstanceId); stats.Remove(p.Computer.InstanceId);
                     }
+
+            foreach (var p in new List<Program>(programs.Values))   // PHP has no threads, so its CPU watchdog lives here
+                if (p.BusySince >= 0 && Time.realtimeSinceStartup - p.BusySince > PhpWatchdogSeconds)
+                {
+                    p.Proc?.Shutdown(0);
+                    Fail(p.St, $"CPU watchdog: ran {PhpWatchdogSeconds:0}s without calling the world API or sleep() — infinite loop?");
+                    programs.Remove(p.Computer.InstanceId); stats.Remove(p.Computer.InstanceId);
+                }
 
             float now = Time.time;
             compromised.Clear();
@@ -278,7 +444,7 @@ namespace Codebound.Game
             if (p != null && (p.Proc ?? host) != src) p = null; // late message from a process this program no longer uses
             switch ((string)t)
             {
-                case "call": if (p != null) p.Pending = m; break;
+                case "call": if (p != null) { p.Pending = m; p.BusySince = -1; } break;
                 case "log": if (p != null) p.St.AddLog(m["msg"] as string); break;
                 case "state":   // SQL: the player's tables changed
                     if (p != null && m.TryGetValue("db", out var dbv) && dbv is string dump) p.St.SqlDb = dump;
@@ -337,6 +503,7 @@ namespace Codebound.Game
             if (warn != null) msg["warn"] = warn;
             if (p.BreakpointsDirty) { msg["bps"] = new List<object>(BpList(p.St)); p.BreakpointsDirty = false; }
             if (p.Events.Count > 0) { msg["events"] = new List<object>(p.Events); p.Events.Clear(); }
+            if (p.St.Language == "php" || p.St.Language == "csharp") p.BusySince = Time.realtimeSinceStartup;
             Send(p, msg);
         }
 
@@ -399,7 +566,16 @@ namespace Codebound.Game
                     if (fn == "stats")
                     {
                         var (cap, dem) = session.Factory.NetworkStats(p.Computer);
-                        Reply(p, new Dictionary<string, object> { { "capacityKW", cap }, { "demandKW", dem }, { "satisfaction", p.Computer.State.PowerSatisfaction } });
+                        Reply(p, new Dictionary<string, object> { { "capacityKW", cap }, { "demandKW", dem }, { "satisfaction", p.Computer.State.PowerSatisfaction }, { "storedKJ", Math.Round(session.Factory.NetworkStoredKJ(p.Computer), 1) } });
+                        return;
+                    }
+                    break;
+                case "world":
+                    if (fn == "pollution")
+                    {
+                        var eco = session.State.Ecology;
+                        Reply(p, new Dictionary<string, object> { { "here", Math.Round(eco.At(p.Computer.Origin), 1) }, { "total", Math.Round(eco.Total, 1) },
+                            { "smog", eco.IsSmog(p.Computer.Origin) }, { "smogLevel", Ecology.SmogLevel } });
                         return;
                     }
                     break;
@@ -457,6 +633,44 @@ namespace Codebound.Game
                             bool problem = gerr == "tank_empty" || gerr == "output_full";
                             Reply(p, val, warn: problem ? $"greenhouse.{fn}(): {gerr}" : null);
                             return;
+                        }
+                        case "launch":
+                        case "throttle":
+                        case "flight":
+                        case "planets":
+                        case "travel":
+                        {
+                            if (!(m.State is LaunchPadState lp)) break;
+                            switch (fn)
+                            {
+                                case "launch": { string le = lp.Launch(session.State.Research); Reply(p, le == null, warn: le != null ? "pad.launch(): " + le : null); return; }
+                                case "throttle":
+                                    if (lp.Flight == null || lp.Phase != "ascent") { Reply(p, false, warn: "pad.throttle(): not in flight"); return; }
+                                    lp.Flight.Throttle = Arg(0) is double tv && !double.IsNaN(tv) ? (float)Math.Max(0, Math.Min(1, tv)) : 0f;
+                                    Reply(p, true); return;
+                                case "flight":
+                                {
+                                    var fi = lp.Flight != null ? lp.Flight.Info() : new Dictionary<string, object> { { "phase", lp.Phase } };
+                                    fi["pad"] = lp.Phase; fi["fuelUnits"] = Math.Round(lp.FuelUnits, 1); fi["last"] = lp.LastResult;
+                                    Reply(p, fi); return;
+                                }
+                                case "planets":
+                                {
+                                    var list = new List<object>();
+                                    foreach (var pl in StarSystem.Of(session.State.HomeSeed))
+                                        list.Add(new Dictionary<string, object> { { "id", pl.Id }, { "name", pl.Name }, { "kind", pl.Kind.ToString().ToLowerInvariant() },
+                                            { "distanceAU", pl.DistanceAU }, { "fuel", Math.Round(Voyage.Cost(session.State, pl), 1) }, { "here", pl.Id == session.State.PlanetId } });
+                                    Reply(p, list); return;
+                                }
+                                default:
+                                {
+                                    var dest = StarSystem.Get(session.State.HomeSeed, Arg(0) as string ?? "");
+                                    string te = Net.Current != Net.Mode.Off ? "travel is single-player for now" : Voyage.Check(session.State, m, dest);
+                                    Reply(p, te == null, warn: te != null ? "pad.travel(): " + te : null);
+                                    if (te == null) TravelRequested?.Invoke(m, dest);
+                                    return;
+                                }
+                            }
                         }
                         case "targets":
                         case "fire":
@@ -535,7 +749,7 @@ namespace Codebound.Game
             var events = new List<object>(p.Events);
             p.Events.Clear();
             return new Dictionary<string, object> {
-                { "time", Math.Round(Time.time, 2) }, { "machines", machines }, { "contents", contents }, { "events", events }, { "creatures", creatures },
+                { "time", Math.Round(Time.time, 2) }, { "pollution", Math.Round(session.State.Ecology.At(p.Computer.Origin), 1) }, { "machines", machines }, { "contents", contents }, { "events", events }, { "creatures", creatures },
                 { "energy", new Dictionary<string, object> { { "capacityKW", cap }, { "demandKW", dem },
                     { "satisfaction", p.Computer.State.PowerSatisfaction }, { "available", session.Factory.HasPower(p.Computer) } } } };
         }
@@ -562,6 +776,19 @@ namespace Codebound.Game
                     case "smelt": err = session.Factory.StartSmelt(m, null); break;
                     case "craft": err = session.Factory.StartCraft(m, arg, null); break;
                     case "research": err = session.Factory.StartResearch(m, arg, null); break;
+                    case "launch": err = m.State is LaunchPadState lps ? lps.Launch(session.State.Research) : "not a launch pad"; break;
+                    case "throttle":
+                        if (m.State is LaunchPadState lpt && lpt.Flight != null && double.TryParse(arg, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double th))
+                            lpt.Flight.Throttle = (float)Math.Max(0, Math.Min(1, th));
+                        else err = "throttle needs a flying launch pad and a number 0..1";
+                        break;
+                    case "travel":
+                    {
+                        var dest = StarSystem.Get(session.State.HomeSeed, arg ?? "");
+                        err = Net.Current != Net.Mode.Off ? "travel is single-player for now" : Voyage.Check(session.State, m, dest);
+                        if (err == null) TravelRequested?.Invoke(m, dest);
+                        break;
+                    }
                     case "fire":
                         err = int.TryParse(arg, out int fid) ? session.State.Creatures.Fire(m, fid, session.State.Clock.Seconds) : "fire needs a creature id";
                         if (err == "cooldown" || err == "no_such_target") err = null;

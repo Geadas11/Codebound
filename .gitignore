@@ -28,6 +28,8 @@ crashlytics-build.properties
 # ---- Codebound
 # CPython embeddable (26 MB) is downloaded, not versioned: see THIRD_PARTY_NOTICES.md for URL + SHA-256
 Codebound/Tools/python/
+Codebound/Tools/php/
+Codebound/Tools/wasi-sdk/
 # screenshots taken by automated play-mode checks
 Codebound/Screenshots/
 # test and tool output
@@ -40,3 +42,7 @@ __pycache__/
 .DS_Store
 Thumbs.db
 desktop.ini
+Codebound/Tools/dotnet/
+Codebound/Tools/cshost/out/
+Codebound/Tools/cshost/bin/
+Codebound/Tools/cshost/obj/

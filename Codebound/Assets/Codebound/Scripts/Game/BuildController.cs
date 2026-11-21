@@ -86,6 +86,7 @@ namespace Codebound.Game
             {
                 if (!unlocked) Say($"Requires research: {Research.UnlockerOf(def.Id).Name} (T to see the tech tree)");
                 else if (!ok) Say(!InReach(mc) ? "Too far" : def.Kind == BuildingKind.Drill ? "Drills must cover ore (not trees) on free land" : "Blocked: terrain, resource, structure or you are in the way");
+                else if (Net.IsGuest) { Net.SendAct(new System.Collections.Generic.Dictionary<string, object> { { "a", "build" }, { "def", def.Id }, { "x", (double)origin.X }, { "y", (double)origin.Y }, { "rot", (double)(int)Rotation } }); }
                 else if (session.State.TryBuild(def, origin, Rotation, player.Overlaps) == null) Say("Not enough materials");
                 else Say(def.Programmable ? $"{def.DisplayName} placed — it only works when a computer program drives it" : $"{def.DisplayName} placed");
             }
@@ -95,6 +96,7 @@ namespace Codebound.Game
                 var b = session.Grid.At(mc);
                 if (b == null) return;
                 if (!InReach(mc)) { Say("Too far"); return; }
+                if (Net.IsGuest) { Net.SendAct(new System.Collections.Generic.Dictionary<string, object> { { "a", "remove" }, { "x", (double)mc.X }, { "y", (double)mc.Y } }); return; }
                 if (!session.State.TryDeconstruct(b)) { Say("Inventory full: cannot refund cost and contents"); return; }
                 Say($"{b.Def.DisplayName} removed (refunded)");
             }

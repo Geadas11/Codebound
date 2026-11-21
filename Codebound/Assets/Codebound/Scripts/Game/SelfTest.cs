@@ -45,6 +45,14 @@ namespace Codebound.Game
             if (failure == null)
                 yield return Run(pm, pc, cs, "sql", "-- @once\nSELECT 'selftest-sql' AS t, 6 * 7 AS answer, available FROM energy;",
                     "selftest-sql | 42");
+            if (failure == null)
+                yield return Run(pm, pc, cs, "php", "<?php\necho 'selftest-php ', intdiv(84, 2), ' ', json_encode($energy->available()), \"\\n\";", "selftest-php 42 true");
+            if (failure == null)
+                yield return Run(pm, pc, cs, "c", "#include <codebound.h>\nint main(void) { char s[256]; cb_call(\"energy\", \"available\", \"[]\", s, sizeof s); printf(\"selftest-c %d %s\\n\", 6 * 7, s); return 0; }\n", "selftest-c 42 true");
+            if (failure == null)
+                yield return Run(pm, pc, cs, "cpp", "#include <vector>\n#include <numeric>\n#include <cstdio>\nint main() { std::vector<int> v{40, 2}; std::printf(\"selftest-cpp %d\\n\", std::accumulate(v.begin(), v.end(), 0)); }\n", "selftest-cpp 42");
+            if (failure == null)
+                yield return Run(pm, pc, cs, "csharp", "var n = new List<int> { 40, 2 }.Sum();\nLog(\"selftest-cs\", n, Energy.Available());", "selftest-cs 42 true");
             Finish(failure);
         }
 

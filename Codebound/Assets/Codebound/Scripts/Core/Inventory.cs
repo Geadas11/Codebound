@@ -16,6 +16,8 @@ namespace Codebound.Core
         }
 
         public int SlotCount => slots.Length;
+
+        public void Clear() { for (int i = 0; i < slots.Length; i++) slots[i] = default; Changed?.Invoke(); }
         public ItemStack this[int i] => slots[i];
 
         public int Count(string itemId)

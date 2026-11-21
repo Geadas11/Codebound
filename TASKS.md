@@ -67,12 +67,47 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ Dia/noite (dia = 10 min), estações (5 dias cada), tempo regional determinístico (limpo, nublado, chuva, tempestade: de areia, de cinza, radioativa, trovoada) — afeta temperatura, ar respirável, radiação e sede (a chuva dá água); luz global 2D, camada de cor e partículas; opção de reduzir efeitos (`cb.reduceEffects`) — 5 testes + Play Mode
 - ⬜ Abrigos/aquecimento, relâmpagos, tempo visível na tabela `game` do SQL e na API JS/Python
 - ✅ Agricultura: estufa programável (4 canteiros; `plant/water/harvest/plots`; tanque enche-se com um lago a ≤ 4 células; cresce com luz do dia ou lâmpadas elétricas 30 kW; 1 fruta → 3) — testes + Play Mode (programa Python a cultivar)
-- ⬜ Hidroponia/aeroponia, plantas alienígenas variadas, melhoramento genético, processamento alimentar, ecologia/poluição
+- ⬜ Hidroponia/aeroponia, plantas alienígenas variadas, melhoramento genético, processamento alimentar
+- ✅ Ecologia: poluição por regiões de 16×16 (gerador a carvão ∝ carga, fornalha, perfuradora, montadora), espalha-se às regiões vizinhas, desaparece aos poucos e mais depressa com árvores; purificador de ar (30 kW, investigação Ecology após Agriculture); smog ≥ 120 tira o ar respirável e mostra neblina; estufas crescem até 60% mais devagar; poluição aumenta a atenção das criaturas; `{{pollution.here}}`/`{{pollution.total}}`, `world.pollution()` (JS/TS/Python), coluna `game.pollution` (SQL); guardada no save — 3 testes + Play Mode
+- ✅ Exploração: postos abandonados da expedição Meridian nas Ruínas (determinísticos por região de 48×48): terminal com registos em ordem de história (8 registos) e caixa de mantimentos (uma vez); tecla J = diário + scanner com distância/direção do posto por ler mais próximo (240 células); terreno dos postos não é construível; guardado no save — 3 testes + Play Mode
+- ⬜ Exploração: subsolo/cavernas, traduções dos textos dos registos, mais tipos de ruínas
 - ✅ Investigação: árvore híbrida (ramos Indústria/Ciência/Computação + linha principal de 5 passos para reconstruir a nave), laboratório programável (`lab.research(id)`, `lab.techs()`; SQL `research`), estruturas bloqueadas até investigadas, painel T, notificações — 3 testes + Play Mode
 - ⬜ Mais ramos (Energia, Robótica, Materiais, Defesa, Segurança, Exploração, Programação), competências individuais por uso
-- ⬜ Lançamento da nave e fase espacial (Etapa 7) — hoje o último passo só avisa que chega numa atualização futura
 - ✅ Criaturas e combate leve: "atenção" da base cresce com o ruído industrial (perfuradoras, geradores, fornalhas, montadoras, laboratórios) → ondas; base silenciosa fica em paz. Crawlers atacam máquinas ruidosas e o jogador próximo; drones hostis comprometem computadores (programa para; Run restaura do backup). Torre programável (`turret.targets()/fire(id)`, investigação Defense), evento `creature_detected`, tabela SQL `creatures` + comando `fire`; ataque do jogador (LMB, 12 de dano); estruturas com vida (parede 400), dano visível, destruição; sem violência gráfica (dissolvem-se) — 6 testes + Play Mode
-- ⬜ Firewalls/palavras-passe/deteção de intrusões, armas e equipamento do jogador, minas/barreiras, reparação de estruturas, modo pacífico no menu
+- ✅ Segurança informática: investigação Cybersecurity (firewall: drones demoram 3×), palavra-passe por computador (PBKDF2 com sal; dobra o tempo de invasão e tranca o editor), evento `intrusion` {computer, drone, seconds} para programas a ≤ 12 células, alarme e notificação — 3 testes + Play Mode
+- ✅ Reparação: manter LMB sobre estrutura danificada (+20 HP por pedra)
+- ✅ Energia renovável: painel solar 2×2 (40 kW × luz do dia × clima), bateria 1×1 (carrega só com sobra solar, descarrega quando falta), investigação Energy; ordem de fornecimento solar → carvão → bateria; `{{power.storedKJ}}`, `energy.stats().storedKJ`; carga guardada no save — 3 testes
+- ✅ Localização: 10 línguas (en, pt-PT, pt-BR, es, fr, de, it, ja, zh-Hans, ko), 115 textos (menu, teclas, HUD fixo, investigação, notificações, estruturas, itens, tecnologias), seletor no menu Esc, idioma do SO por omissão, fonte CJK do sistema; sintaxe e API de programação nunca traduzidas — 2 testes + Play Mode (ja, pt-PT)
+- ⬜ Localização: descrições das tecnologias, mensagens do painel de máquinas/editor, legendas de som
+- ⬜ Armas e equipamento do jogador, minas/barreiras, permissões multijogador (a palavra-passe já é a base)
 
-## Etapas 6–8
-Ver Prompt Mestre §20. Não iniciadas.
+## Etapa 6 — Multijogador (base feita)
+- ✅ LAN cooperativo com anfitrião autoritário (TCP, porta 47820, JSON por linha): painel N (nome, IP, abrir/entrar/desligar), `-host` / `-join <ip>` / `-name <n>` na linha de comandos
+- ✅ O anfitrião simula tudo (máquinas, programas, criaturas, poluição) e envia instantâneos 2×/s (save sem segredos: computadores com palavra-passe vão sem hash, código nem base de dados SQL); o convidado aplica-os no lugar (edifícios iguais não são recriados) e não simula
+- ✅ Ações do convidado validadas no anfitrião (`Multiplayer.Act`): construir, remover, minerar (limite 4/s), tirar/pôr itens, reparar, atacar, explorar, comer; alcance de 6 células, materiais, investigação, papel
+- ✅ Inventário próprio por convidado, guardado com o mundo (`ginv`)
+- ✅ Permissões: construtor / visitante (só anda e luta), expulsar; projetos partilhados: o convidado edita e corre/para programas no computador do anfitrião (sandbox do anfitrião; palavra-passe verificada no anfitrião)
+- ✅ Outros jogadores visíveis com nome
+- ✅ 3 testes + verificação real: build como anfitrião (batchmode) + Editor como convidado → mundo recebido, 2 pedras mineradas, muro construído e devolvido no instantâneo
+- ⬜ Debug de programas para convidados, código de computadores trancados visível após palavra-passe, chat, posição do convidado validada (hoje confia-se na posição enviada), internet/NAT, vitais dos convidados guardados
+
+## Etapa 7 — Espaço (base feita)
+- ✅ Plataforma de lançamento 3×3 (desbloqueada por Ship: Launch Sequence), combustível carvão = 4 / petróleo = 10 unidades, até 250
+- ✅ Subida programada: `pad.launch()`, `pad.throttle(x)`, `pad.flight()` (JS/TS/Python; SQL `launch`/`throttle`/`travel`); física com viragem gravitacional automática, arrasto e aquecimento ∝ densidade·v³: a fundo sempre → escudo sobreaquece; demasiado tímido → sem combustível; falhar é seguro (cápsula volta de paraquedas)
+- ✅ Sistema solar determinístico (4 mundos: casa, vulcânico, deserto, ruínas) com viés de biomas; `pad.planets()`, `pad.travel(id)` custa 20 + 30/UA; cada mundo guardado em `planet_<seed>_<id>.cbsave`; inventário, investigação, vitais, HUD e relógio viajam; nave aterra com o combustível restante
+- ✅ Leitura do voo no ecrã, nave a subir com chama, chaves HUD `ship.*` e `planet.name`
+- ✅ 3 testes + Play Mode: programa JS levou a nave à órbita (29 de sobra com 200), listou planetas e viajou para o mundo vulcânico
+- ⬜ Viagem em multijogador, estações orbitais, asteroides, final narrativo
+
+## Etapa 8 — Polimento (em progresso)
+- ✅ Ecrã inicial (Continuar = save mais recente entre quicksave e autosave, Novo jogo com seed opcional, Idioma, Sair), mundo em pausa por trás; não aparece com -selftest/-host/-join/-seed/batchmode
+- ✅ Auto-save a cada 5 min em `autosave.cbsave` (separado do quicksave; nunca nos convidados)
+- ⬜ Arte final (substituir sprites procedurais mantendo 16 px/célula), animações, música composta, tutorial guiado, desempenho com bases grandes, builds macOS/Linux
+
+## Linguagens em falta
+- ✅ PHP 8.5: um processo por programa, sem php.ini nem extensões, `open_basedir` numa pasta inexistente (nenhum ficheiro acessível), funções de processos/rede/ficheiros/ambiente/configuração removidas, `memory_limit` = RAM + Job Object (memória, sem processos filhos), vigia de CPU no Unity; API `$machines`, `$drill`, `$energy`, `$hud`, `$world`, `$computer->on()`, `sleep()` em tempo de jogo, `echo` → log — 24 testes de runtime
+- ✅ C# 12: Roslyn num processo .NET 8 separado; o programa (instruções de topo, classes, LINQ, `JsonNode`) só pode usar uma lista branca de namespaces verificada símbolo a símbolo (sem ficheiros, reflexão, `GetType`/`typeof`, ambiente, consola, threads, `dynamic`, `unsafe`, `extern`, árvores de expressão); Job Object + limite de heap do GC + vigia de CPU; API `Drill.Mine()`, `Machines.Find()`, `Computer.On()`, `Sleep()`, `Log()` — 29 testes de runtime
+- ✅ Self-test do build com 6 linguagens (JS, TS, Python, SQL, PHP, C#)
+- ✅ C17 e C++17: o Unity verifica o código (`CSource`: só `#include <cabeçalhos do sistema>`, sem `__has_include`, `#embed`, `asm`/`.incbin` — o compilador corre no PC e podia ler ficheiros), compila com clang (wasi-sdk) para WebAssembly num Job Object com 20 s de limite, e o programa corre num worker do Node já incluído, com WASI próprio (sem sistema de ficheiros nem rede; `printf` → log; `sleep` em tempo de jogo) e memória criada pelo anfitrião com máximo = RAM; API em `<codebound.h>` (`cb_find`, `cb_op`, `cb_call`, `cb_num`, eventos) e `cb::Machine` em C++ — 12 testes de runtime + 15 testes do filtro
+- ✅ Self-test do build com 8 linguagens (JS, TS, Python, SQL, PHP, C, C++, C#); HTML/CSS no HUD → as 10 linguagens do Prompt Mestre funcionam
+- ⬜ Depurador passo a passo para PHP, C#, C e C++; linhas de erro em tempo de execução para C/C++ (hoje só nos erros de compilação)

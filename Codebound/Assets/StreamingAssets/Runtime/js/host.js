@@ -20,6 +20,7 @@ function send(obj) { process.stdout.write(JSON.stringify(obj) + '\n'); }
 
 function start(msg) {
   stop(msg.id, null);
+  if (typeof msg.wasm === 'string') return startWasm(msg);   // C / C++: already compiled to WebAssembly by Unity
   let prepared;
   try { prepared = prepare(String(msg.code || ''), String(msg.lang || 'javascript'), !!msg.debug); }
   catch (e) { prepared = { error: 'Internal compiler error: ' + e.message, line: null }; }
@@ -31,6 +32,21 @@ function start(msg) {
     resourceLimits: { maxOldGenerationSizeMb: ramMb, maxYoungGenerationSizeMb: Math.max(2, ramMb >> 3), stackSizeMb: 2 },
     stdout: true, stderr: true, // player code has no console; keep worker stdio away from the protocol
   });
+  attach(msg, worker, sab, ramMb);
+}
+
+function startWasm(msg) {
+  const sab = new SharedArrayBuffer(8 + BUF_BYTES);
+  const ramMb = Math.max(8, Math.min(1024, msg.ram | 0 || 32));
+  const worker = new Worker(path.join(__dirname, 'wasm_worker.js'), {
+    workerData: { sab, wasm: Buffer.from(msg.wasm, 'base64'), ramMb },   // wasm memory is created with maximum = ramMb
+    resourceLimits: { maxOldGenerationSizeMb: 32, maxYoungGenerationSizeMb: 4, stackSizeMb: 2 },
+    stdout: true, stderr: true,
+  });
+  attach(msg, worker, sab, ramMb);
+}
+
+function attach(msg, worker, sab, ramMb) {
   const p = {
     id: msg.id, worker, sab, flag: new Int32Array(sab, 0, 2), bytes: new Uint8Array(sab, 8),
     ramMb, busySince: Date.now(), busyMs: 0, windowStart: Date.now(), logCount: 0, exited: false,

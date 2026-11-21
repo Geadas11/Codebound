@@ -146,3 +146,63 @@
 - Repositório git criado (`.gitignore` sem Library/Builds/Tools/python/Screenshots; `.gitattributes`), commit inicial `37ef698`, enviado para `Geadas11/Codebound` no branch `desktop` (a pedido do utilizador).
 - Graphify ligado: indexa o branch principal do repositório, que contém outra versão do jogo; para indexar este código o branch principal tem de passar a `desktop`.
 - Correção: o runtime Python escrevia `__pycache__` em StreamingAssets (ia para os builds) → `-B` e `sys.dont_write_bytecode`.
+
+## Sessão 3 (2026-11-21): segurança informática e reparação
+- Graphify confirmado a indexar o branch `desktop` (7204 nós); notar que o grafo não resolve chamadas feitas através de propriedades (`session.Factory.X()`).
+- Core: `ComputerState` com palavra-passe (PBKDF2-SHA256, 20 000 iterações, sal aleatório, comparação em tempo constante; só o hash é guardado), `CreatureSystem.HackTime` (firewall ×3 com a investigação Cybersecurity, palavra-passe ×2), evento `IntrusionStarted`; `GameState.Repair` (1 pedra = 20 HP, limitado ao máximo).
+- Unity: cadeado no editor de código (pede a palavra-passe uma vez por sessão), secção Segurança no editor (estado da firewall, definir/mudar/remover palavra-passe, tempo de invasão), evento `intrusion` para programas, notificação e alarme sonoro com legenda; reparação com LMB no `MiningController`.
+- Testes: 53/53 EditMode. Play Mode: drone a atacar PC com firewall + palavra-passe → programa JS recebeu `INTRUSION m2 drone 1 in 18 s`, computador não comprometido; editor trancado mostrado. Build + self-test PASS.
+
+## Sessão 3 (cont.): energia renovável
+- Core: `SolarState`, `BatteryState` (capacidade em kJ); `Factory.SolarFactor` (definido pelo `GameBootstrap` a partir de `WorldClock.SolarFactor(clima)`), redes com painéis e baterias; fornecimento solar → carvão → bateria; baterias carregam só com sobra solar; `Factory.Totals()` e `NetworkStoredKJ`.
+- Investigação Energy desbloqueia painel e bateria; sprites; HUD `power.storedKJ`; API `energy.stats().storedKJ`.
+- Testes: 56/56 EditMode (3 novos: dia/noite com bateria, clima reduz o solar + totais, bloqueio por investigação + carga guardada).
+
+## Sessão 3 (cont.): localização
+- Core `Loc`: tabela chave → texto, inglês escrito no próprio código como recurso; `T(chave, inglês, args)` com `string.Format` invariante; tradução com marcadores errados volta ao inglês em vez de rebentar; `Building/Item/Tech`.
+- Tabelas geradas por `Codebound/Tools/localization/build_tables.py` (uma linha por chave com as 10 línguas) para `StreamingAssets/Localization/<código>.json`.
+- `Settings.Language` (PlayerPrefs `cb.lang`, omissão = idioma do SO), `ApplyLanguage` no arranque; `Settings.UiFont` cria fonte do SO (Yu Gothic / Microsoft YaHei / Malgun Gothic) para ja/zh/ko, aplicada ao IMGUI em `UiGui.Begin` e ao HUD UI Toolkit.
+- Traduzidos: menu de opções (com seletor de idioma), nomes das teclas, inventário/ajuda/barra de construção, painel de investigação, notificações, nomes de estruturas/itens/tecnologias/áreas.
+- Testes: 58/58 EditMode (todas as línguas têm as chaves do inglês, sem vazios e com os mesmos marcadores; recurso ao inglês). Play Mode: painel de investigação em japonês e menu em pt-PT corretos (capturas). Build + self-test PASS; as 10 tabelas vão no build.
+- Por traduzir: descrições das tecnologias, painel de máquinas/editor, legendas de som, mensagens do `BuildController`/`MiningController`.
+
+## Sessão 3 (cont.): exploração
+- Core `Exploration.cs`: `Facility` (terminal + caixa a 2 células), uma por região de 48×48 com 55% de hipótese se o ponto cair nas Ruínas em chão seco e vazio; `Read` entrega os registos por ordem (o primeiro terminal lido é sempre o registo 1; a partir do 8.º repete o último); `Loot` uma vez por caixa; `Lore` com 8 registos (expedição automática Meridian, drones custódios, WARDEN — liga as criaturas e drones hostis à história, sem civilizações NPC).
+- Unity `ExplorationController`: sprites de terminal/caixa (aberta quando saqueada) num raio de 48 células, E lê/abre, J diário com scanner. Tecla `journal` remapeável.
+- Testes: 61/61. Play Mode: posto a 202 células do início, registo 1 lido, caixa deu placas/fio/circuitos/fruta, diário em pt-PT com scanner "49 células E".
+
+## Sessão 3 (cont.): ecologia
+- Core `Ecology.cs`: campo de poluição por regiões de 16×16 em passos de 1 s (independente do frame rate); emissões, dispersão 5%/s, decaimento 0,4%/s + 0,004/s por árvore (contagem em cache por 60 s); purificador de ar (`ScrubberState`, consumidor passivo de 30 kW) remove 2/s da sua região; `GrowthFactor` nas estufas; `Noise()` das criaturas + total/500.
+- Unity: neblina castanha proporcional à poluição local, ar irrespirável no smog; chaves HUD; API `world.pollution()` → {here, total, smog, smogLevel}; SQL `game.pollution`.
+- Equilíbrio: uma região com pico dissipa-se em ~30 s para as vizinhas; smog exige vários geradores a plena carga juntos.
+- Testes: 64/64 EditMode, runtimes JS/Python/SQL a passar. Play Mode: smog → "unbreathable", oxigénio do fato a descer, neblina visível.
+
+## Sessão 3 (cont.): Etapa 6 — multijogador LAN
+- Core `Multiplayer.cs`: `Snapshot` (save filtrado: sem hash/código/SQL de computadores trancados, sem inventários de outros convidados), `Apply` (sincroniza deltas minados, edifícios por chave def+posição+rotação — os iguais ficam, mudam só o estado; relógio, investigação, exploração, poluição; mantém o código que o convidado está a escrever), `Act` (validação das ações), conversões de criaturas/inventários; `GameState.Guests` + `ginv` no save; `TryBuild/TryDeconstruct/Repair` com inventário pagador.
+- Unity `NetSession.cs`: `Peer` (thread de leitura, limite de linha 256 KB do convidado / 32 MB do anfitrião, timeout de envio), `Net` estático (sobrevive ao recarregar da cena do convidado), anfitrião (aceita, valida `hello` com versão e nome, processa ≤64 mensagens/frame por convidado, instantâneos 2×/s), convidado (aplica só o instantâneo mais recente, envia posição 10×/s), fantasmas com nome, painel N.
+- Interceções no convidado: construção, remoção, mineração, reparação, ataque, painel de máquinas (tirar/pôr, Run/Stop/Save → anfitrião, palavra-passe enviada ao anfitrião), exploração, comer; sem simulação local, sem F5/F9, programas nunca arrancam localmente.
+- Bug encontrado no teste real: o nome do convidado era reposto das preferências ao recarregar a cena → corrigido.
+- Testes: 67/67. Verificação real descrita no TASKS.
+
+## Sessão 3 (cont.): Etapa 7 — espaço
+- Core `Space.cs`: `StarSystem` (derivado da seed), `Ascent` (constantes afinadas com um protótipo Python: a fundo → sobreaquece; controlo proporcional ao calor → órbita com ~25% de sobra; erro encontrado no protótipo: com a viragem a acabar em 120 km a altitude nunca chegava lá — agora acaba em 130 km), `LaunchPadState` (save do voo), `Voyage.Check/Cost/Arrive`. `WorldGenerator` com `PlanetKind` (viés de temperatura/humidade/estranheza; spawn aceita deserto/ruínas noutros mundos). Save: registo `planet <id> <kind> <homeSeed>` antes de `seed`.
+- Unity: operações da plataforma em `ProgramManager` (+ worker.js, host.py, comandos SQL), `GameBootstrap.OnTravel` (guarda o mundo que fica, carrega/gera o destino), `SpaceView` (nave, chama, leitura), chaves HUD.
+- Testes: 70/70 + runtimes. Play Mode: subida pilotada por JS até à órbita, viagem para o mundo vulcânico; ficheiro de planeta criado pelo teste apagado depois.
+
+## Sessão 3 (cont.): Etapa 8 — polimento (início)
+- `TitleMenu` (ecrã inicial com teclado/rato, traduzido), `GameBootstrap.NewGame(seed)`, `LoadFrom(path)`, auto-save de 5 min em ficheiro próprio com escrita atómica.
+- Play Mode: ecrã em pt-PT, mundo pausado; Novo jogo com seed 123 gerou esse mundo e retomou o tempo. 70/70 testes, build + self-test PASS.
+
+## Sessão 3 (cont.): PHP e C#
+- PHP 8.5.13 (download autorizado, SHA-256 verificado). `Runtime/php/host.php` com o mesmo protocolo do Python; testado primeiro que `open_basedir` numa pasta inexistente bloqueia ficheiros/diretórios/`SplFileObject`/`include` sem impedir o próprio anfitrião, e que funções desativadas podem ser redefinidas (o `sleep()` do jogo). Sem threads no PHP: o vigia de CPU passou para o `ProgramManager` (`BusySince`). `RuntimeProcess.Confine`: Job Object por P/Invoke. Build leva só `php.exe` + `php8.dll` + runtime VC (14 MB).
+- C#: esta máquina não tem SDK .NET, mas o Unity Editor inclui um (8.0.318, com Roslyn) — usado offline. `Tools/cshost` (Host.cs: protocolo, API, compilação em memória com PDB para linhas de erro; Sandbox.cs: lista branca por símbolo). Runtime .NET 8.0.21 copiado para `Tools/dotnet`.
+- Bug encontrado pelo self-test do build: o anfitrião C# devolvia o id do programa como texto e o Unity só aceita números → as chamadas eram ignoradas e o vigia matava o programa. Corrigido (o id volta tal como chega) e os testes de runtime de PHP e C# passaram a verificá-lo.
+- Correção ao que foi dito ao utilizador: o wasi-sdk para Windows tem 619 MB (não ~150 MB) → C/C++ à espera de nova confirmação.
+- Self-test do build: JS, TS, Python, SQL, PHP e C# PASS.
+
+## Sessão 3 (cont.): C e C++
+- wasi-sdk 34 (619 MB, autorizado; SHA-256 conferido) + textos de licença dos repositórios oficiais (o tarball não os traz). Build leva um SDK reduzido de ~194 MB; descoberto que o driver do clang só encontra os cabeçalhos da libc++ por alvo se existir a pasta genérica `include/c++/v1` (vazia).
+- `Runtime/c/codebound.h` (API C + `cb::Machine` em C++), `Runtime/js/wasm_worker.js` (WASI escrito à mão: stdout/stderr, relógios, aleatório, `poll_oneoff` = sleep do jogo, resto ENOSYS; ponteiros verificados; memória importada com máximo = RAM), `host.js` com `startWasm`/`attach`.
+- Problemas encontrados nos testes: memória importada com páginas iniciais diferentes das do linker; `printf` com buffer total porque o fd dizia ter direitos de seek (a libc só usa buffer por linha em "terminais"); o otimizador apagava `malloc` não usados no teste de memória.
+- Unity: `Core/CSource.cs` (filtro, 15 testes), `RuntimeProcess.RunConfined` (Job Object com vários processos — o clang chama o wasm-ld — e tempo limite), compilação numa thread e envio quando termina; mensagens do compilador sem caminhos locais.
+- 85/85 EditMode; runtimes JS, Python, SQL, PHP, C#, C/C++ a passar; self-test do build com 8 linguagens PASS. Build: 525 MB.

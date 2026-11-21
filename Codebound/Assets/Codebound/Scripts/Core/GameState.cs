@@ -16,23 +16,37 @@ namespace Codebound.Core
         public readonly Vitals Vitals = new Vitals();
         public readonly WorldClock Clock;
         public readonly CreatureSystem Creatures;
+        public readonly Exploration Exploration;
+        public readonly Ecology Ecology;
         public Research Research => Factory.Research;
         public double PlayerX, PlayerY;
+        /// <summary>Multiplayer guests' inventories, kept by the host and saved with the world.</summary>
+        public readonly Dictionary<string, Inventory> Guests = new Dictionary<string, Inventory>();
+        public Inventory GuestInventory(string name) { if (!Guests.TryGetValue(name, out var i)) Guests[name] = i = new Inventory(40); return i; }
 
-        public GameState(int seed)
+        /// <summary>Which world of the star system this is (Etapa 7). HomeSeed names the whole system.</summary>
+        public string PlanetId = "home";
+        public int HomeSeed;
+        public PlanetKind PlanetKind => World.Generator.Kind;
+
+        public GameState(int seed, PlanetKind kind = PlanetKind.Home)
         {
-            World = new WorldState(new WorldGenerator(seed));
+            HomeSeed = seed;
+            World = new WorldState(new WorldGenerator(seed, kind));
             Grid = new BuildGrid(IsBuildable);
             Factory = new Factory(World, Grid);
             Clock = new WorldClock(seed);
             Creatures = new CreatureSystem(this);
+            Exploration = new Exploration(World.Generator);
+            Ecology = new Ecology(this);
+            Factory.Ecology = Ecology;
         }
 
         public int Seed => World.Generator.Seed;
 
         bool IsBuildable(BuildingDef def, Cell c)
         {
-            if (!WorldRules.IsWalkable(World.Generator.TileAt(c))) return false;
+            if (!WorldRules.IsWalkable(World.Generator.TileAt(c)) || Exploration.FacilityAt(c) != null) return false;
             var d = World.DepositAt(c);
             return def.Kind == BuildingKind.Drill ? d.Type != ResourceType.Tree : d.IsNone;
         }
@@ -50,20 +64,31 @@ namespace Codebound.Core
         }
 
         /// <summary>Pays the cost and places. Returns null (and pays nothing) when not possible.</summary>
-        public PlacedBuilding TryBuild(BuildingDef def, Cell origin, Rotation rot, Func<Cell, bool> blocker = null)
+        public PlacedBuilding TryBuild(BuildingDef def, Cell origin, Rotation rot, Func<Cell, bool> blocker = null, Inventory payer = null)
         {
-            if (!Research.IsUnlocked(def) || !CanPlace(def, origin, rot, blocker) || !Inventory.TryRemoveAll(def.Cost)) return null;
+            if (!Research.IsUnlocked(def) || !CanPlace(def, origin, rot, blocker) || !(payer ?? Inventory).TryRemoveAll(def.Cost)) return null;
             return Grid.Place(def, origin, rot, blocker);
         }
 
+        public const float RepairPerStone = 20f;
+
+        /// <summary>One repair step with the multitool: +20 HP for 1 stone. Returns null or why it can't.</summary>
+        public string Repair(PlacedBuilding b, Inventory payer = null)
+        {
+            if (b == null || b.Health >= b.Def.MaxHealth) return "not damaged";
+            if (!(payer ?? Inventory).TryRemove(ItemDatabase.Stone, 1)) return "needs stone";
+            b.Health = Math.Min(b.Def.MaxHealth, b.Health + RepairPerStone);
+            return null;
+        }
+
         /// <summary>Removes a building, returning its cost and contents to the player. Refuses if they don't fit.</summary>
-        public bool TryDeconstruct(PlacedBuilding b)
+        public bool TryDeconstruct(PlacedBuilding b, Inventory payer = null)
         {
             var refund = new List<ItemStack>(b.Def.Cost);
             if (b.State != null)
                 foreach (var (_, inv) in b.State.Inventories)
                     for (int i = 0; i < inv.SlotCount; i++) if (!inv[i].IsEmpty) refund.Add(inv[i]);
-            if (!Inventory.TryAddAll(refund)) return false;
+            if (!(payer ?? Inventory).TryAddAll(refund)) return false;
             return Grid.Remove(b);
         }
 
@@ -83,9 +108,11 @@ namespace Codebound.Core
         public static void Write(GameState g, TextWriter w)
         {
             w.WriteLine($"CODEBOUND {Version}");
+            if (g.PlanetId != "home" || g.HomeSeed != g.Seed) w.WriteLine($"planet {g.PlanetId} {(int)g.PlanetKind} {g.HomeSeed}");
             w.WriteLine($"seed {g.Seed}");
             w.WriteLine($"player {g.PlayerX.ToString("R", Inv)} {g.PlayerY.ToString("R", Inv)}");
             WriteInv(w, "inv", g.Inventory);
+            foreach (var kv in g.Guests) WriteInv(w, "ginv " + kv.Key, kv.Value);
             foreach (var kv in g.World.MinedDeltas) w.WriteLine($"mined {kv.Key.X} {kv.Key.Y} {kv.Value}");
             var extra = new SortedDictionary<string, string>();
             foreach (var b in g.Grid.Buildings)
@@ -102,6 +129,8 @@ namespace Codebound.Core
             w.WriteLine(g.Clock.SaveLine());
             if (g.Research.SaveLine() is string rl) w.WriteLine(rl);
             foreach (var line in g.Hud.SaveLines()) w.WriteLine(line);
+            foreach (var line in g.Exploration.SaveLines()) w.WriteLine(line);
+            foreach (var line in g.Ecology.SaveLines()) w.WriteLine(line);
             w.WriteLine("end");
         }
 
@@ -114,6 +143,7 @@ namespace Codebound.Core
         /// <summary>Parses a save. Throws InvalidDataException with the line number on malformed input.</summary>
         public static GameState Read(TextReader r)
         {
+            (string id, PlanetKind kind, int home)? planet = null;
             string header = r.ReadLine();
             if (header == null || !header.StartsWith("CODEBOUND ")) throw new InvalidDataException("Not a Codebound save");
             int ver = int.Parse(header.Substring(10), Inv);
@@ -132,9 +162,14 @@ namespace Codebound.Core
                 {
                     switch (p[0])
                     {
-                        case "seed": g = new GameState(int.Parse(p[1], Inv)); break;
+                        case "planet": planet = (p[1], (PlanetKind)int.Parse(p[2], Inv), int.Parse(p[3], Inv)); break;
+                        case "seed":
+                            g = new GameState(int.Parse(p[1], Inv), planet?.kind ?? PlanetKind.Home);
+                            if (planet != null) { g.PlanetId = planet.Value.id; g.HomeSeed = planet.Value.home; }
+                            break;
                         case "player": Need(g).PlayerX = double.Parse(p[1], Inv); g.PlayerY = double.Parse(p[2], Inv); break;
                         case "inv": Need(g).Inventory.Add(p[1], int.Parse(p[2], Inv)); break;
+                        case "ginv": Need(g).GuestInventory(p[1]).Add(p[2], int.Parse(p[3], Inv)); break;
                         case "mined": Need(g).World.SetMined(new Cell(int.Parse(p[1], Inv), int.Parse(p[2], Inv)), int.Parse(p[3], Inv)); break;
                         case "b":
                             var def = BuildingDatabase.Get(p[1]);
@@ -151,6 +186,8 @@ namespace Codebound.Core
                         case "vitals": Need(g).Vitals.Load(p); break;
                         case "clock": Need(g).Clock.Load(p); break;
                         case "research": Need(g).Research.Load(p); break;
+                        case "explore": Need(g).Exploration.Load(p); break;
+                        case "eco": Need(g).Ecology.Load(p); break;
                         case "end": ended = true; break;
                         default: throw new InvalidDataException("Unknown record '" + p[0] + "'");
                     }
