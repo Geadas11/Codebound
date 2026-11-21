@@ -89,7 +89,7 @@ const PRELUDE = `
     if (info.type === 'drill') m.mine = () => call(id, 'mine');
     if (info.type === 'furnace') m.smelt = () => call(id, 'smelt');
     if (info.type === 'greenhouse') {
-      m.plant = (plot) => call(id, 'plant', plot === undefined ? [] : [Number(plot)]);
+      m.plant = (plot, species) => call(id, 'plant', [plot === undefined || plot === null ? null : Number(plot), species === undefined ? null : String(species)]);
       m.water = (plot) => call(id, 'water', plot === undefined ? [] : [Number(plot)]);
       m.harvest = (plot) => call(id, 'harvest', plot === undefined ? [] : [Number(plot)]);
       m.plots = () => call(id, 'plots');
@@ -100,6 +100,8 @@ const PRELUDE = `
       m.launch = () => call(id, 'launch'); m.throttle = (x) => call(id, 'throttle', [Number(x)]); m.flight = () => call(id, 'flight');
       m.planets = () => call(id, 'planets'); m.travel = (pid) => call(id, 'travel', [String(pid)]);
     }
+    if (info.type === 'server') { m.get = (k) => call(id, 'get', [String(k)]); m.set = (k, v) => call(id, 'set', [String(k), v]); m.keys = () => call(id, 'keys'); m.delete = (k) => call(id, 'delete', [String(k)]); }
+    if (info.type === 'storage_hub') { m.totals = () => call(id, 'totals'); m.find = (item) => call(id, 'find', [String(item)]); }
     if (info.type === 'lab') { m.research = (tech) => call(id, 'research', [String(tech)]); m.techs = () => call(id, 'techs'); }
     if (info.type === 'conveyor' || info.type === 'inserter') {
       m.start = () => call(id, 'start');
@@ -125,6 +127,7 @@ const PRELUDE = `
       handlers[name].push(fn);
     },
     time: () => call('computer', 'time'),
+    send: (channel, data) => call('computer', 'send', [String(channel), data === undefined ? null : data]),
     hasHandlers: () => Object.keys(handlers).length > 0,
     waitEvent: () => call('computer', 'wait_event'),
   });
@@ -140,7 +143,7 @@ const PRELUDE = `
   global.computer = computer;
   global.machines = machines;
   global.energy = energy;
-  global.world = Object.freeze({ pollution: () => call('world', 'pollution') });
+  global.world = Object.freeze({ pollution: () => call('world', 'pollution'), weather: () => call('world', 'weather') });
   global.hud = Object.freeze({
     set: (key, value) => call('hud', 'set', [String(key), value === undefined ? null : value]),
     notify: (text) => call('hud', 'notify', [String(text)]),

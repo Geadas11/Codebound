@@ -14,7 +14,7 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ Guardar/carregar (F5/F9): formato versionado, escrita atómica, deteção de corrupção — testado + Play Mode
 - 🟡 HUD IMGUI de desenvolvimento — temporário (Etapa 4)
 
-## Etapa 2 — Primeiras máquinas ✅ (base)
+## Etapa 2 — Primeiras máquinas ✅
 - ✅ Fornalha: minério→placa (ferro, cobre, pedra→tijolo), combustível carvão — testado
 - ✅ Gerador a carvão + postes elétricos + redes + satisfação de energia — testado + Play Mode
 - ✅ Perfuradora elétrica sobre jazidas; só trabalha comandada por programa — testado + Play Mode
@@ -22,8 +22,8 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ Saída para o edifício na frente (rotação)
 - ✅ Correia (básica, passiva) e transportador programável (`start/stop/setFilter`) — testado + Play Mode
 - ✅ Braço/inserter (tecla 0): tira 1 item de trás (baú, saída de fornalha/perfuradora, correia) e põe à frente; `start/stop/setFilter` por programa — testado + Play Mode
-- ⬜ Correia inteligente (filtro sem programa), splitters, braços de longo alcance
-- ⬜ Gráficos de estado das máquinas (animação a trabalhar, sem energia, etc.)
+- ✅ Correia separadora (o item escolhido no painel E segue em frente, os outros viram à direita — sem programa), divisor (alterna frente/direita, usa o outro lado se um estiver cheio), braço longo (2 células); investigação Robotics — 3 testes
+- ✅ Estado das máquinas no mapa: LED verde (a trabalhar, com pulsação), amarelo a piscar (bloqueada/cheia/sem combustível), vermelho a piscar (sem energia); `Factory.Activity()`; respeita "reduzir efeitos" e a paleta daltónica — 1 teste + Play Mode
 
 ## Etapa 3 — Programação funcional (em progresso)
 - ✅ 1.ª linguagem real: **JavaScript** (Node.js, MIT) em processo separado
@@ -44,10 +44,10 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ 2.ª linguagem: **TypeScript** (compilador TS 5.9.3, Apache-2.0, no host), erros mapeados para linhas TS via source map, debugger incluído — testado + Play Mode
 - ✅ 3.ª linguagem: **Python** (CPython 3.15.2 embeddable, PSF): processo por programa, Job Object (RAM, sem processos filhos), audit hook PEP 578, imports permitidos, watchdog, debugger com `sys.settrace` — 12 testes de integração (10 tentativas de fuga bloqueadas) + Play Mode + build
 - ✅ 4.ª linguagem **SQL** (SQLite): ciclos (`-- @every N`/`-- @once`), tabelas do jogo só de leitura, controlo por `commands`/`hud`, tabelas do jogador guardadas com o computador, authorizer + limite de 2 s por ciclo, debugger por instrução — 8/8 runtime + self-test do executável PASS
-- ⬜ Restantes linguagens: PHP, C, C++, C#
+- ✅ Restantes linguagens: PHP, C, C++, C# (ver "Linguagens")
 - ⬜ Python em Linux/macOS (precisa de uma distribuição standalone por plataforma; limites via RLIMIT_AS não testados)
 
-## Etapa 4 — Automação (em progresso)
+## Etapa 4 — Automação ✅
 - ✅ Transportadores e braços (ver Etapa 2)
 - ✅ **HUD programável HTML/CSS** (UI Toolkit): botão "+" cria caixas; painéis movíveis (título), redimensionáveis (canto), minimizáveis, editáveis (E) e fecháveis; layout guardado no save — testado (Core) + Play Mode
 - ✅ Subconjunto HTML (div p h1-h3 span b strong i em u small code ul ol li br hr progress) e CSS (tag/.class/#id, descendente, listas, especificidade, inline style; 30 propriedades) com erros por linha
@@ -56,30 +56,37 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - 🟡 Cliques reais do rato no HUD: botões e arrasto verificados com eventos de ponteiro do UI Toolkit; EventSystem + InputSystemUIInputModule adicionado; clique físico não verificado por mim
 - ✅ Menu de opções (Esc, pausa o jogo, navegável por teclado): modo pacífico, escala da interface (0,75–2×, IMGUI + HUD), tamanho de texto (caixas HUD, editor de código), alto contraste, paleta para daltonismo (azul/laranja em vez de verde/vermelho nos estados), reduzir flashes e partículas, remapear 12 ações, guardar/carregar/sair — Play Mode
 - ✅ Áudio sintetizado em código (31 sons, sem ficheiros nem licenças de terceiros): máquinas com som por estado (a trabalhar / quebra de energia mais grave / bloqueada com bip de aviso / sem energia em silêncio), ambiente por bioma e clima, música adaptativa em 3 camadas (calma, indústria, perigo), efeitos (minerar, construir, comer, beber, disparo, dissolução, dano), alarmes programáveis `hud.alarm()` (JS/TS/Python; SQL `INSERT INTO hud VALUES('alarm', …)`), volumes separados e legendas de sons com direção — testes do sintetizador + Play Mode
-- ⬜ Áudio espacial com HRTF/oclusão, música composta (Etapa 8), daltonismo completo (filtro de ecrã), idiomas
-- ⬜ Interatividade nas caixas (botões HTML que chamam programas), imagens
+- ✅ Áudio espacial: estéreo + distância + oclusão (cada parede entre a fonte e o jogador baixa o volume e abafa o som, filtro passa-baixo nas máquinas) — HRTF verdadeiro precisaria de um plugin de espacialização, não incluído
+- ✅ Filtro de ecrã para daltonismo (deuteranopia, protanopia, tritanopia) no menu Esc, por Channel Mixer do URP; matrizes testadas contra simulação (a primeira tentativa "daltonize" em RGB piorava a distinção — corrigida) — 1 teste
+- ✅ Idiomas (ver Localização)
+- ✅ `<button data-event="x">` nas caixas → evento `hud_button` {name, panel} em todos os programas; `<img src="item:...">` / `src="building:..."` com os ícones do jogo (sem ficheiros/URLs) — Play Mode: clique chegou ao programa JS
 - ✅ Fabricação: montadora programável (`craft`: engrenagem, fio de cobre, circuito; 60 kW) e **Computador Avançado** (60 chamadas/s, 64 MB, 256 KB) feito de circuitos — testes
 - ✅ Barra de construção clicável em várias linhas (13 estruturas; teclas 1–9,0 para as 10 primeiras); cliques na barra não minam/constroem por baixo
-- ⬜ Redes lógicas/servidores, armazenamento automático
+- ✅ Redes lógicas: `computer.send(canal, dados)` → evento `message` nos outros computadores (JS/TS/Python/PHP/C#/C); Servidor de dados (chave-valor partilhado, 256 chaves, guardado; `get/set/keys/delete`); Hub de armazenamento (baús a ≤6 células funcionam como um: entra para o baú que já tem o item, braços tiram dos baús; `totals/find`); investigação Networking — 2 testes
 
-## Etapa 5 — Mundo completo (em progresso)
+## Etapa 5 — Mundo completo ✅
 - ✅ Sobrevivência: vida, fome, sede, oxigénio (tanque do fato), temperatura corporal; ambiente por bioma (vulcânico/radioativo sem ar respirável, radiação, calor perto de lava); comer fruta alienígena (F; as árvores dão às vezes), beber água (LMB sobre água; tóxica faz dano); morte → regressa ao local do acidente sem perder o inventário; guardado no save; no HUD (`{{player.health}}`…) — 6 testes + Play Mode
 - ✅ Dia/noite (dia = 10 min), estações (5 dias cada), tempo regional determinístico (limpo, nublado, chuva, tempestade: de areia, de cinza, radioativa, trovoada) — afeta temperatura, ar respirável, radiação e sede (a chuva dá água); luz global 2D, camada de cor e partículas; opção de reduzir efeitos (`cb.reduceEffects`) — 5 testes + Play Mode
-- ⬜ Abrigos/aquecimento, relâmpagos, tempo visível na tabela `game` do SQL e na API JS/Python
+- ✅ Aquecedor (21 °C num raio de 5 células, 25 kW), abrigo (paredes nas 4 direções a ≤4 células: a tempestade fica lá fora), relâmpagos nas trovoadas (dano a edifícios e ao jogador ao lado; clarão e trovão com legenda), para-raios (apanha a ≤8 células e carrega baterias); `world.weather()` em todas as linguagens e colunas `weather/temperature/day/daylight` na tabela `game` (SQL); investigação Climate Control — 2 testes
 - ✅ Agricultura: estufa programável (4 canteiros; `plant/water/harvest/plots`; tanque enche-se com um lago a ≤ 4 células; cresce com luz do dia ou lâmpadas elétricas 30 kW; 1 fruta → 3) — testes + Play Mode (programa Python a cultivar)
-- ⬜ Hidroponia/aeroponia, plantas alienígenas variadas, melhoramento genético, processamento alimentar
+- ✅ 3 espécies (fruta, glowcap — cresce no escuro e cura —, erva-fibra) com sementes das árvores por bioma e das ruínas; `plant(plot, species)`; genética: cada colheita muta o vigor ±15% e a estufa guarda a melhor estirpe (vigor acelera e aumenta a colheita; `plots()` mostra `vigor` e `strains`); Baía hidropónica (só lâmpadas, metade da água, 1,5× mais rápida); rações na montadora (2 fruta + 1 glowcap); F come o melhor alimento — 4 testes. (Aeroponia: não separada da hidroponia.)
 - ✅ Ecologia: poluição por regiões de 16×16 (gerador a carvão ∝ carga, fornalha, perfuradora, montadora), espalha-se às regiões vizinhas, desaparece aos poucos e mais depressa com árvores; purificador de ar (30 kW, investigação Ecology após Agriculture); smog ≥ 120 tira o ar respirável e mostra neblina; estufas crescem até 60% mais devagar; poluição aumenta a atenção das criaturas; `{{pollution.here}}`/`{{pollution.total}}`, `world.pollution()` (JS/TS/Python), coluna `game.pollution` (SQL); guardada no save — 3 testes + Play Mode
 - ✅ Exploração: postos abandonados da expedição Meridian nas Ruínas (determinísticos por região de 48×48): terminal com registos em ordem de história (8 registos) e caixa de mantimentos (uma vez); tecla J = diário + scanner com distância/direção do posto por ler mais próximo (240 células); terreno dos postos não é construível; guardado no save — 3 testes + Play Mode
-- ⬜ Exploração: subsolo/cavernas, traduções dos textos dos registos, mais tipos de ruínas
+- ✅ Subsolo: entradas de caverna à superfície (determinísticas, não construíveis), E desce para uma camada subterrânea por mundo (túneis entre paredes de rocha, escuro, 12 °C, sem tempo, minério em dobro, cristais/titânio/urânio; lanterna do fato), escada para subir, cada camada guardada à parte; não se lança a nave do subsolo; o scanner (J) mostra a entrada mais próxima — 3 testes + Play Mode
+- ✅ Tipos de ruínas: posto (terminal + caixa), destroços (só caixa, sucata), retransmissor (só terminal) — 1 teste
+- ✅ Registos da história traduzidos nas 10 línguas
 - ✅ Investigação: árvore híbrida (ramos Indústria/Ciência/Computação + linha principal de 5 passos para reconstruir a nave), laboratório programável (`lab.research(id)`, `lab.techs()`; SQL `research`), estruturas bloqueadas até investigadas, painel T, notificações — 3 testes + Play Mode
-- ⬜ Mais ramos (Energia, Robótica, Materiais, Defesa, Segurança, Exploração, Programação), competências individuais por uso
+- ✅ Ramos novos: Robotics, Networking, Programming (+50% chamadas/s), Climate Control, Hydroponics, Materials, Exploration (scanner 2,5×) — além de Energy, Ecology, Cybersecurity, Defense
+- ✅ Competências por uso: mineração (+6%/nível de velocidade), combate (+6% dano), engenharia (+10% por reparação); nível = √(xp/20) até 10, notificação ao subir, mostradas no inventário, guardadas e levadas entre mundos — 1 teste
 - ✅ Criaturas e combate leve: "atenção" da base cresce com o ruído industrial (perfuradoras, geradores, fornalhas, montadoras, laboratórios) → ondas; base silenciosa fica em paz. Crawlers atacam máquinas ruidosas e o jogador próximo; drones hostis comprometem computadores (programa para; Run restaura do backup). Torre programável (`turret.targets()/fire(id)`, investigação Defense), evento `creature_detected`, tabela SQL `creatures` + comando `fire`; ataque do jogador (LMB, 12 de dano); estruturas com vida (parede 400), dano visível, destruição; sem violência gráfica (dissolvem-se) — 6 testes + Play Mode
 - ✅ Segurança informática: investigação Cybersecurity (firewall: drones demoram 3×), palavra-passe por computador (PBKDF2 com sal; dobra o tempo de invasão e tranca o editor), evento `intrusion` {computer, drone, seconds} para programas a ≤ 12 células, alarme e notificação — 3 testes + Play Mode
 - ✅ Reparação: manter LMB sobre estrutura danificada (+20 HP por pedra)
 - ✅ Energia renovável: painel solar 2×2 (40 kW × luz do dia × clima), bateria 1×1 (carrega só com sobra solar, descarrega quando falta), investigação Energy; ordem de fornecimento solar → carvão → bateria; `{{power.storedKJ}}`, `energy.stats().storedKJ`; carga guardada no save — 3 testes
 - ✅ Localização: 10 línguas (en, pt-PT, pt-BR, es, fr, de, it, ja, zh-Hans, ko), 115 textos (menu, teclas, HUD fixo, investigação, notificações, estruturas, itens, tecnologias), seletor no menu Esc, idioma do SO por omissão, fonte CJK do sistema; sintaxe e API de programação nunca traduzidas — 2 testes + Play Mode (ja, pt-PT)
-- ⬜ Localização: descrições das tecnologias, mensagens do painel de máquinas/editor, legendas de som
-- ⬜ Armas e equipamento do jogador, minas/barreiras, permissões multijogador (a palavra-passe já é a base)
+- ✅ Localização das descrições das tecnologias, registos e de todos os textos novos (230 chaves × 10 línguas)
+- ⬜ Localização ainda em falta: mensagens do painel de máquinas/editor de código e legendas de som (continuam em inglês)
+- ✅ Equipamento (funciona enquanto está no inventário, feito na montadora): multiferramenta laser (dano 25 e mineração 2×), placas de blindagem (metade do dano das criaturas), forro térmico (o fato fica a meio caminho dos 22 °C); armadilha de choque (pisável, 30 de dano + 3 s atordoado, 3 cargas, recarrega com fio de cobre — sem violência gráfica); muro reforçado (1000 HP); investigação Materials — 2 testes
+- ✅ Permissões multijogador: dono de cada edifício (guardado); construtores só removem o que construíram; novo papel administrador; painel N alterna visitante → construtor → administrador — 1 teste
 
 ## Etapa 6 — Multijogador (base feita)
 - ✅ LAN cooperativo com anfitrião autoritário (TCP, porta 47820, JSON por linha): painel N (nome, IP, abrir/entrar/desligar), `-host` / `-join <ip>` / `-name <n>` na linha de comandos

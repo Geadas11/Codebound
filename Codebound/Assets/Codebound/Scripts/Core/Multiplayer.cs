@@ -16,7 +16,7 @@ namespace Codebound.Core
         public const int Port = 47820, ProtocolVersion = 1;
         public const double ActionReach = 6;   // cells; a little over the local reach to absorb latency
         public const int MaxGuestLine = 256 * 1024, MaxHostLine = 32 * 1024 * 1024, MaxProgramChars = 64 * 1024;
-        public const string Builder = "builder", Visitor = "visitor";
+        public const string Builder = "builder", Visitor = "visitor", Admin = "admin";   // admin: may also remove what others built
 
         static readonly Regex NameRx = new Regex("^[A-Za-z0-9_-]{1,16}$");
         public static bool ValidName(string n) => n != null && NameRx.IsMatch(n);
@@ -36,7 +36,7 @@ namespace Codebound.Core
                 if (l.StartsWith("b "))
                 {
                     int end = i + 1;
-                    while (end < lines.Length && (lines[end].StartsWith("bx ") || lines[end].StartsWith("bi ") || lines[end].StartsWith("bh "))) end++;
+                    while (end < lines.Length && (lines[end].StartsWith("bx ") || lines[end].StartsWith("bi ") || lines[end].StartsWith("bh ") || lines[end].StartsWith("bo "))) end++;
                     bool locked = false;
                     for (int k = i + 1; k < end; k++) if (lines[k].StartsWith("bx pwd ")) locked = true;
                     o.Append(l).Append('\n');
@@ -74,7 +74,7 @@ namespace Codebound.Core
                 if (!have.TryGetValue(kv.Key, out var tb)) tb = t.Grid.Place(sb.Def, sb.Origin, sb.Rotation);
                 if (tb == null) continue;   // cannot happen with the same seed and deltas; skip rather than break the session
                 if (tb == editing && tb.State is ComputerState oc && sb.State is ComputerState nc) { nc.Code = oc.Code; nc.Language = oc.Language; }   // keep what the guest is typing
-                tb.State = sb.State; tb.Health = sb.Health;
+                tb.State = sb.State; tb.Health = sb.Health; tb.Owner = sb.Owner;
             }
 
             t.Clock.Seconds = s.Clock.Seconds;
@@ -89,12 +89,12 @@ namespace Codebound.Core
         static Cell CellOf(Dictionary<string, object> a) => new Cell((int)Num(a, "x"), (int)Num(a, "y"));
 
         /// <summary>Applies one guest action on the host. Returns null on success, otherwise a reason for the guest.</summary>
-        public static string Act(GameState g, string role, Inventory inv, double px, double py, Dictionary<string, object> a)
+        public static string Act(GameState g, string role, Inventory inv, double px, double py, Dictionary<string, object> a, string player = null)
         {
             try
             {
                 string kind = Str(a, "a");
-                if (role != Builder && kind != "attack") return "you are a visitor (ask the host to make you a builder)";
+                if (role != Builder && role != Admin && kind != "attack") return "you are a visitor (ask the host to make you a builder)";
                 Cell c = kind == "attack" || kind == "consume" ? default : CellOf(a);
                 if (kind != "attack" && kind != "consume" && Math.Sqrt(Math.Pow(c.X + 0.5 - px, 2) + Math.Pow(c.Y + 0.5 - py, 2)) > ActionReach) return "too far";
                 switch (kind)
@@ -105,12 +105,16 @@ namespace Codebound.Core
                         if (def == null) return "unknown building";
                         if (!g.Research.IsUnlocked(def)) return "needs research";
                         if (!g.CanPlace(def, c, (Rotation)((int)Num(a, "rot") & 3))) return "blocked";
-                        return g.TryBuild(def, c, (Rotation)((int)Num(a, "rot") & 3), null, inv) == null ? "not enough materials" : null;
+                        var built = g.TryBuild(def, c, (Rotation)((int)Num(a, "rot") & 3), null, inv);
+                        if (built == null) return "not enough materials";
+                        built.Owner = player;
+                        return null;
                     }
                     case "remove":
                     {
                         var b = g.Grid.At(c);
                         if (b == null) return "nothing there";
+                        if (role != Admin && b.Owner != player) return "you can only remove what you built (the host can make you an admin)";
                         return g.TryDeconstruct(b, inv) ? null : "inventory full";
                     }
                     case "mine":
@@ -146,6 +150,15 @@ namespace Codebound.Core
                         return "nothing to take";
                     }
                     case "repair": return g.Repair(g.Grid.At(c), inv);
+                    case "sort":
+                    {
+                        var b = g.Grid.At(c);
+                        if (b?.Def.Id != "sorter") return "not a sorter";
+                        string it = a.TryGetValue("item", out var iv) ? iv as string : null;
+                        if (it != null && !ItemDatabase.Exists(it)) return "unknown item";
+                        ((ConveyorState)b.State).Filter = it;
+                        return null;
+                    }
                     case "explore":
                     {
                         var f = g.Exploration.FacilityAt(c);

@@ -307,7 +307,8 @@ namespace Codebound.Game
             if (s == v.Signature) return;
             v.Signature = s;
             v.Missing.Clear(); v.RenderProblems.Clear();
-            var ctx = new HudRenderer.Context { Rules = v.Rules, Lookup = Lookup, Missing = v.Missing, Problems = v.RenderProblems };
+            var ctx = new HudRenderer.Context { Rules = v.Rules, Lookup = Lookup, Missing = v.Missing, Problems = v.RenderProblems,
+                OnButton = evt => programs?.Broadcast("hud_button", new Dictionary<string, object> { { "name", evt }, { "panel", p.Title } }) };
             v.Body.Clear();
             v.Body.Add(HudRenderer.Render(v.Dom, ctx));
             v.Warn.style.display = v.ParseProblems.Count + v.RenderProblems.Count + v.Missing.Count > 0 ? DisplayStyle.Flex : DisplayStyle.None;

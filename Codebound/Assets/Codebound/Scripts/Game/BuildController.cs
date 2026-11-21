@@ -88,7 +88,7 @@ namespace Codebound.Game
                 else if (!ok) Say(!InReach(mc) ? "Too far" : def.Kind == BuildingKind.Drill ? "Drills must cover ore (not trees) on free land" : "Blocked: terrain, resource, structure or you are in the way");
                 else if (Net.IsGuest) { Net.SendAct(new System.Collections.Generic.Dictionary<string, object> { { "a", "build" }, { "def", def.Id }, { "x", (double)origin.X }, { "y", (double)origin.Y }, { "rot", (double)(int)Rotation } }); }
                 else if (session.State.TryBuild(def, origin, Rotation, player.Overlaps) == null) Say("Not enough materials");
-                else Say(def.Programmable ? $"{def.DisplayName} placed — it only works when a computer program drives it" : $"{def.DisplayName} placed");
+                else { session.State.Skills.Add("engineering"); Say(def.Programmable ? $"{def.DisplayName} placed — it only works when a computer program drives it" : $"{def.DisplayName} placed"); }
             }
 
             if (mouse.rightButton.wasPressedThisFrame)

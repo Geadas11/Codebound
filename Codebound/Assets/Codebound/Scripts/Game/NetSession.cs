@@ -183,7 +183,7 @@ namespace Codebound.Game
                             else
                             {
                                 if (av as string == "mine") p.LastMine = Time.time;
-                                err = Multiplayer.Act(s.State, p.Role, s.State.GuestInventory(p.Name), p.X, p.Y, m);
+                                err = Multiplayer.Act(s.State, p.Role, s.State.GuestInventory(p.Name), p.X, p.Y, m, p.Name);
                             }
                             if (err != null) p.Send(Msg("msg", err));
                             break;
@@ -382,8 +382,8 @@ namespace Codebound.Game
                         if (p.Name == null) continue;
                         GUILayout.BeginHorizontal();
                         GUILayout.Label($"{p.Name}  <size=11>({p.Role})</size>", label);
-                        if (GUILayout.Button(p.Role == Multiplayer.Builder ? Loc.T("net.makevisitor", "Make visitor") : Loc.T("net.makebuilder", "Make builder"), GUILayout.Width(110)))
-                            Net.SetRole(p.Name, p.Role == Multiplayer.Builder ? Multiplayer.Visitor : Multiplayer.Builder);
+                        string next = p.Role == Multiplayer.Visitor ? Multiplayer.Builder : p.Role == Multiplayer.Builder ? Multiplayer.Admin : Multiplayer.Visitor;
+                        if (GUILayout.Button(Loc.T("net.make", "Make {0}", Loc.T("net.role." + next, next)), GUILayout.Width(120))) Net.SetRole(p.Name, next);
                         if (GUILayout.Button(Loc.T("net.kick", "Kick"), GUILayout.Width(60))) Net.Kick(p.Name);
                         GUILayout.EndHorizontal();
                     }

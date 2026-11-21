@@ -53,6 +53,8 @@ namespace Codebound.Game
                 case TileType.Lava: baseC = new Color32(214, 76, 22, 255); break;
                 case TileType.RuinFloor: baseC = new Color32(92, 98, 106, 255); break;
                 case TileType.ToxicSoil: baseC = new Color32(92, 108, 52, 255); break;
+                case TileType.CaveFloor: baseC = new Color32(58, 52, 50, 255); break;
+                case TileType.CaveWall: baseC = new Color32(28, 24, 26, 255); break;
                 default: baseC = new Color32(86, 168, 58, 255); break; // toxic water
             }
             int seed = (int)t * 97 + variant * 13;
@@ -75,6 +77,12 @@ namespace Codebound.Game
                     case TileType.RuinFloor:
                         if (x == 0 || y == 0 || x == 8 || y == 8) c = Shade(baseC, 0.72f);
                         if (n > 0.96f) c = new Color32(60, 200, 210, 255); // dead circuitry glints
+                        break;
+                    case TileType.CaveWall:
+                        if (n > 0.9f) c = Shade(baseC, 1.6f); else if (n < 0.1f) c = new Color32(12, 10, 12, 255);
+                        break;
+                    case TileType.CaveFloor:
+                        if (n > 0.97f) c = new Color32(120, 90, 200, 255);   // faint crystal glints
                         break;
                     case TileType.Rock: case TileType.Ash:
                         if (n < 0.08f) c = Shade(baseC, 0.6f);
@@ -353,6 +361,18 @@ namespace Codebound.Game
         public static Sprite Facility(string kind, bool open) => Make("facility_" + kind + open, PPU, PPU, (x, y) =>
         {
             bool edge = x == 1 || x == 14 || y == 1 || y == (kind == "terminal" ? 14 : 11);
+            if (kind == "relay")
+            {
+                if (x == 7 || x == 8) return y < 15 ? new Color32(150, 156, 168, 255) : new Color32(255, 80, 60, 255);   // mast with a red light
+                if (y == 15 - (x > 8 ? x - 8 : 7 - x) * 2 && y > 6) return new Color32(110, 116, 128, 255);              // guy wires
+                return y < 3 && x > 3 && x < 12 ? Shade(new Color32(90, 96, 108, 255), 0.9f) : Clear;
+            }
+            if (kind == "wreck")
+            {
+                float w = Mathf.Abs(x - 7.5f) + Mathf.Abs(y - 6f) * 1.4f;
+                if (w > 8f || y > 12) return Clear;
+                return H(x, y, 17) > 0.85f ? new Color32(255, 140, 40, 255) : Shade(new Color32(130, 136, 146, 255), 0.6f + 0.5f * H(x, y, 9));   // scorched hull
+            }
             if (kind == "terminal")
             {
                 if (x < 1 || x > 14 || y < 1 || y > 14) return Clear;
@@ -379,6 +399,15 @@ namespace Codebound.Game
             if (y < 6) return new Color32(200, 70, 60, 255);                                              // fins
             return Shade(new Color32(225, 228, 235, 255), 0.85f + 0.2f * (1 - d / 5f));
         }, new Vector2(0.5f, 0.25f));
+
+        /// <summary>A cave mouth on the surface, or the ladder up underground.</summary>
+        public static Sprite CavePortal(bool up) => Make(up ? "cave_ladder" : "cave_mouth", PPU, PPU, (x, y) =>
+        {
+            float dx = x - 7.5f, dy = y - 7.5f;
+            if (up) return (x == 4 || x == 11) && y > 1 && y < 15 ? new Color32(150, 110, 60, 255) : y % 3 == 0 && x > 4 && x < 11 && y > 1 && y < 15 ? new Color32(170, 128, 70, 255) : Clear;
+            float d = dx * dx / 49f + dy * dy / 30f;
+            return d < 0.55f ? new Color32(8, 6, 8, 255) : d < 1f ? Shade(new Color32(96, 88, 84, 255), 0.7f + 0.4f * H(x, y, 3)) : Clear;
+        }, Vector2.zero);
 
         public static Sprite CellOutline() => Make("cell_outline", PPU, PPU, (x, y) =>
             (x == 0 || y == 0 || x == PPU - 1 || y == PPU - 1) ? new Color32(255, 255, 255, 220) : Clear, Vector2.zero);

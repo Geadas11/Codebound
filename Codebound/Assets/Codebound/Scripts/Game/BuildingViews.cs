@@ -9,6 +9,7 @@ namespace Codebound.Game
     {
         GameSession session;
         readonly Dictionary<int, GameObject> views = new Dictionary<int, GameObject>();
+        readonly Dictionary<int, SpriteRenderer> leds = new Dictionary<int, SpriteRenderer>();
         Transform root;
 
         public void Init(GameSession s)
@@ -37,6 +38,15 @@ namespace Codebound.Game
             sr.sortingOrder = 2;
             Pose(b.Def, b.Origin, b.Rotation, go.transform);
             views[b.InstanceId] = go;
+            if (b.State == null) return;
+            var led = new GameObject("led").AddComponent<SpriteRenderer>();   // status light in the top-right corner
+            led.sprite = PixelArtFactory.White(); led.sortingOrder = 3;
+            led.transform.SetParent(go.transform, false);
+            var (w, h) = b.Size;
+            led.transform.rotation = Quaternion.identity;
+            led.transform.position = new Vector3(b.Origin.X + w - 0.3f, b.Origin.Y + h - 0.3f, 0);
+            led.transform.localScale = new Vector3(0.9f, 0.9f, 1);
+            leds[b.InstanceId] = led;
         }
 
         void LateUpdate()
@@ -47,12 +57,24 @@ namespace Codebound.Game
                 {
                     float k = Mathf.Clamp01(b.Health / b.Def.MaxHealth);
                     go.GetComponent<SpriteRenderer>().color = Color.Lerp(new Color(1f, 0.45f, 0.45f), Color.white, k);
+                    if (!leds.TryGetValue(b.InstanceId, out var led)) continue;
+                    var a = session.Factory.Activity(b);
+                    bool calm = Settings.ReduceEffects;
+                    float blink = calm ? 1f : 0.55f + 0.45f * Mathf.Sin(Time.time * 6f);
+                    led.enabled = a != MachineActivity.None && a != MachineActivity.Idle;
+                    led.color = a == MachineActivity.Working ? Settings.GoodColor
+                              : a == MachineActivity.NoPower ? Settings.BadColor * new Color(1, 1, 1, blink)
+                              : new Color(1f, 0.85f, 0.2f, blink);   // blocked: yellow
+                    // working machines breathe a little
+                    float pulse = a == MachineActivity.Working && !calm && b.Def.Kind != BuildingKind.Belt ? 1f + 0.025f * Mathf.Sin(Time.time * 9f + b.InstanceId) : 1f;
+                    go.transform.localScale = new Vector3(pulse, pulse, 1);
                 }
         }
 
         void OnRemoved(PlacedBuilding b)
         {
             if (views.TryGetValue(b.InstanceId, out var go)) { Destroy(go); views.Remove(b.InstanceId); }
+            leds.Remove(b.InstanceId);
         }
 
         void OnDestroy()

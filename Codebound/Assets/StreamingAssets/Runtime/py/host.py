@@ -198,7 +198,8 @@ class Machine:
         allowed = {"drill": {"mine"}, "furnace": {"smelt"}, "conveyor": {"start", "stop", "set_filter"},
                    "inserter": {"start", "stop", "set_filter"}, "greenhouse": {"plant", "water", "harvest", "plots"},
                    "assembler": {"craft"}, "lab": {"research", "techs"}, "turret": {"targets", "fire"},
-                   "launchpad": {"launch", "throttle", "flight", "planets", "travel"}}.get(self.type, set())
+                   "launchpad": {"launch", "throttle", "flight", "planets", "travel"},
+                   "server": {"get", "set", "keys", "delete"}, "storage_hub": {"totals", "find"}}.get(self.type, set())
         if name not in allowed:
             raise AttributeError(f"'{self.type}' has no function '{name}'")
         return lambda *a: _call(self.id, name, list(a))
@@ -240,6 +241,9 @@ class _Computer:
     def time(self):
         return _call("computer", "time")
 
+    def send(self, channel, data=None):
+        return _call("computer", "send", [str(channel), data])
+
 
 class _Energy:
     def available(self):
@@ -252,6 +256,9 @@ class _Energy:
 class _World:
     def pollution(self):
         return _call("world", "pollution")
+
+    def weather(self):
+        return _call("world", "weather")
 
 
 class _Hud:

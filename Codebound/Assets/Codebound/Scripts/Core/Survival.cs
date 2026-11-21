@@ -82,6 +82,8 @@ namespace Codebound.Core
         static readonly System.Collections.Generic.Dictionary<string, (float hunger, float thirst, float health)> Foods =
             new System.Collections.Generic.Dictionary<string, (float, float, float)>
             {
+            { ItemDatabase.Glowcap, (10f, 0f, 25f) },   // medicinal
+            { ItemDatabase.Ration, (55f, 10f, 10f) },  // processed food
                 { ItemDatabase.AlienFruit, (18f, 4f, 2f) },
             };
 
@@ -96,6 +98,7 @@ namespace Codebound.Core
                 case Biome.Volcanic: return 46f;
                 case Biome.Ruins: return 15f;
                 case Biome.Radioactive: return 24f;
+                case Biome.Cavern: return Caves.CaveC;
                 default: return 19f;
             }
         }

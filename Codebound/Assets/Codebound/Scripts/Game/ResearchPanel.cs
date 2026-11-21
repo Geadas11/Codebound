@@ -66,7 +66,7 @@ namespace Codebound.Game
                     var cost = string.Join(", ", t.Cost.Select(c => $"{c.Count} {Loc.Item(c.ItemId)}"));
                     var sb = new StringBuilder();
                     sb.Append($"<color={col}><b>{Loc.Tech(t)}</b> [{statusText}]</color>  <color=#8a8f99>id:</color> <color=#9cdcfe>{t.Id}</color>  · {t.Seconds:0}s\n");
-                    sb.Append($"{t.Description}\n<size=11>{Loc.T("research.cost", "Cost")}: {cost}");
+                    sb.Append($"{Loc.T("techdesc." + t.Id, t.Description)}\n<size=11>{Loc.T("research.cost", "Cost")}: {cost}");
                     if (t.Prereqs.Length > 0) sb.Append($"   {Loc.T("research.needs", "Needs")}: " + string.Join(", ", t.Prereqs.Select(p => Loc.Tech(Research.Get(p)))));
                     if (t.Unlocks.Length > 0) sb.Append($"   {Loc.T("research.unlocks", "Unlocks")}: " + string.Join(", ", t.Unlocks.Select(b => Loc.Building(BuildingDatabase.Get(b)))));
                     sb.Append("</size>");

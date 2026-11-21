@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Codebound.Core
 {
-    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad }
+    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap }
 
     public sealed class BuildingDef
     {
@@ -25,12 +25,12 @@ namespace Codebound.Core
             || Kind == BuildingKind.LaunchPad;
 
         /// <summary>Belts can be walked over (Factorio-style); everything else blocks the player.</summary>
-        public bool Walkable => Kind == BuildingKind.Belt || Kind == BuildingKind.Conveyor;
+        public bool Walkable => Kind == BuildingKind.Belt || Kind == BuildingKind.Conveyor || Kind == BuildingKind.ShockTrap;
 
         public (int w, int h) Size(Rotation r) => r.IsSideways() ? (Height, Width) : (Width, Height);
 
         /// <summary>Hit points against creatures: walls are tough, turrets sturdy.</summary>
-        public float MaxHealth => Kind == BuildingKind.Structure ? 400f : Kind == BuildingKind.Turret ? 200f : 100f;
+        public float MaxHealth => Id == "reinforced_wall" ? 1000f : Kind == BuildingKind.Structure ? 400f : Kind == BuildingKind.Turret ? 200f : 100f;
     }
 
     public static class BuildingDatabase
@@ -53,6 +53,10 @@ namespace Codebound.Core
             new BuildingDef("belt", "Transport Belt", BuildingKind.Belt, 1, 1, 0x4a4f57, new ItemStack(ItemDatabase.IronPlate, 1)),
             new BuildingDef("conveyor", "Programmable Conveyor", BuildingKind.Conveyor, 1, 1, 0x2f5f8f,
                 new ItemStack(ItemDatabase.IronPlate, 1), new ItemStack(ItemDatabase.CopperPlate, 1)),
+            new BuildingDef("sorter", "Sorter Belt", BuildingKind.Belt, 1, 1, 0x5a6f4a, new ItemStack(ItemDatabase.IronPlate, 2), new ItemStack(ItemDatabase.Circuit, 1)),
+            new BuildingDef("splitter", "Splitter", BuildingKind.Belt, 1, 1, 0x6a5a3a, new ItemStack(ItemDatabase.IronPlate, 3), new ItemStack(ItemDatabase.IronGear, 2)),
+            new BuildingDef("long_inserter", "Long Inserter", BuildingKind.Inserter, 1, 1, 0xb8821a,
+                new ItemStack(ItemDatabase.IronPlate, 3), new ItemStack(ItemDatabase.IronGear, 2), new ItemStack(ItemDatabase.Circuit, 1)),
             new BuildingDef("inserter", "Inserter", BuildingKind.Inserter, 1, 1, 0xd9a520,
                 new ItemStack(ItemDatabase.IronPlate, 2), new ItemStack(ItemDatabase.CopperPlate, 1)),
             new BuildingDef("greenhouse", "Greenhouse", BuildingKind.Greenhouse, 2, 2, 0x7fc8d8,
@@ -69,6 +73,20 @@ namespace Codebound.Core
                 new ItemStack(ItemDatabase.IronPlate, 6), new ItemStack(ItemDatabase.CopperWire, 6), new ItemStack(ItemDatabase.Silicon, 2)),
             new BuildingDef("launchpad", "Launch Pad", BuildingKind.LaunchPad, 3, 3, 0xc8ccd4,
                 new ItemStack(ItemDatabase.IronPlate, 40), new ItemStack(ItemDatabase.StoneBrick, 20), new ItemStack(ItemDatabase.Circuit, 10), new ItemStack(ItemDatabase.CopperWire, 20)),
+            new BuildingDef("server", "Data Server", BuildingKind.Server, 1, 2, 0x3a4a6a,
+                new ItemStack(ItemDatabase.Circuit, 4), new ItemStack(ItemDatabase.IronPlate, 4), new ItemStack(ItemDatabase.CopperWire, 6)),
+            new BuildingDef("storage_hub", "Storage Hub", BuildingKind.StorageHub, 2, 2, 0x6a6a3a,
+                new ItemStack(ItemDatabase.IronPlate, 8), new ItemStack(ItemDatabase.Circuit, 2), new ItemStack(ItemDatabase.IronGear, 4)),
+            new BuildingDef("hydroponics", "Hydroponic Bay", BuildingKind.Greenhouse, 2, 2, 0x4fa88f,
+                new ItemStack(ItemDatabase.IronPlate, 6), new ItemStack(ItemDatabase.Silicon, 2), new ItemStack(ItemDatabase.CopperWire, 6)),
+            new BuildingDef("reinforced_wall", "Reinforced Wall", BuildingKind.Structure, 1, 1, 0x5a5f6a,
+                new ItemStack(ItemDatabase.StoneBrick, 4), new ItemStack(ItemDatabase.IronPlate, 2)),
+            new BuildingDef("shock_trap", "Shock Trap", BuildingKind.ShockTrap, 1, 1, 0x3a6aa0,
+                new ItemStack(ItemDatabase.IronPlate, 2), new ItemStack(ItemDatabase.CopperWire, 4)),
+            new BuildingDef("heater", "Heater", BuildingKind.Heater, 1, 1, 0xc8603a,
+                new ItemStack(ItemDatabase.IronPlate, 4), new ItemStack(ItemDatabase.CopperWire, 6)),
+            new BuildingDef("lightning_rod", "Lightning Rod", BuildingKind.LightningRod, 1, 1, 0x9aa4b0,
+                new ItemStack(ItemDatabase.IronPlate, 6), new ItemStack(ItemDatabase.CopperWire, 4)),
             new BuildingDef("computer2", "Advanced Computer", BuildingKind.Computer, 1, 2, 0x8a3ad5,
                 new ItemStack(ItemDatabase.Circuit, 4), new ItemStack(ItemDatabase.IronGear, 2), new ItemStack(ItemDatabase.CopperWire, 6)),
         };
@@ -89,6 +107,7 @@ namespace Codebound.Core
         public readonly Cell Origin;      // bottom-left cell of the rotated footprint
         public readonly Rotation Rotation;
         public MachineState State;        // null for plain structures
+        public string Owner;              // multiplayer: the guest who built it (null = the host)
         public float Health;
 
         public PlacedBuilding(int id, BuildingDef def, Cell origin, Rotation rot)
@@ -181,6 +200,21 @@ namespace Codebound.Core
             byId[b.InstanceId] = b;
             Placed?.Invoke(b);
             return b;
+        }
+
+        /// <summary>Walls (structures) crossed by the straight line between two points: sound occlusion, line of sight.</summary>
+        public int StructuresBetween(double x0, double y0, double x1, double y1, PlacedBuilding ignore = null)
+        {
+            double len = Math.Sqrt((x1 - x0) * (x1 - x0) + (y1 - y0) * (y1 - y0));
+            int steps = Math.Max(1, (int)(len * 3));
+            var seen = new HashSet<int>();
+            for (int i = 1; i < steps; i++)
+            {
+                double t = i / (double)steps;
+                var b = At(new Cell((int)Math.Floor(x0 + (x1 - x0) * t), (int)Math.Floor(y0 + (y1 - y0) * t)));
+                if (b != null && b != ignore && b.Def.Kind == BuildingKind.Structure) seen.Add(b.InstanceId);
+            }
+            return seen.Count;
         }
 
         public bool Remove(PlacedBuilding b)

@@ -17,6 +17,7 @@ namespace Codebound.Core
         public float StuckTime;
         public double LastX, LastY;
         public bool Alive => Health > 0;
+        public float Stunned;               // seconds left, from shock traps
     }
 
     /// <summary>
@@ -164,6 +165,13 @@ namespace Codebound.Core
 
         void TickCreature(Creature c, float dt, double px, double py)
         {
+            if (c.Stunned > 0) { c.Stunned -= dt; return; }
+            if (c.Type == CreatureType.Crawler && game.Grid.At(new Cell((int)Math.Floor(c.X), (int)Math.Floor(c.Y)))?.State is ShockTrapState trap && trap.Charges > 0)
+            {   // non-lethal deterrent: a jolt and a few seconds of paralysis
+                trap.Charges--; trap.Status = trap.Charges > 0 ? $"{trap.Charges} charges" : "empty — insert copper wire";
+                Hurt(c, ShockTrapState.Damage); c.Stunned = ShockTrapState.StunSeconds;
+                return;
+            }
             double tx, ty;
             PlacedBuilding target = c.TargetBuilding != 0 ? game.Grid.ById(c.TargetBuilding) : null;
             c.ChasingPlayer = c.Type == CreatureType.Crawler && Dist(c.X, c.Y, px, py) < AggroRange;
@@ -179,7 +187,7 @@ namespace Codebound.Core
             double reach = c.ChasingPlayer ? 0.9 : Math.Max(target.Size.w, target.Size.h) / 2.0 + 0.7;
             if (d <= reach)
             {
-                if (c.ChasingPlayer) { game.Vitals.Health = Math.Max(0, game.Vitals.Health - CrawlerPlayerDamage * dt); return; }
+                if (c.ChasingPlayer) { game.Vitals.Health = Math.Max(0, game.Vitals.Health - CrawlerPlayerDamage * Equipment.DamageTaken(game.Inventory) * dt); return; }
                 if (c.Type == CreatureType.Drone)
                 {
                     if (c.HackProgress == 0) IntrusionStarted?.Invoke(target, c);

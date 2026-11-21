@@ -206,3 +206,12 @@
 - Problemas encontrados nos testes: memória importada com páginas iniciais diferentes das do linker; `printf` com buffer total porque o fd dizia ter direitos de seek (a libc só usa buffer por linha em "terminais"); o otimizador apagava `malloc` não usados no teste de memória.
 - Unity: `Core/CSource.cs` (filtro, 15 testes), `RuntimeProcess.RunConfined` (Job Object com vários processos — o clang chama o wasm-ld — e tempo limite), compilação numa thread e envio quando termina; mensagens do compilador sem caminhos locais.
 - 85/85 EditMode; runtimes JS, Python, SQL, PHP, C#, C/C++ a passar; self-test do build com 8 linguagens PASS. Build: 525 MB.
+
+## Sessão 3 (cont.): Etapas 2, 4 e 5 completas
+- Etapa 2: `sorter`/`splitter` (estado `ConveyorState.Sorts/Turn`, saídas calculadas com `Rotation.Move`), `long_inserter` (alcance 2, 1,5× mais lento), `Factory.Activity` + LED/pulsação em `BuildingViews`. Bug apanhado pelo teste: o separador recusava à entrada itens que não eram do filtro.
+- Etapa 4: `<button>`/`<img>` no `HudRenderer` (+ `ProgramManager.Broadcast`), `computer.send` + `ServerState` + `StorageHubState` (Core/Networking.cs), `BuildGrid.StructuresBetween` para oclusão no `AudioDirector`, `ColorVision` + `ColorFilter` (Volume/ChannelMixer do URP; asmdef passou a referir `Unity.RenderPipelines.Core.Runtime`).
+- Etapa 5: Core/Shelter.cs (aquecedor, abrigo, relâmpagos, para-raios → `Factory.StoreEnergy`, armadilha, equipamento), Core/Plants.cs (espécies, genética), hidroponia, rações, Core/Caves.cs (camada subterrânea reaproveitando a troca de mundos da viagem espacial: `Voyage.Carry`, `GameBootstrap.SwitchWorld`), `CaveController`, lanterna `Light2D`, Core/Skills.cs, tipos de ruína, 7 ramos de investigação, dono dos edifícios + papel admin.
+- Barra de construção passou a mostrar só o desbloqueado (com 31 edifícios ocupava meio ecrã) + "+N na árvore de investigação".
+- Traduções: `Tools/localization/tables_more.py` (descrições, registos, textos novos) → 230 chaves.
+- Ferramentas: a saída do `unity command script eval` termina numa linha vazia e tem caracteres de controlo — ler para ficheiro e filtrar com `tr -d '\r\033' | grep -v '^$'` (explica as respostas "vazias" desta sessão).
+- Testes: 107/107 EditMode; runtimes JS/TS, Python, SQL, PHP, C#, C/C++ a passar; self-test do build com 8 linguagens PASS. Play Mode: LEDs, clique num botão do HUD recebido por um programa JS, descida a uma caverna (escuro, lanterna, escada, 12 °C). Ficheiro de planeta criado pelo teste apagado.

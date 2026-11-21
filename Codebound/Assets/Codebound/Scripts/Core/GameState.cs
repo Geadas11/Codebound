@@ -18,6 +18,8 @@ namespace Codebound.Core
         public readonly CreatureSystem Creatures;
         public readonly Exploration Exploration;
         public readonly Ecology Ecology;
+        public readonly Lightning Lightning;
+        public readonly Skills Skills = new Skills();
         public Research Research => Factory.Research;
         public double PlayerX, PlayerY;
         /// <summary>Multiplayer guests' inventories, kept by the host and saved with the world.</summary>
@@ -39,6 +41,7 @@ namespace Codebound.Core
             Creatures = new CreatureSystem(this);
             Exploration = new Exploration(World.Generator);
             Ecology = new Ecology(this);
+            Lightning = new Lightning(this, seed);
             Factory.Ecology = Ecology;
         }
 
@@ -46,7 +49,7 @@ namespace Codebound.Core
 
         bool IsBuildable(BuildingDef def, Cell c)
         {
-            if (!WorldRules.IsWalkable(World.Generator.TileAt(c)) || Exploration.FacilityAt(c) != null) return false;
+            if (!WorldRules.IsWalkable(World.Generator.TileAt(c)) || Exploration.FacilityAt(c) != null || Caves.IsPortal(World.Generator, c)) return false;
             var d = World.DepositAt(c);
             return def.Kind == BuildingKind.Drill ? d.Type != ResourceType.Tree : d.IsNone;
         }
@@ -77,7 +80,7 @@ namespace Codebound.Core
         {
             if (b == null || b.Health >= b.Def.MaxHealth) return "not damaged";
             if (!(payer ?? Inventory).TryRemove(ItemDatabase.Stone, 1)) return "needs stone";
-            b.Health = Math.Min(b.Def.MaxHealth, b.Health + RepairPerStone);
+            b.Health = Math.Min(b.Def.MaxHealth, b.Health + RepairPerStone * Skills.RepairBonus);
             return null;
         }
 
@@ -119,6 +122,7 @@ namespace Codebound.Core
             {
                 w.WriteLine($"b {b.Def.Id} {b.Origin.X} {b.Origin.Y} {(int)b.Rotation}");
                 if (b.Health < b.Def.MaxHealth) w.WriteLine("bh " + b.Health.ToString("R", Inv));
+                if (b.Owner != null) w.WriteLine("bo " + b.Owner);
                 if (b.State == null) continue;
                 foreach (var (role, inv) in b.State.Inventories) WriteInv(w, "bi " + role, inv);
                 extra.Clear();
@@ -131,6 +135,7 @@ namespace Codebound.Core
             foreach (var line in g.Hud.SaveLines()) w.WriteLine(line);
             foreach (var line in g.Exploration.SaveLines()) w.WriteLine(line);
             foreach (var line in g.Ecology.SaveLines()) w.WriteLine(line);
+            w.WriteLine(g.Skills.SaveLine());
             w.WriteLine("end");
         }
 
@@ -182,12 +187,14 @@ namespace Codebound.Core
                             break;
                         case "bx": Need(last).State.LoadExtra(p[1], p.Length > 2 ? p[2] : ""); break;
                         case "bh": Need(last).Health = float.Parse(p[1], Inv); break;
+                        case "bo": Need(last).Owner = Multiplayer.ValidName(p[1]) ? p[1] : null; break;
                         case "hud": Need(g).Hud.LoadLine(p); break;
                         case "vitals": Need(g).Vitals.Load(p); break;
                         case "clock": Need(g).Clock.Load(p); break;
                         case "research": Need(g).Research.Load(p); break;
                         case "explore": Need(g).Exploration.Load(p); break;
                         case "eco": Need(g).Ecology.Load(p); break;
+                        case "skills": Need(g).Skills.Load(p); break;
                         case "end": ended = true; break;
                         default: throw new InvalidDataException("Unknown record '" + p[0] + "'");
                     }

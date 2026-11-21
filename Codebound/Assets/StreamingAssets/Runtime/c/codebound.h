@@ -104,6 +104,9 @@ static inline int cb_wait_event(char *out, int cap) {
     return n;
 }
 
+/* Logic network: send JSON data on a channel to every other computer listening to the "message" event. */
+static inline void cb_send(const char *channel, const char *data_json) { char a[4200], o[16]; snprintf(a, sizeof a, "[\"%s\",%s]", channel, data_json ? data_json : "null"); cb_call("computer", "send", a, o, (int)sizeof o); }
+
 /* HUD helpers */
 static inline void cb_hud_set(const char *key, const char *value) { char a[512], o[16]; snprintf(a, sizeof a, "[\"%s\",\"%s\"]", key, value); cb_call("hud", "set", a, o, (int)sizeof o); }
 static inline void cb_notify(const char *text) { char a[512], o[16]; snprintf(a, sizeof a, "[\"%s\"]", text); cb_call("hud", "notify", a, o, (int)sizeof o); }

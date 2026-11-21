@@ -51,6 +51,8 @@ namespace Codebound.Game
             items.Add(new Item { Label = Loc.T("menu.textsize", "Text size (HUD boxes, code editor)"), Value = () => $"{Settings.TextScale:0.00}x", Change = d => Settings.TextScale = Mathf.Round((Settings.TextScale + 0.25f * d) * 4) / 4 });
             items.Add(new Item { Label = Loc.T("menu.contrast", "High contrast"), Value = () => OnOff(Settings.HighContrast), Change = _ => Settings.HighContrast = !Settings.HighContrast });
             items.Add(new Item { Label = Loc.T("menu.colorblind", "Colour-blind friendly palette"), Value = () => OnOff(Settings.ColorblindPalette), Change = _ => Settings.ColorblindPalette = !Settings.ColorblindPalette });
+            items.Add(new Item { Label = Loc.T("menu.cfilter", "Colour-blind screen filter"), Value = () => Loc.T("cfilter." + Codebound.Core.ColorVision.Modes[Settings.ColorFilter], Codebound.Core.ColorVision.Modes[Settings.ColorFilter]),
+                                 Change = d => Settings.ColorFilter = (Settings.ColorFilter + (d < 0 ? 3 : 1)) % 4 });
             items.Add(new Item { Label = Loc.T("menu.effects", "Reduce flashes and particles"), Value = () => OnOff(Settings.ReduceEffects), Change = _ => Settings.ReduceEffects = !Settings.ReduceEffects });
             items.Add(new Item { Header = true, Label = Loc.T("menu.audio", "Audio") });
             AddVolume(Loc.T("menu.vol.master", "Master volume"), () => Settings.MasterVolume, v => Settings.MasterVolume = v);

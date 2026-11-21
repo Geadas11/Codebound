@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Codebound.Core;
 using Codebound.Core.Hud;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -20,6 +21,8 @@ namespace Codebound.Game
             public Func<string, string> Lookup;
             public HashSet<string> Missing;
             public List<string> Problems;
+            /// <summary>Called with the button's data-event (or id, or text) when a HUD &lt;button&gt; is clicked.</summary>
+            public Action<string> OnButton;
         }
 
         static readonly Dictionary<string, string> UserAgent = new Dictionary<string, string>
@@ -69,6 +72,8 @@ namespace Codebound.Game
         {
             var style = Compute(n, ctx);
             if (n.Tag == "progress") return BuildProgress(n, style, ctx);
+            if (n.Tag == "button") return BuildButton(n, style, ctx);
+            if (n.Tag == "img") return BuildImage(n, style, ctx);
             var ve = new VisualElement { name = n.Id };
             foreach (var c in n.Classes) ve.AddToClassList(c);
             Apply(ve, style, ctx.Problems);
@@ -83,6 +88,40 @@ namespace Codebound.Game
             }
             BuildChildren(n, ve, ctx);
             return ve;
+        }
+
+        static string InnerText(HtmlNode n, Context ctx)
+        {
+            if (n.IsText) return HudTemplate.Render(n.Text, ctx.Lookup, ctx.Missing);
+            var sb = new StringBuilder();
+            foreach (var c in n.Children) sb.Append(InnerText(c, ctx));
+            return sb.ToString();
+        }
+
+        /// <summary>&lt;button data-event="refill"&gt;Refill&lt;/button&gt; → programs receive computer.on("hud_button", e =&gt; e.name == "refill").</summary>
+        static VisualElement BuildButton(HtmlNode n, Dictionary<string, string> style, Context ctx)
+        {
+            string label = InnerText(n, ctx).Trim();
+            string evt = n.Attrs.TryGetValue("data-event", out var de) ? HudTemplate.Render(de, ctx.Lookup, ctx.Missing) : !string.IsNullOrEmpty(n.Id) ? n.Id : label;
+            var b = new Button(() => ctx.OnButton?.Invoke(evt)) { text = label.Length > 0 ? label : "button", name = n.Id };
+            foreach (var c in n.Classes) b.AddToClassList(c);
+            b.style.backgroundColor = new Color(0.12f, 0.3f, 0.24f); b.style.color = Color.white;
+            Apply(b, style, ctx.Problems);
+            return b;
+        }
+
+        /// <summary>&lt;img src="item:iron_plate"&gt; or &lt;img src="building:drill"&gt;: the game's own icons (no files or URLs).</summary>
+        static VisualElement BuildImage(HtmlNode n, Dictionary<string, string> style, Context ctx)
+        {
+            string src = n.Attrs.TryGetValue("src", out var s) ? HudTemplate.Render(s, ctx.Lookup, ctx.Missing).Trim() : "";
+            Sprite sprite = null;
+            if (src.StartsWith("item:") && ItemDatabase.Exists(src.Substring(5))) sprite = PixelArtFactory.ItemIcon(src.Substring(5));
+            else if (src.StartsWith("building:") && BuildingDatabase.TryGet(src.Substring(9)) is BuildingDef def) sprite = PixelArtFactory.Building(def);
+            else ctx.Problems.Add($"line {n.Line}: <img src=\"{src}\"> — use src=\"item:<item id>\" or src=\"building:<building id>\"");
+            var img = new Image { sprite = sprite, scaleMode = ScaleMode.ScaleToFit, name = n.Id };
+            img.style.width = 32; img.style.height = 32;
+            Apply(img, style, ctx.Problems);
+            return img;
         }
 
         static VisualElement BuildProgress(HtmlNode n, Dictionary<string, string> style, Context ctx)

@@ -99,7 +99,7 @@ final class Machine
     const OPS = ['drill' => ['mine'], 'furnace' => ['smelt'], 'conveyor' => ['start', 'stop', 'set_filter'],
         'inserter' => ['start', 'stop', 'set_filter'], 'greenhouse' => ['plant', 'water', 'harvest', 'plots'],
         'assembler' => ['craft'], 'lab' => ['research', 'techs'], 'turret' => ['targets', 'fire'],
-        'launchpad' => ['launch', 'throttle', 'flight', 'planets', 'travel']];
+        'launchpad' => ['launch', 'throttle', 'flight', 'planets', 'travel'], 'server' => ['get', 'set', 'keys', 'delete'], 'storage_hub' => ['totals', 'find']];
     public readonly string $id;
     public readonly string $type;
     public readonly string $name;
@@ -132,10 +132,11 @@ final class Computer
         $CB_HANDLERS[$name][] = $fn;
     }
     public function time() { return cb_call('computer', 'time'); }
+    public function send(string $channel, $data = null) { return cb_call('computer', 'send', [$channel, $data]); }
 }
 
 final class Energy { public function available() { return cb_call('energy', 'available'); } public function stats() { return cb_call('energy', 'stats'); } }
-final class World { public function pollution() { return cb_call('world', 'pollution'); } }
+final class World { public function pollution() { return cb_call('world', 'pollution'); } public function weather() { return cb_call('world', 'weather'); } }
 final class Hud
 {
     public function set(string $key, $value) { return cb_call('hud', 'set', [$key, is_scalar($value) || $value === null ? $value : json_encode($value)]); }

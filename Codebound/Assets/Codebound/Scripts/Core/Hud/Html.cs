@@ -29,7 +29,7 @@ namespace Codebound.Core.Hud
     public static class HtmlParser
     {
         public static readonly HashSet<string> BlockTags = new HashSet<string>
-            { "div", "p", "h1", "h2", "h3", "ul", "ol", "li", "section", "header", "footer", "hr", "progress", "br" };
+            { "div", "p", "h1", "h2", "h3", "ul", "ol", "li", "section", "header", "footer", "hr", "progress", "br", "button", "img" };
         public static readonly HashSet<string> InlineTags = new HashSet<string>
             { "span", "b", "strong", "i", "em", "small", "code", "u" };
         static readonly HashSet<string> VoidTags = new HashSet<string> { "br", "hr", "img", "input", "meta" };

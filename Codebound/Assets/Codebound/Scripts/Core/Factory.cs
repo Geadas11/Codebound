@@ -7,6 +7,8 @@ namespace Codebound.Core
     /// Machine simulation: electric networks, timed machine actions (requested by programs), output transfer.
     /// Deterministic given the same sequence of Tick(dt) and action requests.
     /// </summary>
+    public enum MachineActivity : byte { None, Idle, Working, Blocked, NoPower }
+
     public sealed class Factory
     {
         public const float CoalEnergyKJ = 4000f;
@@ -70,7 +72,12 @@ namespace Codebound.Core
                 case BuildingKind.Battery: return new BatteryState();
                 case BuildingKind.Scrubber: return new ScrubberState { Status = "idle" };
                 case BuildingKind.LaunchPad: return new LaunchPadState();
-                case BuildingKind.Belt: return new ConveyorState { Running = true, Status = "moving" };
+                case BuildingKind.Server: return new ServerState();
+                case BuildingKind.Heater: return new HeaterState();
+                case BuildingKind.ShockTrap: return new ShockTrapState();
+                case BuildingKind.LightningRod: return new LightningRodState();
+                case BuildingKind.StorageHub: return new StorageHubState();
+                case BuildingKind.Belt: return new ConveyorState { Running = true, Status = "moving", Sorts = def.Id == "sorter" };
                 case BuildingKind.Conveyor: return new ConveyorState { Status = "stopped" };
                 case BuildingKind.Inserter: return new InserterState();
                 default: return null;
@@ -79,13 +86,13 @@ namespace Codebound.Core
 
         // ------------------------------------------------------------ power
         static bool IsNode(PlacedBuilding b) => b.Def.Kind == BuildingKind.Pole || b.Def.Kind == BuildingKind.Generator
-            || b.Def.Kind == BuildingKind.Solar || b.Def.Kind == BuildingKind.Battery;
+            || b.Def.Kind == BuildingKind.Solar || b.Def.Kind == BuildingKind.Battery || b.Def.Kind == BuildingKind.LightningRod;
         public const float SolarKW = 40f;
         /// <summary>Sunlight reaching solar panels 0..1 (daylight × clouds/rain/storm), set every tick by the game.</summary>
         public float SolarFactor = 1f;
         static bool IsConsumer(PlacedBuilding b) => b.Def.Kind == BuildingKind.Drill || b.Def.Kind == BuildingKind.Computer
             || b.Def.Kind == BuildingKind.Greenhouse || b.Def.Kind == BuildingKind.Assembler || b.Def.Kind == BuildingKind.Lab || b.Def.Kind == BuildingKind.Turret
-            || b.Def.Kind == BuildingKind.Scrubber;
+            || b.Def.Kind == BuildingKind.Scrubber || b.Def.Kind == BuildingKind.Server || b.Def.Kind == BuildingKind.StorageHub || b.Def.Kind == BuildingKind.Heater;
         public const float GrowLampKW = 30f, AssemblerKW = 60f, LabKW = 40f;
         /// <summary>Tech progress of the world (set by GameState).</summary>
         public Research Research = new Research();
@@ -140,6 +147,9 @@ namespace Codebound.Core
             if (c.Def.Kind == BuildingKind.Lab) return HasAction(c) ? LabKW : 0f;
             if (c.Def.Kind == BuildingKind.Turret) return 10f;
             if (c.Def.Kind == BuildingKind.Scrubber) return Ecology.ScrubberKW;
+            if (c.Def.Kind == BuildingKind.Server) return 15f;
+            if (c.Def.Kind == BuildingKind.Heater) return Shelter.HeaterKW;
+            if (c.Def.Kind == BuildingKind.StorageHub) return 20f;
             if (c.State is GreenhouseState gh) { foreach (var g in gh.Growth) if (g >= 0 && g < 1) return GrowLampKW; return 0f; }
             return 0f;
         }
@@ -213,6 +223,21 @@ namespace Codebound.Core
         }
 
         /// <summary>Energy stored in the batteries of a building's network (kJ).</summary>
+        /// <summary>Puts energy into the batteries of b's network (lightning). Returns what fitted.</summary>
+        public float StoreEnergy(PlacedBuilding b, float kj)
+        {
+            if (powerDirty) RebuildNetworks();
+            if (!networkOf.TryGetValue(b.InstanceId, out var n)) return 0f;
+            float stored = 0;
+            foreach (var bat in n.Batteries)
+            {
+                var s = (BatteryState)bat.State;
+                float add = Math.Min(kj - stored, BatteryState.CapacityKJ - s.StoredKJ);
+                if (add > 0) { s.StoredKJ += add; stored += add; }
+            }
+            return stored;
+        }
+
         public float NetworkStoredKJ(PlacedBuilding b) => networkOf.TryGetValue(b.InstanceId, out var n) ? n.StoredKJ : 0f;
 
         /// <summary>All networks together: supply capacity, demand served, stored energy (for the HUD).</summary>
@@ -224,6 +249,25 @@ namespace Codebound.Core
         }
 
         // ------------------------------------------------------------ actions
+        /// <summary>What a machine is doing right now, for its on-map indicator.</summary>
+        public MachineActivity Activity(PlacedBuilding b)
+        {
+            var st = b.State;
+            if (st == null || st is StorageState || b.Def.Kind == BuildingKind.Pole) return MachineActivity.None;
+            if (IsConsumer(b) && st.PowerSatisfaction <= 0 && (HasAction(b) || st is ComputerState cs && cs.Running || st is ScrubberState || st is TurretState)) return MachineActivity.NoPower;
+            string s = (st.Status ?? "").ToLowerInvariant();
+            if (s.Contains("blocked") || s.Contains("full") || s.Contains("no fuel") || s.Contains("no source") || s.Contains("tank") || s.Contains("no power")) return MachineActivity.Blocked;
+            bool working = HasAction(b)
+                || st is GeneratorState g && g.LoadKW > 0 || st is SolarState so && so.OutputKW > 0
+                || st is ConveyorState cv && cv.Item != null && cv.Running
+                || st is InserterState ins && ins.Status == "moving"
+                || st is ComputerState pc && pc.Running
+                || st is ScrubberState sc && sc.Status == "cleaning"
+                || st is LaunchPadState lp && lp.Phase == "ascent";
+            if (!working && st is GreenhouseState gh) foreach (var v in gh.Growth) if (v >= 0 && v < 1) working = true;
+            return working ? MachineActivity.Working : MachineActivity.Idle;
+        }
+
         public bool HasAction(PlacedBuilding b)
         {
             foreach (var a in actions) if (a.Machine == b) return true;
@@ -372,13 +416,22 @@ namespace Codebound.Core
                 c.Progress = Math.Min(1f, c.Progress + ConveyorState.BeltSpeed * dt);
                 c.Status = "moving";
                 if (c.Progress < 1f) continue;
-                foreach (var cell in b.FrontCells())
+                string item = c.Item;
+                var front = b.Origin.Move(b.Rotation);
+                var right = b.Origin.Move(b.Rotation.Next());
+                Cell[] outs = b.Def.Id == "sorter" ? new[] { c.Filter == null || c.Filter == item ? front : right }   // sorting: the chosen item goes straight
+                            : b.Def.Id == "splitter" ? (c.Turn == 0 ? new[] { front, right } : new[] { right, front })  // alternate, fall back to the other side
+                            : new[] { front };
+                bool moved = false;
+                foreach (var cell in outs)
                 {
                     var target = grid.At(cell);
-                    string item = c.Item;
-                    if (target?.State != null && target.State.TryInsert(item, 1)) { c.Slot.TryRemove(item, 1); c.Progress = 0; }
-                    else c.Status = "blocked";
+                    if (target == null || target == b || target.State == null || !target.State.TryInsert(item, 1)) continue;
+                    c.Slot.TryRemove(item, 1); c.Progress = 0; moved = true;
+                    if (b.Def.Id == "splitter") c.Turn = cell.Equals(front) ? 1 : 0;
+                    break;
                 }
+                if (!moved) c.Status = "blocked";
             }
         }
 
@@ -388,11 +441,13 @@ namespace Codebound.Core
             {
                 if (!(b.State is InserterState ins)) continue;
                 if (!ins.Running) { ins.Status = "stopped"; continue; }
-                ins.Progress = Math.Min(InserterState.SwingSeconds, ins.Progress + dt);
-                if (ins.Progress < InserterState.SwingSeconds) continue;
-                PlacedBuilding src = null, dst = null;
-                foreach (var c in b.BackCells()) src = grid.At(c);
-                foreach (var c in b.FrontCells()) dst = grid.At(c);
+                bool longArm = b.Def.Id == "long_inserter";
+                float swing = longArm ? InserterState.SwingSeconds * 1.5f : InserterState.SwingSeconds;
+                ins.Progress = Math.Min(swing, ins.Progress + dt);
+                if (ins.Progress < swing) continue;
+                int reach = longArm ? 2 : 1;
+                var src = grid.At(b.Origin.Move(b.Rotation, -reach));
+                var dst = grid.At(b.Origin.Move(b.Rotation, reach));
                 var from = src?.State?.Extractable;
                 if (from == null || dst?.State == null) { ins.Status = "no source/target"; continue; }
                 ins.Status = "waiting";
@@ -417,6 +472,19 @@ namespace Codebound.Core
             TickInserters(dt);
             TickGreenhouses(dt);
             TickLaunchPads(dt);
+            LinkStorageHubs();
+        }
+
+        void LinkStorageHubs()
+        {
+            foreach (var b in grid.Buildings)
+            {
+                if (!(b.State is StorageHubState hub)) continue;
+                hub.Chests.Clear();
+                foreach (var c in grid.Buildings)
+                    if (c.State is StorageState s && c.DistanceTo(b) <= StorageHubState.Radius) hub.Chests.Add(s);
+                hub.Status = hub.PowerSatisfaction <= 0 ? "no power" : $"{hub.Chests.Count} chests";
+            }
         }
 
         /// <summary>(pad, "orbit" | "aborted") when an ascent ends.</summary>
@@ -426,6 +494,7 @@ namespace Codebound.Core
         {
             foreach (var b in grid.Buildings)
             {
+                if (b.State is LaunchPadState pad) pad.Underground = world.Generator.Kind == PlanetKind.Underground;
                 if (!(b.State is LaunchPadState lp) || lp.Phase != "ascent" || lp.Flight == null) continue;
                 lp.Flight.Step(dt);
                 var f = lp.Flight;
@@ -457,8 +526,10 @@ namespace Codebound.Core
             foreach (var b in grid.Buildings)
             {
                 if (!(b.State is GreenhouseState g)) continue;
+                bool hydro = b.Def.Id == "hydroponics";   // indoor bay: lamps only, recycles its water, faster
                 if (g.NearWater) g.Tank = Math.Min(100f, g.Tank + GreenhouseState.TankRefill * dt);
-                g.Light = Math.Max(Daylight, g.PowerSatisfaction > 0 ? g.PowerSatisfaction : 0f);
+                if (hydro && g.PowerSatisfaction > 0) g.Tank = Math.Min(100f, g.Tank + 0.5f * dt);
+                g.Light = hydro ? Math.Max(0f, g.PowerSatisfaction) : Math.Max(Daylight, g.PowerSatisfaction > 0 ? g.PowerSatisfaction : 0f);
                 int growing = 0, ripe = 0;
                 for (int i = 0; i < GreenhouseState.Plots; i++)
                 {
@@ -466,8 +537,11 @@ namespace Codebound.Core
                     if (g.Growth[i] >= 1) { ripe++; continue; }
                     growing++;
                     if (g.Soil[i] <= 0) continue;   // dry soil: no growth
-                    g.Soil[i] = Math.Max(0, g.Soil[i] - GreenhouseState.WaterPerSecond * dt);
-                    g.Growth[i] = Math.Min(1f, g.Growth[i] + dt / GreenhouseState.GrowSeconds * g.Light * (Ecology?.GrowthFactor(b.Origin) ?? 1f));
+                    var sp = Plants.Get(g.Species[i] ?? "fruit") ?? Plants.All[0];
+                    g.Soil[i] = Math.Max(0, g.Soil[i] - GreenhouseState.WaterPerSecond * dt * (hydro ? 0.5f : 1f));
+                    float light = sp.NeedsLight ? g.Light : 1f;
+                    float rate = dt / sp.GrowSeconds * light * (Ecology?.GrowthFactor(b.Origin) ?? 1f) * (0.5f + 0.5f * g.Gene[i]) * (hydro ? 1.5f : 1f);
+                    g.Growth[i] = Math.Min(1f, g.Growth[i] + rate);
                 }
                 g.Status = growing + ripe == 0 ? "empty" : $"{growing} growing, {ripe} ripe, tank {g.Tank:0}";
             }
@@ -481,18 +555,21 @@ namespace Codebound.Core
         }
 
         /// <summary>Instant greenhouse operations: plant, water, harvest, plots. Returns (value, error code).</summary>
-        public (object value, string error) Greenhouse(PlacedBuilding b, string op, object plotArg)
+        public (object value, string error) Greenhouse(PlacedBuilding b, string op, object plotArg, object speciesArg = null)
         {
             if (!(b?.State is GreenhouseState g)) return (null, "not_a_greenhouse");
             switch (op)
             {
                 case "plant":
                 {
-                    if (g.Seeds.Count(ItemDatabase.AlienFruit) == 0) return (false, "no_seeds");
+                    PlantSpecies sp = speciesArg is string sid ? Plants.Get(sid) : null;
+                    if (speciesArg is string && sp == null) return (false, "unknown_species");
+                    if (sp == null) foreach (var s in Plants.All) if (g.Seeds.Count(s.Seed) > 0) { sp = s; break; }   // first species with seeds
+                    if (sp == null || g.Seeds.Count(sp.Seed) == 0) return (false, "no_seeds");
                     int i = PickPlot(g, plotArg, k => g.Growth[k] < 0);
                     if (i < 0) return (false, "no_free_plot");
-                    g.Seeds.TryRemove(ItemDatabase.AlienFruit, 1);
-                    g.Growth[i] = 0; g.Soil[i] = 0;
+                    g.Seeds.TryRemove(sp.Seed, 1);
+                    g.Growth[i] = 0; g.Soil[i] = 0; g.Species[i] = sp.Id; g.Gene[i] = g.StrainOf(sp.Id);
                     return (i, null);
                 }
                 case "water":
@@ -509,9 +586,14 @@ namespace Codebound.Core
                 {
                     int i = PickPlot(g, plotArg, k => g.Growth[k] >= 1);
                     if (i < 0) return (0, "nothing_ripe");
-                    if (!g.Output.TryAddAll(new[] { new ItemStack(ItemDatabase.AlienFruit, GreenhouseState.Yield) })) return (0, "output_full");
-                    g.Growth[i] = -1; g.Soil[i] = 0;
-                    return (GreenhouseState.Yield, null);
+                    var sp = Plants.Get(g.Species[i] ?? "fruit") ?? Plants.All[0];
+                    int n = Plants.YieldOf(sp, g.Gene[i]);
+                    if (!g.Output.TryAddAll(new[] { new ItemStack(sp.Produce, n) })) return (0, "output_full");
+                    // selective breeding: the harvested plant's offspring may be stronger
+                    float child = Plants.Mutate(g.Gene[i], ++g.Harvests, i, sp.Id);
+                    if (child > g.StrainOf(sp.Id)) g.Strain[sp.Id] = child;
+                    g.Growth[i] = -1; g.Soil[i] = 0; g.Species[i] = null;
+                    return (n, null);
                 }
                 case "plots":
                 {
@@ -519,8 +601,9 @@ namespace Codebound.Core
                     for (int i = 0; i < GreenhouseState.Plots; i++)
                         list.Add(new Dictionary<string, object> {
                             { "plot", i }, { "planted", g.Growth[i] >= 0 }, { "growth", Math.Round(Math.Max(0, g.Growth[i]), 3) },
-                            { "ripe", g.Growth[i] >= 1 }, { "water", Math.Round(g.Soil[i], 3) } });
-                    return (new Dictionary<string, object> { { "plots", list }, { "tank", Math.Round(g.Tank, 1) }, { "light", Math.Round(g.Light, 2) } }, null);
+                            { "ripe", g.Growth[i] >= 1 }, { "water", Math.Round(g.Soil[i], 3) }, { "species", g.Species[i] }, { "vigor", Math.Round(g.Gene[i], 3) } });
+                    var strains = new Dictionary<string, object>(); foreach (var s in Plants.All) strains[s.Id] = Math.Round(g.StrainOf(s.Id), 3);
+                    return (new Dictionary<string, object> { { "plots", list }, { "tank", Math.Round(g.Tank, 1) }, { "light", Math.Round(g.Light, 2) }, { "strains", strains } }, null);
                 }
             }
             return (null, "unknown_operation");

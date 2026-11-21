@@ -116,6 +116,9 @@ namespace Codebound.Game
             gameObject.AddComponent<ExplorationController>().Init(Session, build);
             gameObject.AddComponent<NetSession>().Init(Session, programs, cam);
             gameObject.AddComponent<SpaceView>().Init(Session);
+            gameObject.AddComponent<ColorFilter>().Init(cam);
+            gameObject.AddComponent<CaveController>().Init(Session, build, this);
+            state.Skills.LeveledUp += (sk, lvl) => state.Hud.Notify(Loc.T("notify.skill", "Skill up: {0} level {1}", Loc.T("skill." + sk, sk), lvl));
             gameObject.AddComponent<TitleMenu>().Init(Session, this);
             gameObject.AddComponent<OptionsMenu>().Init(Session, this, build);
             gameObject.AddComponent<CreatureViews>().Init(Session);
@@ -183,6 +186,8 @@ namespace Codebound.Game
             Session.State.Clock.Seconds += Time.deltaTime;
             var env = Vitals.At(Session.World.Generator, GameSession.CellAt(Session.Player.position), Session.State.Clock);
             if (Session.State.Ecology.IsSmog(GameSession.CellAt(Session.Player.position))) env.Breathable = false;   // smog: suit air only
+            env = Equipment.Apply(Session.Inventory, Shelter.Apply(Session.State, GameSession.CellAt(Session.Player.position), env));
+            if (!Net.IsGuest) vitals.Health = Math.Max(0, vitals.Health - Session.State.Lightning.Tick(Time.deltaTime, Session.Player.position.x, Session.Player.position.y));
             Session.Surroundings = env;
             vitals.Tick(Time.deltaTime, env);
             if (!vitals.Dead) return;
@@ -197,13 +202,18 @@ namespace Codebound.Game
         void Eat()
         {
             var vitals = Session.State.Vitals;
-            if (Session.Inventory.Count(ItemDatabase.AlienFruit) == 0) { Say("Nothing to eat (alien fruit grows on trees)"); return; }
-            if (vitals.Hunger >= Vitals.Max - 1) { Say("You are not hungry"); return; }
-            if (Net.IsGuest) Net.SendAct(new System.Collections.Generic.Dictionary<string, object> { { "a", "consume" }, { "item", ItemDatabase.AlienFruit } });
-            Session.Inventory.TryRemove(ItemDatabase.AlienFruit, 1);
-            vitals.Eat(ItemDatabase.AlienFruit);
+            // medicine first when hurt, otherwise the most filling food
+            string food = vitals.Health < 60 && Session.Inventory.Count(ItemDatabase.Glowcap) > 0 ? ItemDatabase.Glowcap
+                        : Session.Inventory.Count(ItemDatabase.Ration) > 0 ? ItemDatabase.Ration
+                        : Session.Inventory.Count(ItemDatabase.AlienFruit) > 0 ? ItemDatabase.AlienFruit
+                        : Session.Inventory.Count(ItemDatabase.Glowcap) > 0 ? ItemDatabase.Glowcap : null;
+            if (food == null) { Say("Nothing to eat (alien fruit grows on trees)"); return; }
+            if (vitals.Hunger >= Vitals.Max - 1 && food != ItemDatabase.Glowcap) { Say("You are not hungry"); return; }
+            if (Net.IsGuest) Net.SendAct(new System.Collections.Generic.Dictionary<string, object> { { "a", "consume" }, { "item", food } });
+            Session.Inventory.TryRemove(food, 1);
+            vitals.Eat(food);
             AudioDirector.Instance?.Play("eat", null, null);
-            Say($"Ate an alien fruit (food {vitals.Hunger:0})");
+            Say($"Ate {Loc.Item(food)} (food {vitals.Hunger:0}, health {vitals.Health:0})");
         }
 
         void OnDestroy() => ProgramManager.TravelRequested -= OnTravel;
@@ -212,18 +222,23 @@ namespace Codebound.Game
 
         /// <summary>Etapa 7: the ship in orbit flies to another world. The world left behind is saved to its own file
         /// (so you can come back to your base there); the destination is loaded from its file or generated.</summary>
-        void OnTravel(PlacedBuilding pad, Planet to)
+        void OnTravel(PlacedBuilding pad, Planet to) =>
+            SwitchWorld(to.Id, saved => Voyage.Arrive(Session.State, pad, to, saved),   // removes the pad from the world left behind
+                        Loc.T("notify.landed", "Landed on {0}. Your base on the previous world was saved and waits for you.", to.Name));
+
+        /// <summary>Leaves the current world (saved to its own file) for `targetId` (loaded from its file, or made by `arrive`).</summary>
+        public void SwitchWorld(string targetId, Func<GameState, GameState> arrive, string message)
         {
             var from = Session.State;
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(SavePath));
                 GameState saved = null;
-                string dest = PlanetPath(from.HomeSeed, to.Id);
+                string dest = PlanetPath(from.HomeSeed, targetId);
                 if (File.Exists(dest)) using (var r = new StreamReader(dest)) saved = SaveSystem.Read(r);
-                var arrived = Voyage.Arrive(from, pad, to, saved);   // removes the pad from `from`
+                var arrived = arrive(saved);
                 using (var w = new StreamWriter(PlanetPath(from.HomeSeed, from.PlanetId), false, new System.Text.UTF8Encoding(false))) SaveSystem.Write(from, w);
-                arrived.Hud.Notify(Loc.T("notify.landed", "Landed on {0}. Your base on the previous world was saved and waits for you.", to.Name));
+                if (message != null) arrived.Hud.Notify(message);
                 LoadState(arrived);
             }
             catch (Exception e) { Say("Travel failed: " + e.Message); Debug.LogException(e); }

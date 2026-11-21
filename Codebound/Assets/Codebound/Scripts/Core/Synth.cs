@@ -76,6 +76,7 @@ namespace Codebound.Core
             R("drink", 0.4f, false, (t, r) => Pulse(t, 0.13, 25) * 0.5 * Sin(300 + 900 * (t % 0.13), t), 0.6f);
             R("shot", 0.2f, false, (t, r) => Dec(t, 12) * 0.5 * Sq(1800 - 7000 * t, t), 0.5f);
             R("dissolve", 0.6f, false, (t, r) => Dec(t, 5) * (0.4 * (r.NextDouble() * 2 - 1) + 0.3 * Sin(900 - 1200 * t, t)), 0.3f);
+            R("thunder", 2.2f, false, (t, r) => (0.9 * Dec(t, 3) + 0.3 * Dec(Math.Max(0, t - 0.35), 2)) * (r.NextDouble() * 2 - 1), 0.08f);
             R("alarm", 1.2f, false, (t, r) => 0.45 * Sq(t % 0.6 < 0.3 ? 880 : 660, t) * Math.Min(1, (1.2 - t) * 10), 0.4f);
             R("chime", 0.8f, false, (t, r) => 0.4 * Dec(t, 4) * Sin(1046.5, t) + (t > 0.15 ? 0.4 * Dec(t - 0.15, 4) * Sin(1318.5, t) : 0), 1f);
             R("beep", 0.15f, false, (t, r) => 0.35 * Sin(1000, t) * Math.Min(1, (0.15 - t) * 40), 1f);

@@ -4,13 +4,21 @@ using System.Globalization;
 
 namespace Codebound.Core
 {
-    /// <summary>An abandoned outpost of the earlier survey expedition: a data terminal and a supply cache.</summary>
+    /// <summary>Outpost: terminal + supply cache. Wreck: a crashed survey lander, a salvage cache only (more metal).
+    /// Relay: a radio relay, terminal only.</summary>
+    public enum FacilityKind : byte { Outpost, Wreck, Relay }
+
+    /// <summary>An abandoned site of the earlier survey expedition.</summary>
     public sealed class Facility
     {
         public readonly Cell Terminal, Cache;
         public readonly int RegionX, RegionY;
-        public Facility(int rx, int ry, Cell terminal) { RegionX = rx; RegionY = ry; Terminal = terminal; Cache = new Cell(terminal.X + 2, terminal.Y); }
-        public string Name => $"Outpost {(char)('A' + Math.Abs(RegionX * 7 + RegionY * 13) % 26)}-{Math.Abs(RegionX * 31 + RegionY * 17) % 90 + 10}";
+        public readonly FacilityKind Kind;
+        public Facility(int rx, int ry, Cell terminal, FacilityKind kind = FacilityKind.Outpost)
+        { RegionX = rx; RegionY = ry; Terminal = terminal; Cache = new Cell(terminal.X + 2, terminal.Y); Kind = kind; }
+        public bool HasTerminal => Kind != FacilityKind.Wreck;
+        public bool HasCache => Kind != FacilityKind.Relay;
+        public string Name => $"{(Kind == FacilityKind.Wreck ? "Wreck" : Kind == FacilityKind.Relay ? "Relay" : "Outpost")} {(char)('A' + Math.Abs(RegionX * 7 + RegionY * 13) % 26)}-{Math.Abs(RegionX * 31 + RegionY * 17) % 90 + 10}";
     }
 
     /// <summary>
@@ -41,7 +49,8 @@ namespace Codebound.Core
                 var c = new Cell(t.X + x, t.Y);
                 if (!WorldRules.IsWalkable(gen.TileAt(c)) || !gen.DepositAt(c).IsNone) return null;
             }
-            return new Facility(rx, ry, t);
+            double k = WorldGenerator.Hash01(rx, ry, gen.Seed + 9004);
+            return new Facility(rx, ry, t, k < 0.55 ? FacilityKind.Outpost : k < 0.8 ? FacilityKind.Wreck : FacilityKind.Relay);
         }
 
         static int Div(int a, int b) => (int)Math.Floor(a / (double)b);
@@ -50,7 +59,7 @@ namespace Codebound.Core
         public Facility FacilityAt(Cell c)
         {
             var f = FacilityInRegion(Div(c.X, Region), Div(c.Y, Region));
-            return f != null && (f.Terminal.Equals(c) || f.Cache.Equals(c)) ? f : null;
+            return f != null && (f.HasTerminal && f.Terminal.Equals(c) || f.HasCache && f.Cache.Equals(c)) ? f : null;
         }
 
         public IEnumerable<Facility> Near(Cell c, int radius)
@@ -82,14 +91,23 @@ namespace Codebound.Core
                 new ItemStack("circuit", 2 + (int)(h(9012) * 4)),
             };
             if (h(9013) < 0.5) l.Add(new ItemStack("alien_crystal", 2 + (int)(h(9014) * 4)));
+            if (f.Kind == FacilityKind.Wreck)   // salvage: hull metal and the lander's electronics
+            {
+                l.Add(new ItemStack("iron_gear", 4 + (int)(h(9018) * 6)));
+                l.Add(new ItemStack("iron_plate", 10));
+                l.Add(new ItemStack("alien_crystal", 2));
+                return l;
+            }
             if (h(9015) < 0.4) l.Add(new ItemStack("alien_fruit", 3));
+            if (h(9016) < 0.5) l.Add(new ItemStack("glowcap", 2));
+            if (h(9017) < 0.5) l.Add(new ItemStack("fiber", 5));
             return l;
         }
 
         /// <summary>Opens the cache into the inventory. Returns null on success, else why not.</summary>
         public string Loot(Facility f, Inventory inv)
         {
-            if (IsLooted(f)) return "empty";
+            if (!f.HasCache || IsLooted(f)) return "empty";
             if (!inv.TryAddAll(LootOf(f))) return "inventory full";
             looted.Add(f.Cache);
             return null;

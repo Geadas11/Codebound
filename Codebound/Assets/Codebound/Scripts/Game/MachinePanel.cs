@@ -90,6 +90,12 @@ namespace Codebound.Game
             else DrawMachine();
         }
 
+        void SetSorter(string item)
+        {
+            if (Net.IsGuest) Net.SendAct(new Dictionary<string, object> { { "a", "sort" }, { "x", (double)open.Origin.X }, { "y", (double)open.Origin.Y }, { "item", item } });
+            else ((ConveyorState)open.State).Filter = item;
+        }
+
         // ------------------------------------------------------------ item transfer
         void DrawMachine()
         {
@@ -102,6 +108,17 @@ namespace Codebound.Game
             if (open.Def.Programmable) GUILayout.Label("<i>Works only when a nearby computer program commands it.</i>", small);
             if (st is GeneratorState g) GUILayout.Label($"Fuel energy left: {g.BurnLeftKJ:0} kJ   output {g.LoadKW:0}/{Factory.GeneratorKW:0} kW", small);
             if (st is FurnaceState f) GUILayout.Label($"Fuel energy left: {f.BurnLeftKJ:0} kJ", small);
+            if (open.Def.Id == "sorter" && st is ConveyorState sc)   // set by hand: sorters need no program
+            {
+                GUILayout.Label($"Straight on: <b>{(sc.Filter == null ? "everything" : Loc.Item(sc.Filter))}</b> — other items turn right", small);
+                GUILayout.BeginHorizontal();
+                var kinds = new HashSet<string>();
+                for (int i = 0; i < session.Inventory.SlotCount; i++) if (!session.Inventory[i].IsEmpty) kinds.Add(session.Inventory[i].ItemId);
+                foreach (var k in kinds)
+                    if (GUILayout.Button(Loc.Item(k), btn)) SetSorter(k);
+                if (GUILayout.Button("any", btn)) SetSorter(null);
+                GUILayout.EndHorizontal();
+            }
 
             foreach (var (role, inv) in st.Inventories)
             {

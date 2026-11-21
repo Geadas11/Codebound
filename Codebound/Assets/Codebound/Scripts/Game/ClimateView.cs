@@ -14,10 +14,11 @@ namespace Codebound.Game
 
         GameSession session;
         Camera cam;
-        Light2D sun;
+        Light2D sun, lamp;
         SpriteRenderer overlay;
         ParticleSystem particles;
         Color overlayColor = Color.clear;
+        float flash;
 
         public void Init(GameSession s, Camera c)
         {
@@ -30,6 +31,7 @@ namespace Codebound.Game
                 sun.lightType = Light2D.LightType.Global;
             }
 
+            session.State.Lightning.Struck += (x, y, rod) => { if (Vector2.Distance(new Vector2((float)x, (float)y), session.Player.position) < 30f) flash = 1f; };
             overlay = new GameObject("WeatherOverlay").AddComponent<SpriteRenderer>();
             overlay.sprite = PixelArtFactory.White();
             overlay.sortingOrder = 40;
@@ -70,6 +72,18 @@ namespace Codebound.Game
             Color night = new Color(0.55f, 0.65f, 1f), dusk = new Color(1f, 0.72f, 0.5f);
             float twilight = 1f - Mathf.Abs(day - 0.5f) * 2f; // 1 at mid-transition
             sun.color = Color.Lerp(Color.Lerp(night, Color.white, day), dusk, Mathf.Clamp01(twilight) * 0.6f);
+            // underground: almost no ambient light, the suit lamp lights the way (also a little at night on the surface)
+            bool under = Caves.IsUnderground(session.State);
+            if (under) { sun.intensity = 0.12f; sun.color = new Color(0.6f, 0.65f, 0.85f); }
+            if (lamp == null)
+            {
+                lamp = new GameObject("Suit lamp").AddComponent<Light2D>();
+                lamp.lightType = Light2D.LightType.Point;
+                lamp.pointLightOuterRadius = 7f; lamp.pointLightInnerRadius = 1.5f;
+                lamp.color = new Color(1f, 0.93f, 0.8f);
+            }
+            lamp.transform.position = session.Player.position;
+            lamp.intensity = under ? 1.1f : Mathf.Lerp(0.6f, 0f, day);
 
             // weather tint over the world
             Color target = dust ? (biome == Biome.Desert ? new Color(0.85f, 0.68f, 0.38f, 0.38f) : new Color(0.3f, 0.27f, 0.27f, 0.42f))
@@ -78,8 +92,10 @@ namespace Codebound.Game
                 : Color.clear;
             float smog = Mathf.Clamp01(session.State.Ecology.At(GameSession.CellAt(session.Player.position)) / Ecology.SmogLevel);
             if (smog > 0.05f && target.a < smog * 0.35f) target = new Color(0.45f, 0.4f, 0.3f, smog * 0.35f);   // brown haze
+            if (flash > 0.01f) target = Color.Lerp(target, new Color(1f, 1f, 1f, ReduceEffects ? 0.15f : 0.6f), flash);   // lightning
+            flash = Mathf.Max(0, flash - Time.deltaTime * 4f);
             if (ReduceEffects) target.a *= 0.5f;
-            overlayColor = Color.Lerp(overlayColor, target, 1f - Mathf.Exp(-1.5f * Time.deltaTime));
+            overlayColor = flash > 0.3f ? target : Color.Lerp(overlayColor, target, 1f - Mathf.Exp(-1.5f * Time.deltaTime));
             overlay.color = overlayColor;
             float h = cam.orthographicSize * 2f + 2f, wdt = h * cam.aspect + 2f;
             overlay.transform.localPosition = new Vector3(-wdt / 2f, -h / 2f, 10f);   // sprite pivot is bottom-left, 4 px = 0.25 units

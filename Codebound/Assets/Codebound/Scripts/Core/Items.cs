@@ -23,7 +23,8 @@ namespace Codebound.Core
 
         public const string Wood = "wood", Stone = "stone", IronOre = "iron_ore", CopperOre = "copper_ore",
             Coal = "coal", Silicon = "silicon", TitaniumOre = "titanium_ore", UraniumOre = "uranium_ore",
-            Oil = "crude_oil", AlienCrystal = "alien_crystal", IronPlate = "iron_plate", CopperPlate = "copper_plate", StoneBrick = "stone_brick", CopperWire = "copper_wire", AlienFruit = "alien_fruit", IronGear = "iron_gear", Circuit = "circuit";
+            Oil = "crude_oil", AlienCrystal = "alien_crystal", IronPlate = "iron_plate", CopperPlate = "copper_plate", StoneBrick = "stone_brick", CopperWire = "copper_wire", AlienFruit = "alien_fruit", IronGear = "iron_gear", Circuit = "circuit",
+            Glowcap = "glowcap", Fiber = "fiber", Ration = "ration", LaserTool = "laser_tool", ArmorPlating = "armor_plating", ThermalSuit = "thermal_suit";
 
         static ItemDatabase()
         {
@@ -44,6 +45,12 @@ namespace Codebound.Core
             Add(AlienFruit, "Alien Fruit", 50);
             Add(IronGear, "Iron Gear", 100);
             Add(Circuit, "Circuit", 100);
+            Add(Glowcap, "Glowcap", 50);
+            Add(Fiber, "Fiberweed", 100);
+            Add(Ration, "Ration", 50);
+            Add(LaserTool, "Laser Multitool", 1);
+            Add(ArmorPlating, "Armor Plating", 1);
+            Add(ThermalSuit, "Thermal Suit Liner", 1);
         }
 
         static void Add(string id, string name, int stack) => items[id] = new ItemDef(id, name, stack);

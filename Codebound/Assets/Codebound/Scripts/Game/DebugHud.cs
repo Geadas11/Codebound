@@ -95,11 +95,17 @@ namespace Codebound.Game
                 GUILayout.BeginArea(new Rect(UiGui.W - 240, 10, 230, 52 + Mathf.Max(1, lines) * 16), box);
                 GUILayout.Label($"<b>{Loc.T("hud.inventory", "Inventory")}</b> <size=11>({Controls.Name("inventory")})</size>", label);
                 GUILayout.Label(sb.Length == 0 ? "<i>" + Loc.T("hud.inventory.empty", "empty — hold LMB on trees/ore") + "</i>" : sb.ToString(), small);
+                var sk = session.State.Skills;
+                GUILayout.Label("<size=11>" + string.Join(" · ", System.Array.ConvertAll(Skills.Names, n => $"{Loc.T("skill." + n, n)} {sk.Level(n)}")) + "</size>", small);
                 GUILayout.EndArea();
             }
 
             // build bar: clickable, wraps into rows (keys 1-9,0 select the first ten)
-            int n = BuildingDatabase.All.Count;
+            // only what can be built: locked buildings are listed in the research tree (T)
+            var shown = new System.Collections.Generic.List<int>();
+            for (int k = 0; k < BuildingDatabase.All.Count; k++) if (session.State.Research.IsUnlocked(BuildingDatabase.All[k])) shown.Add(k);
+            int locked = BuildingDatabase.All.Count - shown.Count;
+            int n = shown.Count + (locked > 0 ? 1 : 0);
             float barW = Mathf.Min(UiGui.W - 20, 1120);
             int perRow = Mathf.Max(1, Mathf.FloorToInt((barW - 16) / 104f));
             int rows = Mathf.CeilToInt(n / (float)perRow);
@@ -110,8 +116,14 @@ namespace Codebound.Game
             for (int r = 0; r < rows; r++)
             {
                 GUILayout.BeginHorizontal();
-                for (int i = r * perRow; i < Mathf.Min(n, (r + 1) * perRow); i++)
+                for (int slot = r * perRow; slot < Mathf.Min(n, (r + 1) * perRow); slot++)
                 {
+                    if (slot >= shown.Count)
+                    {
+                        GUILayout.Label($"<color=#8a8f99><size=10>{Loc.T("hud.locked", "+{0} more in the research tree ({1})", locked, Controls.Name("research"))}</size></color>", btn, GUILayout.Width(100), GUILayout.Height(42));
+                        continue;
+                    }
+                    int i = shown[slot];
                     var d = BuildingDatabase.All[i];
                     bool sel = build.Active && build.Selected == i;
                     bool can = session.Inventory.Has(d.Cost);

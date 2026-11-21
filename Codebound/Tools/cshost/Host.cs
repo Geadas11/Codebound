@@ -100,6 +100,7 @@ namespace Codebound
             ["inserter"] = new[] { "start", "stop", "set_filter" }, ["greenhouse"] = new[] { "plant", "water", "harvest", "plots" },
             ["assembler"] = new[] { "craft" }, ["lab"] = new[] { "research", "techs" }, ["turret"] = new[] { "targets", "fire" },
             ["launchpad"] = new[] { "launch", "throttle", "flight", "planets", "travel" },
+            ["server"] = new[] { "get", "set", "keys", "delete" }, ["storage_hub"] = new[] { "totals", "find" },
         };
         public string Id { get; }
         public string Type { get; }
@@ -123,7 +124,7 @@ namespace Codebound
         public JsonNode Start() => Call("start");
         public JsonNode Stop() => Call("stop");
         public JsonNode SetFilter(string item) => Call("set_filter", item);
-        public JsonNode Plant(int plot = -1) => plot < 0 ? Call("plant") : Call("plant", plot);
+        public JsonNode Plant(int plot = -1, string species = null) => Call("plant", plot < 0 ? null : (object)plot, species);
         public JsonNode Water(int plot = -1) => plot < 0 ? Call("water") : Call("water", plot);
         public JsonNode Harvest(int plot = -1) => plot < 0 ? Call("harvest") : Call("harvest", plot);
         public JsonNode Plots() => Call("plots");
@@ -155,10 +156,12 @@ namespace Codebound
             Proto.Handlers[name].Add(handler);
         }
         public double Time() => Proto.Call("computer", "time")?.GetValue<double>() ?? 0;
+        /// <summary>Sends data to every other computer listening to the "message" event (needs Networking).</summary>
+        public bool Send(string channel, object data = null) => Proto.Call("computer", "send", channel, data is JsonNode || data is string || data is double || data is int || data is bool || data == null ? data : data.ToString())?.GetValue<bool>() ?? false;
     }
 
     public sealed class EnergyApi { public bool Available() => Proto.Call("energy", "available")?.GetValue<bool>() ?? false; public JsonNode Stats() => Proto.Call("energy", "stats"); }
-    public sealed class WorldApi { public JsonNode Pollution() => Proto.Call("world", "pollution"); }
+    public sealed class WorldApi { public JsonNode Pollution() => Proto.Call("world", "pollution"); public JsonNode Weather() => Proto.Call("world", "weather"); }
     public sealed class HudApi
     {
         public void Set(string key, object value) => Proto.Call("hud", "set", key, value is string || value is bool || value is double || value is int || value is float || value == null ? value : value.ToString());

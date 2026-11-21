@@ -11,6 +11,7 @@ namespace Codebound.Game
     public sealed class ExplorationController : MonoBehaviour
     {
         public const int ViewRadius = 48, ScannerRadius = 240;
+        int Radius => session.State.Research.IsDone("exploration") ? ScannerRadius * 5 / 2 : ScannerRadius;
         GameSession session;
         BuildController build;
         Exploration ex;
@@ -69,8 +70,9 @@ namespace Codebound.Game
                 near.Add(f.Terminal);
                 if (!views.TryGetValue(f.Terminal, out var v))
                     views[f.Terminal] = v = (Make("Terminal", f.Terminal), Make("Cache", f.Cache));
-                v.terminal.sprite = PixelArtFactory.Facility("terminal", false);
-                v.cache.sprite = PixelArtFactory.Facility("cache", ex.IsLooted(f));
+                v.terminal.sprite = f.Kind == FacilityKind.Relay ? PixelArtFactory.Facility("relay", false) : PixelArtFactory.Facility("terminal", false);
+                v.cache.sprite = f.Kind == FacilityKind.Wreck ? PixelArtFactory.Facility("wreck", ex.IsLooted(f)) : PixelArtFactory.Facility("cache", ex.IsLooted(f));
+                v.terminal.enabled = f.HasTerminal; v.cache.enabled = f.HasCache;
             }
             var gone = new List<Cell>();
             foreach (var kv in views) if (!near.Contains(kv.Key)) gone.Add(kv.Key);
@@ -99,14 +101,22 @@ namespace Codebound.Game
         {
             var p = PlayerCell;
             Facility best = null; float bd = float.MaxValue;
-            foreach (var f in ex.Near(p, ScannerRadius))
+            int radius = Radius;
+            foreach (var f in ex.Near(p, radius))
             {
-                if (ex.IsRead(f)) continue;
+                if (!f.HasTerminal || ex.IsRead(f)) continue;
                 float d = Vector2.Distance(new Vector2(f.Terminal.X, f.Terminal.Y), new Vector2(p.X, p.Y));
-                if (d < bd && d <= ScannerRadius) { bd = d; best = f; }
+                if (d < bd && d <= radius) { bd = d; best = f; }
             }
-            return best == null ? Loc.T("explore.nosignal", "Scanner: no unread outpost within {0} cells", ScannerRadius)
+            string terminal = best == null ? Loc.T("explore.nosignal", "Scanner: no unread outpost within {0} cells", radius)
                                 : Loc.T("explore.signal", "Scanner: unread outpost {0} cells {1}", Mathf.RoundToInt(bd), Bearing(best.Terminal.X - p.X, best.Terminal.Y - p.Y));
+            Cell? cave = null; float cd = float.MaxValue;
+            foreach (var c in Caves.Near(session.World.Generator, p, radius))
+            {
+                float d = Vector2.Distance(new Vector2(c.X, c.Y), new Vector2(p.X, p.Y));
+                if (d < cd) { cd = d; cave = c; }
+            }
+            return cave == null ? terminal : terminal + "\n" + Loc.T("explore.cave", "Cave mouth {0} cells {1}", Mathf.RoundToInt(cd), Bearing(cave.Value.X - p.X, cave.Value.Y - p.Y));
         }
 
         void Styles()

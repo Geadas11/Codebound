@@ -4,7 +4,7 @@ using System.Globalization;
 
 namespace Codebound.Core
 {
-    public enum PlanetKind : byte { Home, Volcanic, Desert, Ruins }
+    public enum PlanetKind : byte { Home, Volcanic, Desert, Ruins, Underground }
 
     /// <summary>A world of the star system. Each has its own seed and biome bias; all derive from the home seed.</summary>
     public sealed class Planet
@@ -98,6 +98,19 @@ namespace Codebound.Core
             return null;
         }
 
+        /// <summary>What travels with the player between worlds and layers: inventory, research, vitals, skills, HUD, clock.</summary>
+        public static void Carry(GameState from, GameState t)
+        {
+            t.Inventory.Clear();
+            for (int i = 0; i < from.Inventory.SlotCount; i++) if (!from.Inventory[i].IsEmpty) t.Inventory.Add(from.Inventory[i].ItemId, from.Inventory[i].Count);
+            foreach (var id in from.Research.Done) t.Research.Done.Add(id);
+            t.Vitals.Load(from.Vitals.SaveLine().Split(' '));
+            t.Skills.CopyFrom(from.Skills);
+            foreach (var p in new List<Hud.HudPanel>(t.Hud.Panels)) t.Hud.Remove(p);
+            foreach (var line in from.Hud.SaveLines()) t.Hud.LoadLine(line.Split(' '));
+            t.Clock.Seconds = Math.Max(t.Clock.Seconds, from.Clock.Seconds);
+        }
+
         /// <summary>Lands on `to` (a world visited before, or a new one when `saved` is null) and returns it.
         /// The ship leaves `from`; inventory, research, vitals, HUD and clock come along; the leftover fuel stays in the tanks.</summary>
         public static GameState Arrive(GameState from, PlacedBuilding pad, Planet to, GameState saved)
@@ -108,13 +121,7 @@ namespace Codebound.Core
             from.Grid.Remove(pad);
 
             var t = saved ?? new GameState(to.Seed, to.Kind) { PlanetId = to.Id, HomeSeed = from.HomeSeed };
-            t.Inventory.Clear();
-            for (int i = 0; i < from.Inventory.SlotCount; i++) if (!from.Inventory[i].IsEmpty) t.Inventory.Add(from.Inventory[i].ItemId, from.Inventory[i].Count);
-            foreach (var id in from.Research.Done) t.Research.Done.Add(id);
-            t.Vitals.Load(from.Vitals.SaveLine().Split(' '));
-            foreach (var p in new List<Hud.HudPanel>(t.Hud.Panels)) t.Hud.Remove(p);
-            foreach (var line in from.Hud.SaveLines()) t.Hud.LoadLine(line.Split(' '));
-            t.Clock.Seconds = Math.Max(t.Clock.Seconds, from.Clock.Seconds);
+            Carry(from, t);
 
             // touch down near the spawn: first free 3×3 spot
             var s = t.World.Generator.FindSpawn();
@@ -144,6 +151,7 @@ namespace Codebound.Core
         public Ascent Flight;          // null on the ground
         public string Phase = "ready"; // ready | ascent | orbit
         public string LastResult;
+        public bool Underground;   // set by the factory: a pad in a cave cannot launch
 
         public LaunchPadState() { Status = "ready"; }
 
@@ -158,6 +166,7 @@ namespace Codebound.Core
         {
             if (Phase != "ready") return "already flying";
             if (r.MainLineDone < r.MainLineTotal) return "the ship is not rebuilt yet (research the main line)";
+            if (Underground) return "cannot launch from underground";
             float units = FuelUnits;
             if (units < 50) return "needs at least 50 fuel units (coal = 4, crude oil = 10)";
             FuelBay.Clear(); Reserve = 0;

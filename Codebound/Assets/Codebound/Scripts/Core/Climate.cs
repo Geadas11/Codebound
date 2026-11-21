@@ -39,6 +39,7 @@ namespace Codebound.Core
 
         public Weather WeatherAt(Biome b)
         {
+            if (b == Biome.Cavern) return Weather.Clear;   // no sky underground
             long segment = (long)(Seconds / WeatherSegmentSeconds);
             double r = WorldGenerator.Hash01((int)segment, (int)b * 7919, seed + 4242);
             double storm = Season == Season.Winter ? 0.16 : 0.08;
@@ -65,6 +66,7 @@ namespace Codebound.Core
         /// <summary>Air temperature change from time of day, season and weather (°C).</summary>
         public float TemperatureOffset(Biome b, Weather w)
         {
+            if (b == Biome.Cavern) return 0f;
             float swing = b == Biome.Desert ? 16f : b == Biome.Volcanic ? 4f : 7f;   // deserts: hot days, cold nights
             float season = Season == Season.Summer ? 5f : Season == Season.Winter ? -12f : Season == Season.Autumn ? -3f : 0f;
             float weather = w == Weather.Rain ? -4f : w == Weather.Storm ? (b == Biome.Desert ? 3f : -7f) : w == Weather.Cloudy ? -1f : 0f;

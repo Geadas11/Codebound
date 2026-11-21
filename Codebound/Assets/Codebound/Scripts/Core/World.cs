@@ -3,9 +3,9 @@ using System.Collections.Generic;
 
 namespace Codebound.Core
 {
-    public enum Biome : byte { Forest, Desert, Volcanic, Ruins, Radioactive }
+    public enum Biome : byte { Forest, Desert, Volcanic, Ruins, Radioactive, Cavern }
 
-    public enum TileType : byte { Grass, Sand, Rock, Water, Ash, Lava, RuinFloor, ToxicSoil, ToxicWater }
+    public enum TileType : byte { Grass, Sand, Rock, Water, Ash, Lava, RuinFloor, ToxicSoil, ToxicWater, CaveFloor, CaveWall }
 
     public enum ResourceType : byte { None, Tree, Stone, Iron, Copper, Coal, Silicon, Titanium, Uranium, Oil, AlienCrystal }
 
@@ -14,7 +14,7 @@ namespace Codebound.Core
         public const int ChunkSize = 32;
 
         public static bool IsLiquid(TileType t) => t == TileType.Water || t == TileType.Lava || t == TileType.ToxicWater;
-        public static bool IsWalkable(TileType t) => !IsLiquid(t);
+        public static bool IsWalkable(TileType t) => !IsLiquid(t) && t != TileType.CaveWall;
 
         /// <summary>Drills take solid ores only: trees are cut by hand, oil will need pumps.</summary>
         public static bool DrillCanMine(Deposit d) => !d.IsNone && d.Type != ResourceType.Tree && d.Type != ResourceType.Oil;
@@ -106,6 +106,7 @@ namespace Codebound.Core
         // ---------- world queries ----------
         public Biome BiomeAt(Cell c)
         {
+            if (Kind == PlanetKind.Underground) return Biome.Cavern;
             double temp = Fbm(c.X / 260.0, c.Y / 260.0, Seed + 11);
             double moist = Fbm(c.X / 220.0, c.Y / 220.0, Seed + 23);
             double weird = Fbm(c.X / 420.0, c.Y / 420.0, Seed + 37, 3);
@@ -127,6 +128,12 @@ namespace Codebound.Core
             double detail = Fbm(c.X / 9.0, c.Y / 9.0, Seed + 67, 2);
             switch (BiomeAt(c))
             {
+                case Biome.Cavern:
+                {   // winding tunnels; always open around the ladders up
+                    if (Caves.NearPortal(Seed, c, 2)) return TileType.CaveFloor;
+                    double tunnel = Math.Abs(Fbm(c.X / 22.0, c.Y / 22.0, Seed + 881, 3) - 0.5);
+                    return tunnel < 0.07 || Fbm(c.X / 7.0, c.Y / 7.0, Seed + 882, 2) > 0.64 ? TileType.CaveFloor : TileType.CaveWall;
+                }
                 case Biome.Forest: return liquid < 0.28 ? TileType.Water : TileType.Grass;
                 case Biome.Desert: return detail > 0.68 ? TileType.Rock : TileType.Sand;
                 case Biome.Volcanic: return liquid < 0.26 ? TileType.Lava : (detail > 0.6 ? TileType.Rock : TileType.Ash);
@@ -140,6 +147,7 @@ namespace Codebound.Core
         static readonly ResourceType[] VolcanicRes = { ResourceType.Coal, ResourceType.Iron, ResourceType.Titanium, ResourceType.Stone };
         static readonly ResourceType[] RuinsRes = { ResourceType.Iron, ResourceType.Copper, ResourceType.Silicon, ResourceType.AlienCrystal };
         static readonly ResourceType[] RadioRes = { ResourceType.Uranium, ResourceType.AlienCrystal, ResourceType.Stone };
+        static readonly ResourceType[] CaveRes = { ResourceType.AlienCrystal, ResourceType.Titanium, ResourceType.Iron, ResourceType.Copper, ResourceType.Coal, ResourceType.Uranium, ResourceType.Silicon };
 
         public static ResourceType[] ResourcesOf(Biome b)
         {
@@ -149,6 +157,7 @@ namespace Codebound.Core
                 case Biome.Desert: return DesertRes;
                 case Biome.Volcanic: return VolcanicRes;
                 case Biome.Ruins: return RuinsRes;
+                case Biome.Cavern: return CaveRes;
                 default: return RadioRes;
             }
         }
@@ -166,7 +175,8 @@ namespace Codebound.Core
         /// <summary>Generated (untouched) deposit at a cell.</summary>
         public Deposit DepositAt(Cell c)
         {
-            if (WorldRules.IsLiquid(TileAt(c))) return default;
+            var tile = TileAt(c);
+            if (WorldRules.IsLiquid(tile) || tile == TileType.CaveWall) return default;
             var biome = BiomeAt(c);
 
             foreach (var r in ResourcesOf(biome))
@@ -176,6 +186,7 @@ namespace Codebound.Core
                 if (patch > th)
                 {
                     int amount = 20 + (int)((patch - th) / (1 - th) * 180) + (int)(Hash01(c.X, c.Y, Seed + (int)r) * 20);
+                    if (biome == Biome.Cavern) amount *= 2;   // deep veins are rich
                     return new Deposit(r, amount);
                 }
             }

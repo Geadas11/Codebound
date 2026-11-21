@@ -13,7 +13,7 @@ namespace Codebound.Tests
             for (int r = 0; r < 120 && found.Count < 2; r++)
                 for (int rx = -r; rx <= r && found.Count < 2; rx++)
                     for (int ry = -r; ry <= r && found.Count < 2; ry++)
-                        if ((System.Math.Abs(rx) == r || System.Math.Abs(ry) == r) && g.Exploration.FacilityInRegion(rx, ry) is Facility f) found.Add(f);
+                        if ((System.Math.Abs(rx) == r || System.Math.Abs(ry) == r) && g.Exploration.FacilityInRegion(rx, ry) is Facility f && f.Kind == FacilityKind.Outpost) found.Add(f);
             Assert.AreEqual(2, found.Count, "facilities exist in the ruins");
             return (g, found[0], found[1]);
         }
@@ -58,7 +58,7 @@ namespace Codebound.Tests
             int n = 0, last = -1;
             for (int rx = -60; rx <= 60 && n <= Lore.Logs.Length; rx++)
                 for (int ry = -60; ry <= 60 && n <= Lore.Logs.Length; ry++)
-                    if (g.Exploration.FacilityInRegion(rx, ry) is Facility f) { last = g.Exploration.Read(f); n++; }
+                    if (g.Exploration.FacilityInRegion(rx, ry) is Facility f && f.HasTerminal) { last = g.Exploration.Read(f); n++; }
             Assert.Greater(n, Lore.Logs.Length, "enough outposts in a 121x121-region square");
             Assert.AreEqual(Lore.Logs.Length - 1, last);
         }

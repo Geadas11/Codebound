@@ -79,12 +79,14 @@ namespace Codebound.Core
         public bool Running;       // belts: always; programmable conveyors: start()/stop()
         public string Filter;      // programmable conveyors only accept this item when set
         public bool ArrivedThisTick;
+        public int Turn;           // splitter: which output goes next
+        public bool Sorts;         // sorter: the filter picks the exit instead of refusing items
 
         public string Item => Slot[0].IsEmpty ? null : Slot[0].ItemId;
 
         public override bool TryInsert(string itemId, int count)
         {
-            if (count != 1 || Item != null || (Filter != null && Filter != itemId)) return false;
+            if (count != 1 || Item != null || (Filter != null && !Sorts && Filter != itemId)) return false;
             Slot.Add(itemId, 1);
             Progress = 0; ArrivedThisTick = true;
             return true;
@@ -132,17 +134,23 @@ namespace Codebound.Core
         public const int Plots = 4;
         public const float GrowSeconds = 180f, WaterPerSecond = 1f / 90f, TankRefill = 2f, WaterPerDrink = 0.5f;
         public const int Yield = 3;
-        public readonly Inventory Seeds = new Inventory(1), Output = new Inventory(1);
+        public readonly Inventory Seeds = new Inventory(3), Output = new Inventory(2);
         public readonly float[] Growth = new float[Plots];     // -1 = empty plot, 0..1 growing, 1 = ripe
+        public readonly string[] Species = new string[Plots];  // plant species id per plot
+        public readonly float[] Gene = new float[Plots];       // vigor of the plant in each plot
+        public readonly Dictionary<string, float> Strain = new Dictionary<string, float>();   // best vigor bred so far, per species
+        public int Harvests;
         public readonly float[] Soil = new float[Plots];       // water in the soil 0..1
         public float Tank;                                     // 0..100 water units
         public bool NearWater;                                 // set by the factory when placed
         public float Light;                                    // last tick light level 0..1
 
-        public GreenhouseState() { for (int i = 0; i < Plots; i++) Growth[i] = -1; }
+        public GreenhouseState() { for (int i = 0; i < Plots; i++) { Growth[i] = -1; Gene[i] = 1f; } }
+
+        public float StrainOf(string species) => Strain.TryGetValue(species, out var g) ? g : 1f;
 
         public override bool TryInsert(string itemId, int count) =>
-            itemId == ItemDatabase.AlienFruit && Seeds.TryAddAll(new[] { new ItemStack(itemId, count) });
+            Plants.IsSeed(itemId) && Seeds.TryAddAll(new[] { new ItemStack(itemId, count) });
 
         public override IEnumerable<(string, Inventory)> Inventories { get { yield return ("seeds", Seeds); yield return ("output", Output); } }
         public override Inventory Extractable => Output;
@@ -150,18 +158,28 @@ namespace Codebound.Core
         public override void SaveExtra(IDictionary<string, string> d)
         {
             var parts = new List<string>();
-            for (int i = 0; i < Plots; i++) parts.Add(F(Growth[i]) + ":" + F(Soil[i]));
+            for (int i = 0; i < Plots; i++) parts.Add(F(Growth[i]) + ":" + F(Soil[i]) + ":" + (Species[i] ?? "") + ":" + F(Gene[i]));
             d["plots"] = string.Join(",", parts);
             d["tank"] = F(Tank);
+            d["harvests"] = Harvests.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var st = new List<string>(); foreach (var kv in Strain) st.Add(kv.Key + "=" + F(kv.Value));
+            if (st.Count > 0) d["strains"] = string.Join(";", st);
         }
 
         public override void LoadExtra(string k, string v)
         {
             if (k == "tank") Tank = PF(v);
+            else if (k == "harvests") Harvests = int.Parse(v, System.Globalization.CultureInfo.InvariantCulture);
+            else if (k == "strains") foreach (var e in v.Split(';')) { var kv = e.Split('='); if (kv.Length == 2) Strain[kv[0]] = PF(kv[1]); }
             else if (k == "plots")
             {
                 var p = v.Split(',');
-                for (int i = 0; i < Plots && i < p.Length; i++) { var gs = p[i].Split(':'); Growth[i] = PF(gs[0]); Soil[i] = PF(gs[1]); }
+                for (int i = 0; i < Plots && i < p.Length; i++)
+                {
+                    var gs = p[i].Split(':'); Growth[i] = PF(gs[0]); Soil[i] = PF(gs[1]);
+                    Species[i] = gs.Length > 2 && gs[2].Length > 0 ? gs[2] : Growth[i] >= 0 ? "fruit" : null;   // older saves: fruit
+                    Gene[i] = gs.Length > 3 ? PF(gs[3]) : 1f;
+                }
             }
         }
     }
@@ -180,6 +198,16 @@ namespace Codebound.Core
             { ItemDatabase.CopperWire, new Recipe { Product = ItemDatabase.CopperWire, Amount = 2, Seconds = 0.5f, Inputs = new[] { new ItemStack(ItemDatabase.CopperPlate, 1) } } },
             { ItemDatabase.Circuit, new Recipe { Product = ItemDatabase.Circuit, Amount = 1, Seconds = 3f,
                 Inputs = new[] { new ItemStack(ItemDatabase.IronPlate, 1), new ItemStack(ItemDatabase.CopperWire, 3), new ItemStack(ItemDatabase.Silicon, 1) } } },
+            // food processing
+            { ItemDatabase.Ration, new Recipe { Product = ItemDatabase.Ration, Amount = 2, Seconds = 2f,
+                Inputs = new[] { new ItemStack(ItemDatabase.AlienFruit, 2), new ItemStack(ItemDatabase.Glowcap, 1) } } },
+            // player equipment (kept in the inventory: it works while you carry it)
+            { ItemDatabase.LaserTool, new Recipe { Product = ItemDatabase.LaserTool, Amount = 1, Seconds = 5f,
+                Inputs = new[] { new ItemStack(ItemDatabase.IronPlate, 4), new ItemStack(ItemDatabase.Circuit, 2), new ItemStack(ItemDatabase.AlienCrystal, 1) } } },
+            { ItemDatabase.ArmorPlating, new Recipe { Product = ItemDatabase.ArmorPlating, Amount = 1, Seconds = 4f,
+                Inputs = new[] { new ItemStack(ItemDatabase.IronPlate, 8), new ItemStack(ItemDatabase.StoneBrick, 4) } } },
+            { ItemDatabase.ThermalSuit, new Recipe { Product = ItemDatabase.ThermalSuit, Amount = 1, Seconds = 4f,
+                Inputs = new[] { new ItemStack(ItemDatabase.Fiber, 10), new ItemStack(ItemDatabase.CopperWire, 2) } } },
         };
 
         public readonly Inventory Input = new Inventory(6), Output = new Inventory(1);

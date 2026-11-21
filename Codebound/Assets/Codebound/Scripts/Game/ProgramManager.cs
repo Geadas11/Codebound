@@ -417,7 +417,7 @@ namespace Codebound.Game
                     {
                         s.Waiting = null;
                         var call = p.Pending; p.Pending = null;
-                        p.NextCallTime = now + 1f / Mathf.Max(1, p.St.CallsPerSecond);
+                        p.NextCallTime = now + 1f / Mathf.Max(1, Cps(p));
                         p.Calls++;
                         Execute(p, call);
                     }
@@ -477,6 +477,15 @@ namespace Codebound.Game
                     break;
             }
         }
+
+        /// <summary>An event for every running program (except `from`) that subscribed to it: HUD buttons, network messages.</summary>
+        public void Broadcast(string name, object data, object from = null)
+        {
+            foreach (var p in programs.Values) if (p != from) Emit(p, name, data);
+        }
+
+        /// <summary>Calls per second: the computer's CPU, +50% with the Programming research.</summary>
+        float Cps(Program p) => p.St.CallsPerSecond * (session.State.Research.IsDone("programming") ? 1.5f : 1f);
 
         void Emit(Program p, string name, object data)
         {
@@ -539,12 +548,22 @@ namespace Codebound.Game
                 case "computer":
                     switch (fn)
                     {
-                        case "info": Reply(p, new Dictionary<string, object> { { "name", "PC-" + p.Computer.InstanceId }, { "cps", p.St.CallsPerSecond } }); return;
+                        case "info": Reply(p, new Dictionary<string, object> { { "name", "PC-" + p.Computer.InstanceId }, { "cps", Cps(p) } }); return;
                         case "time": Reply(p, Math.Round(Time.time, 3)); return;
                         case "sleep":
                             double sec = Arg(0) is double sd ? sd : 0;
                             p.SleepUntil = Time.time + (float)Math.Max(0, Math.Min(3600, sec)); return;
                         case "subscribe": p.Subs.Add(Arg(0) as string ?? ""); Reply(p, true); return;
+                        case "send":
+                        {   // logic networks: every other running program subscribed to "message" receives it
+                            if (!session.State.Research.IsDone("networking")) { Reply(p, false, warn: "computer.send(): needs the Networking research"); return; }
+                            string channel = Arg(0) as string ?? "";
+                            object payload = Arg(1);
+                            if (channel.Length == 0 || channel.Length > 64) { Reply(p, false, warn: "computer.send(channel, data): channel must be 1-64 characters"); return; }
+                            if (Json.Write(payload).Length > 4096) { Reply(p, false, warn: "computer.send(): data larger than 4 KB"); return; }
+                            Broadcast("message", new Dictionary<string, object> { { "channel", channel }, { "data", payload }, { "from", "PC-" + p.Computer.InstanceId } }, p);
+                            Reply(p, true); return;
+                        }
                         case "wait_event": if (p.Events.Count > 0) Reply(p, null); else p.WaitingEvent = true; return;
                     }
                     break;
@@ -571,6 +590,18 @@ namespace Codebound.Game
                     }
                     break;
                 case "world":
+                    if (fn == "weather")
+                    {
+                        var clk = session.State.Clock;
+                        var at = p.Computer.Origin;
+                        var biome = session.World.Generator.BiomeAt(at);
+                        var w = clk.WeatherAt(biome);
+                        var env = Shelter.Apply(session.State, at, Vitals.At(session.World.Generator, at, clk));
+                        Reply(p, new Dictionary<string, object> { { "weather", w.ToString().ToLowerInvariant() }, { "name", WorldClock.WeatherName(w, biome) },
+                            { "temperature", Math.Round(env.AmbientC, 1) }, { "time", clk.ClockText }, { "day", clk.Day }, { "season", clk.Season.ToString().ToLowerInvariant() },
+                            { "daylight", Math.Round(clk.Daylight, 3) }, { "biome", biome.ToString().ToLowerInvariant() } });
+                        return;
+                    }
                     if (fn == "pollution")
                     {
                         var eco = session.State.Ecology;
@@ -628,11 +659,33 @@ namespace Codebound.Game
                         case "plots":
                         {
                             if (m.Def.Kind != BuildingKind.Greenhouse) break;
-                            var (val, gerr) = session.Factory.Greenhouse(m, fn, Arg(0));
+                            var (val, gerr) = session.Factory.Greenhouse(m, fn, Arg(0), Arg(1));
                             // routine outcomes (nothing ripe, no free plot...) are already in the return value; only warn about problems
                             bool problem = gerr == "tank_empty" || gerr == "output_full";
                             Reply(p, val, warn: problem ? $"greenhouse.{fn}(): {gerr}" : null);
                             return;
+                        }
+                        case "get":
+                        case "set":
+                        case "keys":
+                        case "delete":
+                        {
+                            if (!(m.State is ServerState sv)) break;
+                            if (sv.PowerSatisfaction <= 0) { Reply(p, null, warn: $"server.{fn}(): no power"); return; }
+                            string key = Arg(0) as string;
+                            if (fn == "keys") { Reply(p, new List<object>(sv.Data.Keys)); return; }
+                            if (fn == "get") { Reply(p, key != null && sv.Data.TryGetValue(key, out var val) ? (object)val : null); return; }
+                            string serr = sv.Set(key, fn == "delete" ? null : Arg(1) is string sval ? sval : Json.Write(Arg(1)));
+                            Reply(p, serr == null, warn: serr != null ? $"server.{fn}(): {serr}" : null); return;
+                        }
+                        case "totals":
+                        case "find":
+                        {
+                            if (!(m.State is StorageHubState hub)) break;
+                            var t = hub.Totals();
+                            if (fn == "find") { Reply(p, t.TryGetValue(Arg(0) as string ?? "", out var cnt) ? cnt : 0); return; }
+                            var d = new Dictionary<string, object>(); foreach (var kv in t) d[kv.Key] = kv.Value;
+                            Reply(p, d); return;
                         }
                         case "launch":
                         case "throttle":
@@ -643,7 +696,7 @@ namespace Codebound.Game
                             if (!(m.State is LaunchPadState lp)) break;
                             switch (fn)
                             {
-                                case "launch": { string le = lp.Launch(session.State.Research); Reply(p, le == null, warn: le != null ? "pad.launch(): " + le : null); return; }
+                                case "launch": { lp.Underground = Caves.IsUnderground(session.State); string le = lp.Launch(session.State.Research); Reply(p, le == null, warn: le != null ? "pad.launch(): " + le : null); return; }
                                 case "throttle":
                                     if (lp.Flight == null || lp.Phase != "ascent") { Reply(p, false, warn: "pad.throttle(): not in flight"); return; }
                                     lp.Flight.Throttle = Arg(0) is double tv && !double.IsNaN(tv) ? (float)Math.Max(0, Math.Min(1, tv)) : 0f;
@@ -749,7 +802,7 @@ namespace Codebound.Game
             var events = new List<object>(p.Events);
             p.Events.Clear();
             return new Dictionary<string, object> {
-                { "time", Math.Round(Time.time, 2) }, { "pollution", Math.Round(session.State.Ecology.At(p.Computer.Origin), 1) }, { "machines", machines }, { "contents", contents }, { "events", events }, { "creatures", creatures },
+                { "time", Math.Round(Time.time, 2) }, { "pollution", Math.Round(session.State.Ecology.At(p.Computer.Origin), 1) }, { "weather", session.State.Clock.WeatherAt(session.World.Generator.BiomeAt(p.Computer.Origin)).ToString().ToLowerInvariant() }, { "temperature", Math.Round(Vitals.At(session.World.Generator, p.Computer.Origin, session.State.Clock).AmbientC, 1) }, { "day", session.State.Clock.Day }, { "daylight", Math.Round(session.State.Clock.Daylight, 3) }, { "machines", machines }, { "contents", contents }, { "events", events }, { "creatures", creatures },
                 { "energy", new Dictionary<string, object> { { "capacityKW", cap }, { "demandKW", dem },
                     { "satisfaction", p.Computer.State.PowerSatisfaction }, { "available", session.Factory.HasPower(p.Computer) } } } };
         }
@@ -795,7 +848,7 @@ namespace Codebound.Game
                         break;
                     case "plant": case "water": case "harvest":
                         object plot = arg != null && double.TryParse(arg, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double pl) ? (object)pl : null;
-                        err = session.Factory.Greenhouse(m, action, plot).error; break;
+                        err = session.Factory.Greenhouse(m, action, plot, plot == null ? arg : null).error; break;   // SQL: a number is a plot, a word is a species
                     case "start": case "stop": case "set_filter":
                         var cv = m.Def.Kind == BuildingKind.Conveyor ? (ConveyorState)m.State : null;
                         var ins = m.State as InserterState;

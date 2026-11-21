@@ -103,7 +103,7 @@ namespace Codebound.Tests
                     biomes.Add(g.BiomeAt(cell));
                     res.Add(g.DepositAt(cell).Type);
                 }
-            foreach (Biome bio in System.Enum.GetValues(typeof(Biome))) Assert.Contains(bio, biomes.ToList(), "missing biome");
+            foreach (Biome bio in System.Enum.GetValues(typeof(Biome))) if (bio != Biome.Cavern) Assert.Contains(bio, biomes.ToList(), "missing biome");
             foreach (var r in new[] { ResourceType.Iron, ResourceType.Copper, ResourceType.Coal, ResourceType.Stone, ResourceType.Tree })
                 Assert.Contains(r, res.ToList(), "missing resource " + r);
         }

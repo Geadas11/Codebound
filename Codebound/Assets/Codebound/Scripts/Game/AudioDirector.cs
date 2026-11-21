@@ -63,6 +63,7 @@ namespace Codebound.Game
 
             var st = s.State;
             st.Grid.Placed += b => Play("place", Pos(b), null);
+            st.Lightning.Struck += (x, y, rod) => Play("thunder", new Vector2((float)x, (float)y), rod ? "[thunder] the lightning rod took a strike" : "[thunder] lightning strike");
             st.Grid.Removed += b => Play("remove", Pos(b), null);
             st.Creatures.Died += c => Play("dissolve", new Vector2((float)c.X, (float)c.Y), null);
             st.Creatures.WaveArrived += n => Play("alarm", null, $"[alarm] {n} creature{(n > 1 ? "s" : "")} approaching");
@@ -85,6 +86,7 @@ namespace Codebound.Game
                 if (d.magnitude > HearRange * 1.5f) vol = 0;
                 vol *= Mathf.Clamp01(1f - d.magnitude / (HearRange * 1.5f));
                 pan = Mathf.Clamp(d.x / 10f, -0.8f, 0.8f);
+                vol *= Mathf.Pow(0.45f, session.Grid.StructuresBetween(at.Value.x, at.Value.y, session.Player.position.x, session.Player.position.y));   // walls muffle
             }
             if (vol > 0.001f) { sfx.panStereo = pan; sfx.PlayOneShot(Clip(name), vol); }
             if (caption != null && Settings.SoundCaptions)
@@ -180,6 +182,11 @@ namespace Codebound.Game
                 voices[v].volume = n.vol * atten * atten * 0.6f * Settings.MachineVolume * Master;
                 voices[v].pitch = n.pitch;
                 voices[v].panStereo = Mathf.Clamp(((float)n.b.CenterX - p.x) / 10f, -0.8f, 0.8f);
+                // occlusion: each wall between the machine and the player halves the level and dulls the sound
+                int walls = session.Grid.StructuresBetween(n.b.CenterX, n.b.CenterY, p.x, p.y, n.b);
+                voices[v].volume *= Mathf.Pow(0.45f, walls);
+                var lp = voices[v].GetComponent<AudioLowPassFilter>() ?? voices[v].gameObject.AddComponent<AudioLowPassFilter>();
+                lp.cutoffFrequency = Mathf.Lerp(lp.cutoffFrequency, walls > 0 ? 900f : 22000f, 0.2f);
             }
         }
 

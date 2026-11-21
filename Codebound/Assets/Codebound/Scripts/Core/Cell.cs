@@ -30,5 +30,8 @@ namespace Codebound.Core
     {
         public static Rotation Next(this Rotation r) => (Rotation)(((int)r + 1) & 3);
         public static bool IsSideways(this Rotation r) => r == Rotation.R90 || r == Rotation.R270;
+        /// <summary>Unit step in the facing direction (R0 = up, clockwise).</summary>
+        public static (int dx, int dy) Step(this Rotation r) => r == Rotation.R0 ? (0, 1) : r == Rotation.R90 ? (1, 0) : r == Rotation.R180 ? (0, -1) : (-1, 0);
+        public static Cell Move(this Cell c, Rotation r, int n = 1) { var (dx, dy) = r.Step(); return new Cell(c.X + dx * n, c.Y + dy * n); }
     }
 }
