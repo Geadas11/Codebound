@@ -34,7 +34,7 @@ function run(id, code, opts = {}) {
         else if (key === 'computer.sleep') r.value = null;
         else if (key === 'hud.set' || key === 'hud.notify') { logs.push(key + ':' + JSON.stringify(m.args)); r.value = true; }
         else if (key === 'debug.pause') {
-          pauses.push({ line: m.args[0], vars: m.args[1] });
+          pauses.push({ line: m.args[0], vars: m.args[1], stack: m.args[2], watches: m.args[3] });
           r.value = { mode: (opts.debugModes || [])[pauses.length - 1] || 'continue' };
         }
         else if (key === 'computer.wait_event') {
@@ -50,7 +50,7 @@ function run(id, code, opts = {}) {
       }
     };
     listeners.push(on);
-    send({ t: 'start', id, code, ram: opts.ram || 32, name: 'PC-1', lang: opts.lang, debug: opts.debug, bps: opts.bps });
+    send({ t: 'start', id, code, ram: opts.ram || 32, name: 'PC-1', lang: opts.lang, debug: opts.debug, bps: opts.bps, files: opts.files, watches: opts.watches });
   });
 }
 
@@ -83,8 +83,9 @@ function run(id, code, opts = {}) {
 
   r = await run(6, `log.constructor("return process")().exit(1);`);
   assert.strictEqual(r.reason, 'error'); assert.match(r.msg, /EvalError/);
-  r = await run(61, `try { require("fs"); } catch (e) { log(e.name); }\nlog(typeof process, typeof __cb, typeof eval("1"));`);
-  assert.strictEqual(r.reason, 'error'); assert.match(r.msg, /EvalError/); assert.deepStrictEqual(r.logs, ['ReferenceError']);
+  r = await run(61, `try { require("fs"); } catch (e) { log(e.message); }\nlog(typeof process, typeof __cb, typeof eval("1"));`);
+  // require() only loads the computer's own files: Node modules do not exist in the sandbox
+  assert.strictEqual(r.reason, 'error'); assert.match(r.msg, /EvalError/); assert.deepStrictEqual(r.logs, ["no file 'fs' on this computer"]);
   console.log('ok  sandbox: no Function-constructor escape, no require, no eval');
 
   r = await run(7, `computer.on("tick", e => log("tick", e.n));\nlog("waiting");`);
@@ -136,6 +137,35 @@ function run(id, code, opts = {}) {
   r = await run(14, 'type V = number;\nlet s: V = 0;\nfor (let i: V = 0; i < 2; i++)\n  s += i;\nlog(s);', { lang: 'typescript', debug: true, bps: [4] });
   assert.deepStrictEqual(r.pauses.map(p => p.line), [4, 4]); assert.deepStrictEqual(r.logs, ['1']);
   console.log('ok  TypeScript: runs, errors mapped to TS lines, debugger works');
+
+  // ---- Etapa 3: call stack, step over/out, watches
+  const dbgSrc = 'function add(a, b) {\n  const s = a + b;\n  return s;\n}\nconst items = [{ count: 3 }];\nlet t = add(1, 2);\nt = add(t, 4);\nlog(t);\n';
+  // breakpoint on the call, step into add(), step out, step over the second call
+  r = await run(90, dbgSrc, { debug: true, bps: [6], debugModes: ['step', 'out', 'over', 'continue'], watches: ['items[0].count', 'a', 'nope.x'] });
+  assert.strictEqual(r.reason, 'done');
+  assert.deepStrictEqual(r.pauses.map(p => p.line), [6, 2, 7, 8]);
+  assert.deepStrictEqual(r.pauses[1].stack, ['add : line 2', 'main : line 6'], 'call stack inside add()');
+  assert.deepStrictEqual(r.pauses[0].watches[0], ['items[0].count', 3]);
+  assert.deepStrictEqual(r.pauses[1].watches[1], ['a', 1], 'watch sees the parameter inside add()');
+  assert.strictEqual(r.pauses[0].watches[2][1], '(not defined here)');
+  assert.deepStrictEqual(r.logs, ['7']);
+  console.log('ok  debugger: call stack, step out, step over, watch paths');
+
+  // ---- several files: require() other files on the computer, errors name the file
+  r = await run(91, 'const u = require("./utils");\nlog(u.double(21));\n', { files: { 'utils.js': 'function double(x) { return x * 2; }\nmodule.exports = { double };\n' } });
+  assert.deepStrictEqual(r.logs, ['42']);
+  r = await run(92, 'const u = require("utils");\nu.broken();\n', { files: { 'utils.js': 'module.exports = {\n  broken() { null.x; }\n};\n' } });
+  assert.strictEqual(r.file, 'utils'); assert.strictEqual(r.line, 2);
+  r = await run(93, 'import { sq } from "./mathx";\nconst n: number = sq(6);\nlog(n);\n', { lang: 'typescript', files: { 'mathx.ts': 'export function sq(x: number): number {\n  return x * x;\n}\n' } });
+  assert.deepStrictEqual(r.logs, ['36']);
+  console.log('ok  several files: require() in JavaScript, import in TypeScript, error file + line');
+
+  // ---- no network in the sandbox: none of the web/Node network APIs exist
+  r = await run(94, 'log([typeof fetch, typeof WebSocket, typeof XMLHttpRequest, typeof process, typeof setTimeout, typeof WebAssembly === "object" ? typeof WebAssembly.instantiate : "none"].join(","));\n');
+  assert.deepStrictEqual(r.logs, ['undefined,undefined,undefined,undefined,undefined,function']);
+  r = await run(95, 'WebAssembly.compile(new Uint8Array([0,97,115,109,1,0,0,0])).then(() => log("compiled"), e => log("blocked", e.name));\nsleep(0.1);\n');
+  assert.ok(!r.logs.includes('compiled'), 'no WebAssembly code generation for JS programs');
+  console.log('ok  sandbox: no network APIs (fetch, WebSocket, XHR, process), no WebAssembly compilation');
 
   host.stdin.end();
   console.log('ALL RUNTIME TESTS PASSED');

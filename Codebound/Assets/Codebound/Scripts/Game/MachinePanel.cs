@@ -272,26 +272,58 @@ namespace Codebound.Game
             return true;
         }
 
+        // ------------------------------------------------------------ code editor (Etapa 3: files, terminal, history, diagram, assistance)
+        static readonly string[] SideTabs = { "Monitor", "Debug", "Files", "Terminal", "History", "Diagram", "API" };
+        int sideTab, lastPausedLine;
+        string activeFile;            // null = main file
+        string newFileName = "", watchInput = "", terminalInput = "", deleteArmed;
+        Texture2D lineTex;
+
+        static string LangName(string lang)
+        {
+            switch (lang)
+            {
+                case "typescript": return "<color=#3178c6>TypeScript</color>";
+                case "python": return "<color=#ffd43b>Python</color>";
+                case "sql": return "<color=#e38c00>SQL</color>";
+                case "php": return "<color=#8892bf>PHP</color>";
+                case "csharp": return "<color=#9b4f96>C#</color>";
+                case "c": return "<color=#a8b9cc>C</color>";
+                case "cpp": return "<color=#659ad2>C++</color>";
+                default: return "<color=#f7df1e>JavaScript</color>";
+            }
+        }
+
+        string ActiveCode(ComputerState cs) => activeFile != null && cs.Files.TryGetValue(activeFile, out var f) ? f : cs.Code;
+        void SetActiveCode(ComputerState cs, string v) { if (activeFile != null && cs.Files.ContainsKey(activeFile)) cs.Files[activeFile] = v; else cs.Code = v; }
+
+        void Resume(string mode) => programs.Resume(open, mode);
+
         void DrawEditor(ComputerState cs)
         {
             if (open == null || DrawLock(cs)) return;
+            if (activeFile != null && !cs.Files.ContainsKey(activeFile)) activeFile = null;
             var rect = new Rect(UiGui.W * 0.04f, UiGui.H * 0.04f, UiGui.W * 0.92f, UiGui.H * 0.86f);
             GUILayout.BeginArea(rect, box);
             bool running = programs.IsRunning(open);
-            var stt = programs.GetStats(open);
             var dbg = programs.GetDebug(open);
             bool paused = dbg.PausedLine != 0;
             var ev = Event.current;
-            if (paused && ev.type == EventType.KeyDown && (ev.keyCode == KeyCode.F8 || ev.keyCode == KeyCode.F10))
-            { programs.Resume(open, ev.keyCode == KeyCode.F10); ev.Use(); }
+            if (paused && ev.type == EventType.KeyDown)
+            {   // F8 continue · F11 step into · F10 step over · Shift+F11 step out
+                if (ev.keyCode == KeyCode.F8) { Resume("continue"); ev.Use(); }
+                else if (ev.keyCode == KeyCode.F10) { Resume("over"); ev.Use(); }
+                else if (ev.keyCode == KeyCode.F11) { Resume(ev.shift ? "out" : "step"); ev.Use(); }
+            }
 
             // toolbar
             GUILayout.BeginHorizontal();
-            string langName = cs.Language == "typescript" ? "<color=#3178c6>TypeScript</color>"
-                : cs.Language == "python" ? "<color=#ffd43b>Python</color>" : cs.Language == "sql" ? "<color=#e38c00>SQL</color>" : "<color=#f7df1e>JavaScript</color>";
             string state = !running ? "<color=#8a8f99>STOPPED</color>" : paused ? $"<color=#ffd43b>PAUSED at line {dbg.PausedLine}</color>" : dbg.Debugging ? "<color=#5ef0a0>DEBUGGING</color>" : "<color=#5ef0a0>RUNNING</color>";
-            GUILayout.Label($"PC-{open.InstanceId}  |  {langName}  |  {state}", title);
+            GUILayout.Label($"PC-{open.InstanceId}  |  {LangName(cs.Language)}  |  {state}", title);
             GUILayout.FlexibleSpace();
+            if (GUILayout.Button("Close (Esc)", btn)) { Close(); GUILayout.EndHorizontal(); GUILayout.EndArea(); return; }
+            GUILayout.EndHorizontal();
+            GUILayout.BeginHorizontal();
             if (!running)
             {
                 if (GUILayout.Button("Language >", btn))
@@ -299,34 +331,53 @@ namespace Codebound.Game
                     int li = System.Array.IndexOf(ComputerState.Languages, cs.Language);
                     cs.Language = ComputerState.Languages[(li + 1) % ComputerState.Languages.Length];
                 }
-                if (GUILayout.Button("Run", btn, GUILayout.Width(70))) { if (Net.IsGuest) SendProgram("run"); else programs.StartProgram(open); }
-                if (!Net.IsGuest && GUILayout.Button("Debug", btn, GUILayout.Width(70))) programs.StartProgram(open, debug: true);
-                if (Net.IsGuest && GUILayout.Button("Save", btn, GUILayout.Width(70))) SendProgram("");
+                if (GUILayout.Button("Run", btn, GUILayout.Width(60))) { if (Net.IsGuest) SendProgram("run"); else programs.StartProgram(open); }
+                if (!Net.IsGuest && cs.Language != "sql" && cs.Language != "c" && cs.Language != "cpp" && GUILayout.Button("Debug", btn, GUILayout.Width(60))) programs.StartProgram(open, debug: true);
+                if (Net.IsGuest && GUILayout.Button("Save", btn, GUILayout.Width(60))) SendProgram("");
             }
             else
             {
-                if (paused && GUILayout.Button("Continue (F8)", btn)) programs.Resume(open, false);
-                if (paused && GUILayout.Button("Step (F10)", btn)) programs.Resume(open, true);
-                if (GUILayout.Button("Stop", btn, GUILayout.Width(70))) { if (Net.IsGuest) SendProgram("stop"); else programs.Stop(open); }
+                if (paused)
+                {
+                    if (GUILayout.Button("Continue F8", btn)) Resume("continue");
+                    if (GUILayout.Button("Into F11", btn)) Resume("step");
+                    if (GUILayout.Button("Over F10", btn)) Resume("over");
+                    if (GUILayout.Button("Out Shift+F11", btn)) Resume("out");
+                }
+                if (GUILayout.Button("Stop", btn, GUILayout.Width(60))) { if (Net.IsGuest) SendProgram("stop"); else programs.Stop(open); }
             }
-            foreach (var ex in cs.Language == "python" ? PyExamples : cs.Language == "sql" ? SqlExamples : cs.Language == "php" ? PhpExamples : cs.Language == "csharp" ? CsExamples : cs.Language == "c" ? CExamples : cs.Language == "cpp" ? CppExamples : Examples)
-                if (GUILayout.Button(ex.name, btn) && !running) cs.Code = ex.code;
+            if (Settings.Assist < 2)   // examples are help: hidden in Advanced
+                foreach (var ex in cs.Language == "python" ? PyExamples : cs.Language == "sql" ? SqlExamples : cs.Language == "php" ? PhpExamples : cs.Language == "csharp" ? CsExamples : cs.Language == "c" ? CExamples : cs.Language == "cpp" ? CppExamples : Examples)
+                    if (GUILayout.Button(ex.name, btn) && !running) { activeFile = null; cs.Code = ex.code; }
+            GUILayout.FlexibleSpace();
             if (GUILayout.Button("Clear log", btn)) cs.Log.Clear();
-            if (GUILayout.Button("Close (Esc)", btn)) { Close(); GUILayout.EndHorizontal(); GUILayout.EndArea(); return; }
+            GUILayout.EndHorizontal();
+
+            // guided mode: what to do next
+            if (Settings.Assist == 0)
+                GUILayout.Label("<color=#9cdcfe>" + Assist.Tip(session.Factory.HasPower(open), session.Factory.MachinesNear(open).Count, cs.History.Count > 0, running, cs.LastError) + "</color>", small);
+
+            // file tabs
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Toggle(activeFile == null, "main", btn, GUILayout.Width(70))) activeFile = null;
+            foreach (var f in cs.Files.Keys) if (GUILayout.Toggle(activeFile == f, f, btn)) activeFile = f;
+            GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
             // code + line numbers
-            GUILayout.BeginVertical(GUILayout.Width(rect.width * 0.64f));
-            codeScroll = GUILayout.BeginScrollView(codeScroll, GUILayout.Height(rect.height * 0.62f));
+            GUILayout.BeginVertical(GUILayout.Width(rect.width * 0.62f));
+            codeScroll = GUILayout.BeginScrollView(codeScroll, GUILayout.Height(rect.height * (Settings.Assist == 0 ? 0.55f : 0.58f)));
             GUILayout.BeginHorizontal();
-            int lines = 1; foreach (char c in cs.Code) if (c == '\n') lines++;
+            string code = ActiveCode(cs);
+            bool main = activeFile == null;
+            int lines = 1; foreach (char c in code) if (c == '\n') lines++;
             var nums = new StringBuilder();
             for (int i = 1; i <= lines; i++)
-                nums.Append(i == dbg.PausedLine ? ">" : cs.Breakpoints.Contains(i) ? "•" : " ").Append(i).Append('\n');
+                nums.Append(main && i == dbg.PausedLine ? ">" : main && cs.Breakpoints.Contains(i) ? "•" : " ").Append(i).Append('\n');
             GUILayout.Label(nums.ToString(), monoNum, GUILayout.Width(44));
             var gutter = GUILayoutUtility.GetLastRect();
-            if (ev.type == EventType.MouseDown && gutter.Contains(ev.mousePosition))
+            if (main && ev.type == EventType.MouseDown && gutter.Contains(ev.mousePosition))
             {
                 int clicked = Mathf.FloorToInt((ev.mousePosition.y - gutter.y - monoNum.padding.top) / monoNum.lineHeight) + 1;
                 if (clicked >= 1 && clicked <= lines) programs.ToggleBreakpoint(open, clicked);
@@ -335,20 +386,20 @@ namespace Codebound.Game
             HandleTab(cs);
             GUI.SetNextControlName("code");
             GUI.enabled = !running; // edit while stopped; the running program keeps the code it started with
-            string edited = GUILayout.TextArea(cs.Code, mono, GUILayout.ExpandHeight(true), GUILayout.ExpandWidth(true));
+            string edited = GUILayout.TextArea(code, mono, GUILayout.ExpandHeight(true), GUILayout.ExpandWidth(true));
             GUI.enabled = true;
             var area = GUILayoutUtility.GetLastRect();
-            HighlightLine(area, dbg.PausedLine, new Color(1f, 0.85f, 0.2f, 0.22f));
-            if (!running) HighlightLine(area, cs.LastErrorLine, new Color(1f, 0.3f, 0.3f, 0.22f));
-            if (!running && edited != cs.Code) cs.Code = edited;
+            if (main) HighlightLine(area, dbg.PausedLine, new Color(1f, 0.85f, 0.2f, 0.22f));
+            if (!running && cs.LastErrorFile == activeFile) HighlightLine(area, cs.LastErrorLine, new Color(1f, 0.3f, 0.3f, 0.22f));
+            if (!running && edited != code) SetActiveCode(cs, edited);
             GUILayout.EndHorizontal();
             GUILayout.EndScrollView();
 
-            // error + hint
+            // error + hint (hints in Guided and Normal)
             if (!string.IsNullOrEmpty(cs.LastError))
             {
                 GUILayout.Label("Error: " + cs.LastError, err);
-                string hint = Hint(cs.LastError);
+                string hint = Settings.Assist < 2 ? Assist.Hint(cs.Language, cs.LastError) : null;
                 if (hint != null) GUILayout.Label("Hint: " + hint, small);
             }
 
@@ -363,13 +414,33 @@ namespace Codebound.Game
             for (int i = cs.Log.Count - 1; i >= from; i--) if (cs.Log[i].StartsWith("[warn]")) { lastWarn = cs.Log[i]; break; }
             GUILayout.EndScrollView();
             if (Event.current.type == EventType.Repaint) logScroll.y = float.MaxValue; // follow the tail
-            if (lastWarn != null && Hint(lastWarn) is string wh) GUILayout.Label("Hint: " + wh, small);
+            if (lastWarn != null && Settings.Assist < 2 && Assist.Hint(cs.Language, lastWarn) is string wh) GUILayout.Label("Hint: " + wh, small);
             GUILayout.EndVertical();
 
-            // side: hardware, monitor, machines, API
-            GUILayout.BeginVertical(box);
+            // side panel with tabs
+            GUILayout.BeginVertical(box, GUILayout.Width(rect.width * 0.35f));
+            if (dbg.PausedLine != lastPausedLine) { if (paused) sideTab = 1; lastPausedLine = dbg.PausedLine; }   // jump to the debugger once per pause
+            sideTab = GUILayout.SelectionGrid(sideTab, SideTabs, 4, new GUIStyle(btn) { fontSize = Mathf.Max(10, btn.fontSize - 3), padding = new RectOffset(2, 2, 3, 3) });
             sideScroll = GUILayout.BeginScrollView(sideScroll);
-            int bytes = Encoding.UTF8.GetByteCount(cs.Code);
+            switch (sideTab)
+            {
+                case 0: DrawMonitor(cs, running); break;
+                case 1: DrawDebug(cs, dbg, paused, running); break;
+                case 2: DrawFiles(cs, running); break;
+                case 3: DrawTerminal(cs, running); break;
+                case 4: DrawHistory(cs); break;
+                case 5: DrawDiagram(cs, rect.width * 0.34f); break;
+                default: GUILayout.Label(ApiRef, small); break;
+            }
+            GUILayout.EndScrollView();
+            GUILayout.EndVertical();
+            GUILayout.EndHorizontal();
+            GUILayout.EndArea();
+        }
+
+        void DrawMonitor(ComputerState cs, bool running)
+        {
+            var stt = programs.GetStats(open);
             GUILayout.Label("<b>Security</b>", small);
             bool firewall = session.State.Research.IsDone("cybersecurity");
             GUILayout.Label($"Firewall: {(firewall ? "<color=" + Settings.Good + ">ON</color>" : "off (research Cybersecurity)")}   Password: {(cs.HasPassword ? "set" : "none")}   drone break-in: {session.State.Creatures.HackTime(cs):0}s", small);
@@ -380,7 +451,7 @@ namespace Codebound.Game
             GUILayout.EndHorizontal();
             GUILayout.Label("<i>Game password: don't reuse a real one.</i>", small);
             GUILayout.Label("<b>Hardware</b>", small);
-            GUILayout.Label($"CPU {cs.CallsPerSecond} calls/s   RAM {cs.RamMb} MB   Storage {bytes / 1024f:0.0}/{cs.MaxCodeBytes / 1024} KB", small);
+            GUILayout.Label($"CPU {cs.CallsPerSecond} calls/s   RAM {cs.RamMb} MB   Storage {cs.TotalCodeBytes / 1024f:0.0}/{cs.MaxCodeBytes / 1024} KB", small);
             bool powered = session.Factory.HasPower(open);
             GUILayout.Label(powered ? "Power: <color=#5ef0a0>OK</color>" : "Power: <color=#ff7060>NONE</color> — build a Coal Generator (with coal) or Power Poles within reach", small);
             if (running)
@@ -390,31 +461,172 @@ namespace Codebound.Game
                 if (stt.Waiting != null) GUILayout.Label("waiting: " + stt.Waiting, small);
             }
             if (programs.RuntimeError != null) GUILayout.Label(programs.RuntimeError, err);
-
-            if (paused)
-            {
-                GUILayout.Label($"<b>Variables</b> (line {dbg.PausedLine})", small);
-                if (dbg.Vars == null || dbg.Vars.Count == 0) GUILayout.Label("<i>none in scope</i>", small);
-                else foreach (var kv in dbg.Vars)
-                {
-                    string v = Json.Write(kv.Value);
-                    if (v.Length > 160) v = v.Substring(0, 160) + "...";
-                    GUILayout.Label($"<color=#9cdcfe>{kv.Key}</color> = {Escape(v)}", small);
-                }
-                GUILayout.Space(6);
-            }
-            else if (!running) GUILayout.Label("<i>Click a line number to toggle a breakpoint, then Debug.</i>", small);
             GUILayout.Label("<b>Machines in range</b>", small);
             var near = session.Factory.MachinesNear(open);
             if (near.Count == 0) GUILayout.Label("<i>none within 8 cells</i>", small);
             foreach (var m in near) GUILayout.Label($"m{m.InstanceId}  {m.Def.Id}  [{m.State.Status}]", small);
-            GUILayout.Space(6);
-            GUILayout.Label(ApiRef, small);
-            GUILayout.EndScrollView();
-            GUILayout.EndVertical();
-            GUILayout.EndHorizontal();
-            GUILayout.EndArea();
         }
+
+        void DrawDebug(ComputerState cs, ProgramManager.DebugInfo dbg, bool paused, bool running)
+        {
+            if (cs.Language == "c" || cs.Language == "cpp")
+                GUILayout.Label("<i>C and C++ run as compiled WebAssembly: no step debugger, but runtime errors show the file and line.</i>", small);
+            else if (cs.Language == "sql") GUILayout.Label("<i>SQL runs statement by statement each cycle: use SELECT to look at the data.</i>", small);
+            if (paused)
+            {
+                GUILayout.Label($"<b>Paused at line {dbg.PausedLine}</b>  —  Continue F8 · Into F11 · Over F10 · Out Shift+F11", small);
+                GUILayout.Label("<b>Call stack</b>", small);
+                if (dbg.Stack != null) foreach (var f in dbg.Stack) GUILayout.Label("  " + Escape(f as string ?? ""), small);
+                GUILayout.Label("<b>Variables</b>" + (cs.Language == "php" ? " <i>(PHP: globals; locals of functions are not visible)</i>" : ""), small);
+                if (dbg.Vars == null || dbg.Vars.Count == 0) GUILayout.Label("<i>none in scope</i>", small);
+                else foreach (var kv in dbg.Vars) GUILayout.Label($"<color=#9cdcfe>{kv.Key}</color> = {Escape(Short(Json.Write(kv.Value)))}", small);
+            }
+            else if (!running) GUILayout.Label("<i>Click a line number of the main file to toggle a breakpoint, then press Debug.</i>", small);
+            else GUILayout.Label("<i>Running. It will pause at the next breakpoint.</i>", small);
+
+            GUILayout.Label("<b>Watches</b> <size=10>(a name or a path, e.g. items[0].count — no code is run)</size>", small);
+            var results = new Dictionary<string, object>();
+            if (dbg.Watches != null) foreach (var w in dbg.Watches) if (w is List<object> pair && pair.Count == 2 && pair[0] is string k) results[k] = pair[1];
+            string remove = null;
+            foreach (var w in cs.Watches)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"<color=#9cdcfe>{Escape(w)}</color> = {(results.TryGetValue(w, out var v) ? Escape(Short(Json.Write(v))) : "<i>(when paused)</i>")}", small);
+                if (GUILayout.Button("x", btn, GUILayout.Width(22))) remove = w;
+                GUILayout.EndHorizontal();
+            }
+            if (remove != null) cs.Watches.Remove(remove);
+            GUILayout.BeginHorizontal();
+            watchInput = GUILayout.TextField(watchInput, 80);
+            if (GUILayout.Button("Watch", btn, GUILayout.Width(60)) && watchInput.Trim().Length > 0 && cs.Watches.Count < 12)
+            { if (!cs.Watches.Contains(watchInput.Trim())) cs.Watches.Add(watchInput.Trim()); watchInput = ""; }
+            GUILayout.EndHorizontal();
+        }
+
+        void DrawFiles(ComputerState cs, bool running)
+        {
+            GUILayout.Label($"<b>Files</b>  {cs.TotalCodeBytes / 1024f:0.0}/{cs.MaxCodeBytes / 1024} KB", small);
+            GUILayout.Label($"main  ({System.Text.Encoding.UTF8.GetByteCount(cs.Code)} B)", small);
+            string del = null;
+            foreach (var kv in cs.Files)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"{kv.Key}  ({System.Text.Encoding.UTF8.GetByteCount(kv.Value)} B)", small);
+                if (!running && GUILayout.Button(deleteArmed == kv.Key ? "sure?" : "delete", btn, GUILayout.Width(60)))
+                { if (deleteArmed == kv.Key) del = kv.Key; else deleteArmed = kv.Key; }
+                GUILayout.EndHorizontal();
+            }
+            if (del != null) { cs.Files.Remove(del); deleteArmed = null; if (activeFile == del) activeFile = null; }
+            if (!running && cs.Files.Count < ComputerState.MaxFiles)
+            {
+                if (lockMessage != null) GUILayout.Label(lockMessage, err);   // above the button: IMGUI needs the same controls in every event
+                GUILayout.BeginHorizontal();
+                newFileName = GUILayout.TextField(newFileName, 28);
+                if (GUILayout.Button("New file", btn, GUILayout.Width(80)))
+                {
+                    string n = newFileName.Trim();
+                    if (ComputerState.ValidFileName(n) && !cs.Files.ContainsKey(n)) { cs.Files[n] = ""; activeFile = n; newFileName = ""; lockMessage = null; }
+                    else lockMessage = "File names: letters, digits and _ with an extension, e.g. utils.js";
+                }
+                GUILayout.EndHorizontal();
+            }
+            string how;
+            switch (cs.Language)
+            {
+                case "python": how = "utils.py → import utils  /  from utils import f"; break;
+                case "php": how = "lib.php is loaded before main: its functions and classes are ready to use"; break;
+                case "csharp": how = "Util.cs → more classes in the same program (top-level code only in main)"; break;
+                case "c": case "cpp": how = "util.h + util.c(pp) → #include \"util.h\" (all .c/.cpp files are compiled together)"; break;
+                case "sql": how = "SQL programs use only the main file"; break;
+                default: how = "utils.js → const u = require(\"utils\")  (TypeScript: import { f } from \"./utils\")"; break;
+            }
+            GUILayout.Label("<i>" + how + "</i>", small);
+        }
+
+        void DrawTerminal(ComputerState cs, bool running)
+        {
+            GUILayout.Label("<b>Terminal</b>  <size=10>type help · output appears in the Console</size>", small);
+            var e = Event.current;
+            bool submit = e.type == EventType.KeyDown && (e.keyCode == KeyCode.Return || e.keyCode == KeyCode.KeypadEnter) && GUI.GetNameOfFocusedControl() == "term";
+            GUILayout.BeginHorizontal();
+            GUILayout.Label(">", mono, GUILayout.Width(14));
+            GUI.SetNextControlName("term");
+            terminalInput = GUILayout.TextField(terminalInput, 400, mono);
+            if (GUILayout.Button("Enter", btn, GUILayout.Width(60)) || submit)
+            {
+                if (submit) e.Use();
+                string input = terminalInput; terminalInput = "";
+                cs.AddLog("> " + input);
+                var (action, output, snippet) = Terminal.Execute(cs, input, running);
+                if (output != null) foreach (var l in output.Split('\n')) cs.AddLog(l);
+                switch (action)
+                {
+                    case Terminal.Action.Run: programs.StartProgram(open); break;
+                    case Terminal.Action.Debug: programs.StartProgram(open, debug: true); break;
+                    case Terminal.Action.Stop: programs.Stop(open); break;
+                    case Terminal.Action.Clear: cs.Log.Clear(); break;
+                    case Terminal.Action.Snippet: if (Net.IsGuest) cs.AddLog("snippets run only on the host"); else programs.StartProgram(open, snippet: snippet); break;
+                }
+            }
+            GUILayout.EndHorizontal();
+        }
+
+        void DrawHistory(ComputerState cs)
+        {
+            GUILayout.Label($"<b>Run history</b>  (last {ComputerState.MaxHistory})", small);
+            if (cs.History.Count == 0) GUILayout.Label("<i>no runs yet</i>", small);
+            for (int i = cs.History.Count - 1; i >= 0; i--)
+            {
+                var r = cs.History[i];
+                string col = r.Result == "done" ? Settings.Good : r.Result == "error" ? Settings.Bad : "#8a8f99";
+                GUILayout.Label($"{r.When}  {r.Language}  <color={col}>{r.Result}</color>  {r.Seconds:0.0}s  {r.Calls} calls" + (r.Message != null ? "\n   " + Escape(Short(r.Message)) : ""), small);
+            }
+        }
+
+        /// <summary>The computer, the machines it reaches (laid out as they stand in the world) and how much the running program uses each.</summary>
+        void DrawDiagram(ComputerState cs, float width)
+        {
+            if (lineTex == null) { lineTex = new Texture2D(1, 1); lineTex.SetPixel(0, 0, Color.white); lineTex.Apply(); }
+            var near = session.Factory.MachinesNear(open);
+            var calls = programs.CallMap(open) ?? new Dictionary<string, int>();
+            int max = 1; foreach (var v in calls.Values) max = Mathf.Max(max, v);
+            GUILayout.Label("<b>Diagram</b>  <size=10>machines within 8 cells; lines get brighter the more the program calls them</size>", small);
+            double far = 1.5;   // radial layout: direction as in the world, distance squeezed so near machines clear the PC label
+            foreach (var m in near) far = System.Math.Max(far, System.Math.Max(System.Math.Abs(m.CenterX - open.CenterX), System.Math.Abs(m.CenterY - open.CenterY)));
+            float w = Mathf.Max(200, width - 30), h = Mathf.Min(w, Mathf.Clamp(UiGui.H * 0.45f, 150f, 230f));
+            float rMin = 55f, rMax = Mathf.Min(w, h) / 2f - 18f;
+            var area = GUILayoutUtility.GetRect(w, h);
+            Vector2 center = area.center;
+            Vector2 Pos(PlacedBuilding b) { var d = new Vector2((float)(b.CenterX - open.CenterX), -(float)(b.CenterY - open.CenterY)); return d.sqrMagnitude < 0.01f ? center : center + d.normalized * (rMin + (rMax - rMin) * Mathf.Min(1f, d.magnitude / (float)far)); }
+            foreach (var m in near)
+            {
+                calls.TryGetValue("m" + m.InstanceId, out int n);
+                float k = n == 0 ? 0f : 0.35f + 0.65f * n / max;
+                DrawLine(center, Pos(m), n == 0 ? new Color(0.4f, 0.45f, 0.5f, 0.5f) : Color.Lerp(new Color(0.3f, 0.6f, 0.5f), new Color(0.37f, 0.94f, 0.63f), k), n == 0 ? 1f : 1f + 3f * k);
+            }
+            foreach (var m in near)
+            {
+                calls.TryGetValue("m" + m.InstanceId, out int n);
+                var p = Pos(m);
+                GUI.Label(new Rect(p.x - 45, p.y - 10, 90, 36), $"<b>m{m.InstanceId}</b> {m.Def.Id}" + (n > 0 ? $"\n<color=#5ef0a0>{n} calls</color>" : ""), new GUIStyle(small) { alignment = TextAnchor.UpperCenter });
+            }
+            GUI.Label(new Rect(center.x - 40, center.y - 10, 80, 20), $"<b><color=#9cdcfe>PC-{open.InstanceId}</color></b>", new GUIStyle(small) { alignment = TextAnchor.UpperCenter });
+            if (near.Count == 0) GUILayout.Label("<i>no machines in range</i>", small);
+            foreach (var kv in calls) if (!kv.Key.StartsWith("m")) GUILayout.Label($"{kv.Key}: {kv.Value} calls", small);
+        }
+
+        void DrawLine(Vector2 a, Vector2 b, Color c, float w)
+        {
+            var d = b - a;
+            if (d.sqrMagnitude < 1) return;
+            var m = GUI.matrix; var old = GUI.color;
+            GUI.color = c;
+            GUIUtility.RotateAroundPivot(Mathf.Atan2(d.y, d.x) * Mathf.Rad2Deg, a);
+            GUI.DrawTexture(new Rect(a.x, a.y - w / 2, d.magnitude, w), lineTex);
+            GUI.matrix = m; GUI.color = old;
+        }
+
+        static string Short(string s) => s.Length > 160 ? s.Substring(0, 160) + "..." : s;
 
         void HighlightLine(Rect area, int line, Color c)
         {
@@ -438,7 +650,9 @@ namespace Codebound.Game
         }
 
         /// <summary>Guided-level hints: explain the problem, don't hand over the solution.</summary>
-        public static string Hint(string msg)
+        public static string Hint(string msg) => Assist.Hint("javascript", msg);
+
+        static string OldHint(string msg)
         {
             if (msg == null) return null;
             if (msg.Contains("no_power")) return "The machine has no electricity. Is a Coal Generator with coal (or a chain of Power Poles) close enough?";

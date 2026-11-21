@@ -25,7 +25,7 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ Correia separadora (o item escolhido no painel E segue em frente, os outros viram à direita — sem programa), divisor (alterna frente/direita, usa o outro lado se um estiver cheio), braço longo (2 células); investigação Robotics — 3 testes
 - ✅ Estado das máquinas no mapa: LED verde (a trabalhar, com pulsação), amarelo a piscar (bloqueada/cheia/sem combustível), vermelho a piscar (sem energia); `Factory.Activity()`; respeita "reduzir efeitos" e a paleta daltónica — 1 teste + Play Mode
 
-## Etapa 3 — Programação funcional (em progresso)
+## Etapa 3 — Programação funcional (completa, exceto builds Linux/macOS)
 - ✅ 1.ª linguagem real: **JavaScript** (Node.js, MIT) em processo separado
 - ✅ Isolamento: processo + permission model + worker com heap limitado + vm sem require/eval + watchdog CPU — 8 testes de integração
 - ✅ API `codebound`: `log/print`, `sleep`, `computer.on/time/name`, `energy.available/stats`, `machines.list/get/find`, `drill.mine`, `furnace.smelt`, `.status()`, `.contents()`
@@ -33,14 +33,15 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ Limite de CPU (chamadas/s do hardware) e RAM (heap do worker), interrupção segura (Stop/terminate)
 - ✅ Editor de código no jogo (IMGUI): números de linha, Run/Stop, exemplos, consola, erros com linha, dicas contextuais, monitor CPU/heap/calls, máquinas em alcance, referência da API — Play Mode (captura)
 - ✅ Debugger: breakpoints (clicar no nº de linha), Continue (F8), Step (F10), variáveis em escopo; números de linha preservados — testado (runtime) + Play Mode
-- ⬜ Debugger: pilha de chamadas, step over/out, watch expressions
-- ⬜ Explorador de ficheiros (vários ficheiros por computador), terminal
-- ⬜ Histórico de execução, diagramas visuais
-- ⬜ Níveis de assistência (Guiado/Normal/Avançado) — hoje só existem dicas "guiadas" fixas
+- ✅ Debugger completo em JS/TS, Python, PHP e C#: pilha de chamadas, Continue (F8), Step into (F11), Step over (F10), Step out (Shift+F11), watches por caminho (`items[0].count` — sem eval); o separador Debug abre sozinho ao parar — testes de runtime nas 4 + Play Mode (captura `Screenshots/etapa3_debug.png`). C/C++: sem passo a passo (WebAssembly), mas erros em tempo de execução dão ficheiro + linha (DWARF)
+- ✅ Vários ficheiros por computador (até 8 + main; separadores no editor e separador Files): `require("x")` em JS, `import` em TS/Python, PHP carrega-os antes do main, C# junta as classes, C/C++ compila todos os .c/.cpp e permite `#include "x.h"` só dos ficheiros do computador; erros indicam o ficheiro; guardados no save
+- ✅ Terminal (separador Terminal): `help ls cat new rm run debug stop status lang watch unwatch clear`; outra linha corre como snippet na linguagem do computador sem alterar o programa (não em C/C++) — testes EditMode + Play Mode
+- ✅ Histórico de execução (últimas 20: hora, linguagem, resultado, duração, chamadas; guardado) e diagrama (computador + máquinas ao alcance na direção real, linhas mais fortes com mais chamadas) — Play Mode (capturas `etapa3_history.png`, `etapa3_diagram.png`)
+- ✅ Níveis de assistência (Opções → Ajuda na programação): Guiado (próximo passo + dicas + exemplos), Normal (dicas + exemplos), Avançado (só o erro); dicas por linguagem (`Core/Assist.cs`)
 - ✅ Build Windows com Node incluído (`Codebound > Build Windows`), self-test do executável (`-selftest`) — PASS
 - ⬜ Builds Linux/macOS (precisam do binário Node de cada plataforma: `CODEBOUND_NODE`)
 - ✅ `LICENSE` do Node incluído no build; CPython incluído com o seu `LICENSE.txt`; ver `THIRD_PARTY_NOTICES.md`
-- ⬜ Restrição de rede no runtime (Node ≥ 25 `--allow-net` ou QuickJS/Wasm)
+- ✅ Restrição de rede no runtime JS: o realm do programa não tem `fetch`/`WebSocket`/`XMLHttpRequest`/`process`, `require` só carrega ficheiros do computador e a compilação de WebAssembly pelo programa está bloqueada — testado
 - ✅ 2.ª linguagem: **TypeScript** (compilador TS 5.9.3, Apache-2.0, no host), erros mapeados para linhas TS via source map, debugger incluído — testado + Play Mode
 - ✅ 3.ª linguagem: **Python** (CPython 3.15.2 embeddable, PSF): processo por programa, Job Object (RAM, sem processos filhos), audit hook PEP 578, imports permitidos, watchdog, debugger com `sys.settrace` — 12 testes de integração (10 tentativas de fuga bloqueadas) + Play Mode + build
 - ✅ 4.ª linguagem **SQL** (SQLite): ciclos (`-- @every N`/`-- @once`), tabelas do jogo só de leitura, controlo por `commands`/`hud`, tabelas do jogador guardadas com o computador, authorizer + limite de 2 s por ciclo, debugger por instrução — 8/8 runtime + self-test do executável PASS
@@ -111,10 +112,10 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ Auto-save a cada 5 min em `autosave.cbsave` (separado do quicksave; nunca nos convidados)
 - ⬜ Arte final (substituir sprites procedurais mantendo 16 px/célula), animações, música composta, tutorial guiado, desempenho com bases grandes, builds macOS/Linux
 
-## Linguagens em falta
+## Linguagens
 - ✅ PHP 8.5: um processo por programa, sem php.ini nem extensões, `open_basedir` numa pasta inexistente (nenhum ficheiro acessível), funções de processos/rede/ficheiros/ambiente/configuração removidas, `memory_limit` = RAM + Job Object (memória, sem processos filhos), vigia de CPU no Unity; API `$machines`, `$drill`, `$energy`, `$hud`, `$world`, `$computer->on()`, `sleep()` em tempo de jogo, `echo` → log — 24 testes de runtime
 - ✅ C# 12: Roslyn num processo .NET 8 separado; o programa (instruções de topo, classes, LINQ, `JsonNode`) só pode usar uma lista branca de namespaces verificada símbolo a símbolo (sem ficheiros, reflexão, `GetType`/`typeof`, ambiente, consola, threads, `dynamic`, `unsafe`, `extern`, árvores de expressão); Job Object + limite de heap do GC + vigia de CPU; API `Drill.Mine()`, `Machines.Find()`, `Computer.On()`, `Sleep()`, `Log()` — 29 testes de runtime
 - ✅ Self-test do build com 6 linguagens (JS, TS, Python, SQL, PHP, C#)
 - ✅ C17 e C++17: o Unity verifica o código (`CSource`: só `#include <cabeçalhos do sistema>`, sem `__has_include`, `#embed`, `asm`/`.incbin` — o compilador corre no PC e podia ler ficheiros), compila com clang (wasi-sdk) para WebAssembly num Job Object com 20 s de limite, e o programa corre num worker do Node já incluído, com WASI próprio (sem sistema de ficheiros nem rede; `printf` → log; `sleep` em tempo de jogo) e memória criada pelo anfitrião com máximo = RAM; API em `<codebound.h>` (`cb_find`, `cb_op`, `cb_call`, `cb_num`, eventos) e `cb::Machine` em C++ — 12 testes de runtime + 15 testes do filtro
 - ✅ Self-test do build com 8 linguagens (JS, TS, Python, SQL, PHP, C, C++, C#); HTML/CSS no HUD → as 10 linguagens do Prompt Mestre funcionam
-- ⬜ Depurador passo a passo para PHP, C#, C e C++; linhas de erro em tempo de execução para C/C++ (hoje só nos erros de compilação)
+- ✅ Depurador passo a passo para PHP e C#; linhas (e ficheiro) de erro em tempo de execução para C/C++

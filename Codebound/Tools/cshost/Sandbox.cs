@@ -27,7 +27,7 @@ namespace Codebound
             "System.RuntimeTypeHandle", "System.RuntimeMethodHandle", "System.RuntimeFieldHandle", "System.ModuleHandle",
             "System.TypedReference", "System.ArgIterator", "System.MarshalByRefObject", "System.ResolveEventHandler",
             "System.AppDomainSetup", "System.LoaderOptimizationAttribute", "System.STAThreadAttribute", "System.MTAThreadAttribute",
-            "Codebound.Proto", "Codebound.Host", "Codebound.Sandbox",
+            "Codebound.Proto", "Codebound.Host", "Codebound.Sandbox", "Codebound.Dbg",
         };
 
         /// <summary>Null when the program only uses allowed things, otherwise the first violation with its line.</summary>

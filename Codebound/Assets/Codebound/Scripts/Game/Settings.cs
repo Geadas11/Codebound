@@ -23,6 +23,8 @@ namespace Codebound.Game
         public static bool HighContrast { get => I("cb.contrast", 0) == 1; set => Set("cb.contrast", value ? 1 : 0); }
         /// <summary>Whole-screen colour-blind correction: 0 off, 1 deuteranopia, 2 protanopia, 3 tritanopia.</summary>
         public static int ColorFilter { get => Mathf.Clamp(I("cb.cfilter", 0), 0, 3); set => Set("cb.cfilter", Mathf.Clamp(value, 0, 3)); }
+        /// <summary>Coding help: 0 guided, 1 normal, 2 advanced (Core.Assist).</summary>
+        public static int Assist { get => Mathf.Clamp(I("cb.assist", 0), 0, 2); set => Set("cb.assist", Mathf.Clamp(value, 0, 2)); }
         public static bool ColorblindPalette { get => I("cb.colorblind", 0) == 1; set => Set("cb.colorblind", value ? 1 : 0); }
         public static float UiScale { get => Mathf.Clamp(F("cb.uiScale", 1f), 0.75f, 2f); set => Set("cb.uiScale", Mathf.Clamp(value, 0.75f, 2f)); }
         public static float MasterVolume { get => Mathf.Clamp01(F("cb.vol.master", 0.8f)); set => Set("cb.vol.master", Mathf.Clamp01(value)); }

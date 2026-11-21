@@ -7,7 +7,7 @@ DOTNET = os.path.join(ROOT, "Tools", "dotnet", "dotnet.exe")
 HOST = os.path.join(ROOT, "Tools", "cshost", "out", "cshost.dll")
 
 
-def run(code, ram=32, timeout=40):
+def run(code, ram=32, timeout=40, files=None, debug=False, bps=(), modes=(), watches=()):
     p = subprocess.Popen([DOTNET, HOST], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     logs, result, ore, ticks = [], {}, [2], [0]
 
@@ -22,7 +22,7 @@ def run(code, ram=32, timeout=40):
             result.setdefault("bad_id", m)
         if t == "ready":
             result["version"] = m["version"]
-            send({"t": "start", "id": 1, "code": code, "ram": ram})
+            send({"t": "start", "id": 1, "code": code, "ram": ram, "files": files or {}, "debug": debug, "bps": list(bps), "watches": list(watches)})
         elif t == "log":
             logs.append(m["msg"])
         elif t == "call":
@@ -34,6 +34,10 @@ def run(code, ram=32, timeout=40):
                 if ore[0] <= 0: r["warn"] = "drill.mine(): depleted"
                 ore[0] -= 1
             elif key == "m7.status": r["value"] = {"status": "idle", "progress": 0.5}
+            elif key == "debug.pause":
+                result.setdefault("pauses", []).append(m["args"])
+                n = len(result["pauses"])
+                r["value"] = {"mode": modes[n - 1] if n <= len(modes) else "continue"}
             elif key == "computer.subscribe": r["value"] = True
             elif key == "computer.sleep": result["slept"] = m["args"][0]; r["value"] = None
             elif key == "hud.set": logs.append("hud:" + json.dumps(m["args"])); r["value"] = True
@@ -105,5 +109,24 @@ for name, code in [
 
 logs, r = run('var all = new List<byte[]>();\nwhile (true) { all.Add(new byte[1 << 20]); Sleep(0); }\n', ram=16)
 check("memory limit = computer RAM", r.get("reason") == "error" and "Out of memory" in r.get("msg", ""), r)
+
+logs, r = run('Log(Util.Double(21), new Box().V);\n', files={"Util.cs": "public static class Util\n{\n    public static int Double(int x) => x * 2;\n}\npublic class Box { public int V = 7; }\n"})
+check("several files: classes from another file", logs == ["42 7"] and r.get("reason") == "done", (logs, r))
+logs, r = run('Util.Boom();\n', files={"Util.cs": "public static class Util\n{\n    public static void Boom()\n    {\n        throw new System.Exception(\"boom\");\n    }\n}\n"})
+check("runtime error in another file: file + line", r.get("file") == "Util" and r.get("line") == 5, r)
+logs, r = run('Log(1);\n', files={"Bad.cs": "public class Bad {\n  int x = ;\n}\n"})
+check("compile error in another file: file + line", r.get("file") == "Bad" and r.get("line") == 2, r)
+logs, r = run('Log(1);\n', files={"Sneaky.cs": "public class Sneaky {\n  public string S() => System.IO.File.ReadAllText(\"x\");\n}\n"})
+check("sandbox checks every file", r.get("reason") == "error" and "Sandbox" in r.get("msg", "") and r.get("file") == "Sneaky", r)
+logs, r = run('Codebound.Dbg.At(1, new object[0]);\n')
+check("players cannot call the debugger hooks", r.get("reason") == "error", r)
+
+code = 'int Add(int a, int b)\n{\n    int s = a + b;\n    return s;\n}\nvar items = new List<int> { 3 };\nint t = Add(1, 2);\nt = Add(t, 4);\nLog(t);\n'
+logs, r = run(code, debug=True, bps=[7], modes=["step", "out", "over", "continue"], watches=["items[0]", "a", "nope", "Drill.Name"])
+lines = [p[0] for p in r.get("pauses", [])]
+check("debugger: breakpoint, step into, out, over", r.get("reason") == "done" and logs == ["7"] and lines == [7, 3, 8, 9], (lines, r))
+check("debugger: call stack", r["pauses"][1][2] == ["Add : line 3", "main : line 7"], r.get("pauses"))
+check("debugger: variables and watches", r["pauses"][1][1].get("a") == 1 and r["pauses"][0][3][0] == ["items[0]", 3] and r["pauses"][1][3][1] == ["a", 1]
+      and r["pauses"][0][3][2][1] == "(not defined here)" and r["pauses"][0][3][3][1] == "Electric Drill", r.get("pauses"))
 
 print("ALL C# RUNTIME TESTS PASSED")

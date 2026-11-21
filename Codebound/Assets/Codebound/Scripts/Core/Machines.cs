@@ -258,6 +258,21 @@ namespace Codebound.Core
         public override void LoadExtra(string k, string v) { if (k == "burn") BurnLeftKJ = PF(v); }
     }
 
+    /// <summary>One program run, for the computer's history tab.</summary>
+    public sealed class RunRecord
+    {
+        public string When, Language, Result, Message;   // Result: done | error | stopped
+        public float Seconds;
+        public int Calls;
+
+        public List<object> ToList() => new List<object> { When, Language, Result, Message, (double)Seconds, (double)Calls };
+        public static RunRecord FromList(List<object> l) => l.Count < 6 ? null : new RunRecord
+        {
+            When = l[0] as string, Language = l[1] as string, Result = l[2] as string, Message = l[3] as string,
+            Seconds = l[4] is double s ? (float)s : 0, Calls = l[5] is double c ? (int)c : 0,
+        };
+    }
+
     public sealed class ComputerState : MachineState
     {
         /// <summary>Hardware tiers: the Advanced Computer is crafted from circuits.</summary>
@@ -316,6 +331,24 @@ namespace Codebound.Core
         public readonly List<string> Log = new List<string>();
         public const int MaxLogLines = 200;
 
+        // ---- several files per computer (Code is the main file; these are the others), debugger watches, run history
+        public const int MaxFiles = 8, MaxHistory = 20;
+        public readonly SortedDictionary<string, string> Files = new SortedDictionary<string, string>(System.StringComparer.Ordinal);
+        public readonly List<string> Watches = new List<string>();
+        public readonly List<RunRecord> History = new List<RunRecord>();
+        public string LastErrorFile;   // null = the main file
+
+        static readonly System.Text.RegularExpressions.Regex FileNameRx = new System.Text.RegularExpressions.Regex(@"^[A-Za-z_][A-Za-z0-9_]{0,23}(\.[A-Za-z]{1,4})?$");
+        /// <summary>Plain names only (they become module/file names in every language): letters, digits, _ and an extension.</summary>
+        public static bool ValidFileName(string n) => n != null && FileNameRx.IsMatch(n) && n != "main";
+
+        public int TotalCodeBytes
+        {
+            get { int n = System.Text.Encoding.UTF8.GetByteCount(Code ?? ""); foreach (var f in Files.Values) n += System.Text.Encoding.UTF8.GetByteCount(f); return n; }
+        }
+
+        public void Record(RunRecord r) { History.Add(r); if (History.Count > MaxHistory) History.RemoveRange(0, History.Count - MaxHistory); }
+
         public const string DefaultProgram =
             "// Codebound — Basic Computer (JavaScript)\n" +
             "// Machines within 8 cells are yours to command.\n" +
@@ -343,6 +376,10 @@ namespace Codebound.Core
             if (Compromised) d["comp"] = "1";
             if (HasPassword) d["pwd"] = PasswordHash;
             if (Breakpoints.Count > 0) d["bps"] = string.Join(",", Breakpoints);
+            string B64(string s) => System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(s));
+            if (Files.Count > 0) { var f = new Dictionary<string, object>(); foreach (var kv in Files) f[kv.Key] = kv.Value; d["files"] = B64(Json.Write(f)); }
+            if (Watches.Count > 0) d["watch"] = B64(Json.Write(new List<object>(Watches)));
+            if (History.Count > 0) { var h = new List<object>(); foreach (var r in History) h.Add(r.ToList()); d["hist"] = B64(Json.Write(h)); }
             if (!string.IsNullOrEmpty(SqlDb)) d["sqldb"] = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(SqlDb));
         }
 
@@ -354,6 +391,13 @@ namespace Codebound.Core
             else if (k == "comp") Compromised = v == "1";
             else if (k == "pwd") PasswordHash = v;
             else if (k == "sqldb") SqlDb = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(v));
+            else if (k == "files" || k == "watch" || k == "hist")
+            {
+                object j = Json.Parse(System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(v)));
+                if (k == "files" && j is Dictionary<string, object> fd) foreach (var kv in fd) { if (ValidFileName(kv.Key) && kv.Value is string src) Files[kv.Key] = src; }
+                else if (k == "watch" && j is List<object> wl) foreach (var w in wl) { if (w is string ws) Watches.Add(ws); }
+                else if (j is List<object> hl) foreach (var h in hl) { if (h is List<object> hr && RunRecord.FromList(hr) is RunRecord rr) History.Add(rr); }
+            }
             else if (k == "bps") foreach (var part in v.Split(',')) if (int.TryParse(part, out int l)) Breakpoints.Add(l);
         }
     }

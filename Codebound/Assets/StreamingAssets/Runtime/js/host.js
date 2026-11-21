@@ -25,10 +25,20 @@ function start(msg) {
   try { prepared = prepare(String(msg.code || ''), String(msg.lang || 'javascript'), !!msg.debug); }
   catch (e) { prepared = { error: 'Internal compiler error: ' + e.message, line: null }; }
   if (prepared.error) { send({ t: 'exit', id: msg.id, reason: 'error', msg: prepared.error, line: prepared.line }); return; }
+  // the computer's other files, for require("name"): TypeScript is transpiled, the debugger only instruments the main file
+  const modules = {}, moduleLineMaps = {};
+  for (const [file, src] of Object.entries(msg.files || {})) {
+    const name = String(file).replace(/\.(js|ts)$/, '');
+    let p;
+    try { p = prepare(String(src), String(msg.lang || 'javascript'), false); } catch (e) { p = { error: 'Internal compiler error: ' + e.message, line: null }; }
+    if (p.error) { send({ t: 'exit', id: msg.id, reason: 'error', msg: p.error, line: p.line, file: name }); return; }
+    modules[name] = p.code; moduleLineMaps[name] = p.lineMap;
+  }
   const sab = new SharedArrayBuffer(8 + BUF_BYTES);
   const ramMb = Math.max(8, Math.min(1024, msg.ram | 0 || 32));
   const worker = new Worker(path.join(__dirname, 'worker.js'), {
-    workerData: { sab, code: prepared.code, lineMap: prepared.lineMap, debug: !!msg.debug, bps: Array.isArray(msg.bps) ? msg.bps : [], name: String(msg.name || 'computer'), id: msg.id },
+    workerData: { sab, code: prepared.code, lineMap: prepared.lineMap, debug: !!msg.debug, bps: Array.isArray(msg.bps) ? msg.bps : [], name: String(msg.name || 'computer'), id: msg.id,
+                  modules, moduleLineMaps, watches: Array.isArray(msg.watches) ? msg.watches.map(String) : [] },
     resourceLimits: { maxOldGenerationSizeMb: ramMb, maxYoungGenerationSizeMb: Math.max(2, ramMb >> 3), stackSizeMb: 2 },
     stdout: true, stderr: true, // player code has no console; keep worker stdio away from the protocol
   });
@@ -39,7 +49,7 @@ function startWasm(msg) {
   const sab = new SharedArrayBuffer(8 + BUF_BYTES);
   const ramMb = Math.max(8, Math.min(1024, msg.ram | 0 || 32));
   const worker = new Worker(path.join(__dirname, 'wasm_worker.js'), {
-    workerData: { sab, wasm: Buffer.from(msg.wasm, 'base64'), ramMb },   // wasm memory is created with maximum = ramMb
+    workerData: { sab, wasm: Buffer.from(msg.wasm, 'base64'), ramMb, sources: Array.isArray(msg.sources) ? msg.sources.map(String) : [] },   // wasm memory is created with maximum = ramMb
     resourceLimits: { maxOldGenerationSizeMb: 32, maxYoungGenerationSizeMb: 4, stackSizeMb: 2 },
     stdout: true, stderr: true,
   });
@@ -61,7 +71,7 @@ function attach(msg, worker, sab, ramMb) {
       if (++p.logCount <= 50) send({ t: 'log', id: p.id, msg: String(m.msg).slice(0, 2000) });
       else if (p.logCount === 51) send({ t: 'log', id: p.id, msg: '[runtime] log rate limit reached (50 lines/s), dropping output' });
     } else if (m.t === 'error') {
-      finish(p, 'error', m.msg, m.line);
+      finish(p, 'error', m.msg, m.line, m.file);
     } else if (m.t === 'done') {
       finish(p, 'done');
     }
@@ -78,12 +88,12 @@ function accountIdle(p) {
   if (p.busySince) { p.busyMs += Date.now() - Math.max(p.busySince, p.windowStart); p.busySince = 0; }
 }
 
-function finish(p, reason, msg, line) {
+function finish(p, reason, msg, line, file) {
   if (p.exited) return;
   p.exited = true;
   programs.delete(p.id);
   p.worker.terminate().catch(() => {});
-  send({ t: 'exit', id: p.id, reason, msg: msg || null, line: line || null });
+  send({ t: 'exit', id: p.id, reason, msg: msg || null, line: line || null, file: file || null });
 }
 
 function stop(id, reason) {

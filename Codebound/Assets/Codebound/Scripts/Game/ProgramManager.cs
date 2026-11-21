@@ -37,11 +37,15 @@ namespace Codebound.Game
             public bool BreakpointsDirty;
             public RuntimeProcess Proc;                  // Python: one process per program; null = shared JS host
             public double BaselineMb;                    // Python: process memory when the program started
-            public float BusySince = -1;                 // PHP: real time since the program last got an answer (CPU watchdog)
+            public float BusySince = -1;
+            public float StartedAt = Time.realtimeSinceStartup;
+            public int TotalCalls;
+            public readonly Dictionary<string, int> CallsByTarget = new Dictionary<string, int>();
+            public List<object> PausedStack, PausedWatches;                 // PHP: real time since the program last got an answer (CPU watchdog)
             public readonly HashSet<int> SeenCreatures = new HashSet<int>();
         }
 
-        public struct DebugInfo { public bool Debugging; public int PausedLine; public Dictionary<string, object> Vars; }
+        public struct DebugInfo { public bool Debugging; public int PausedLine; public Dictionary<string, object> Vars; public List<object> Stack, Watches; }
 
         public struct Stats { public bool Running; public int Cpu; public double HeapMb; public int RamMb; public int CallsPerSec; public string Waiting; }
 
@@ -180,7 +184,7 @@ namespace Codebound.Game
         // ------------------------------------------------------------ C / C++ (clang -> WebAssembly -> the JS host)
         public static string CRuntimeDir => Path.Combine(Application.streamingAssetsPath, "Runtime", "c");
         public const int CompileTimeoutMs = 20000;
-        readonly ConcurrentQueue<(Program p, string wasm, string error, int? line)> compiled = new ConcurrentQueue<(Program, string, string, int?)>();
+        readonly ConcurrentQueue<(Program p, string wasm, string error, int? line, string file, List<string> sources)> compiled = new ConcurrentQueue<(Program, string, string, int?, string, List<string>)>();
 
         static string CSdkDir()
         {
@@ -189,7 +193,7 @@ namespace Codebound.Game
         }
 
         /// <summary>Compiles on a worker thread; Update() sends the result to the JS host. The source was checked by CSource first.</summary>
-        void CompileC(Program prog, string lang, string code, int ramMb, string tempRoot)
+        void CompileC(Program prog, string lang, string code, Dictionary<string, string> files, int ramMb, string tempRoot)
         {
             string sdk = CSdkDir(), include = CRuntimeDir;
             System.Threading.Tasks.Task.Run(() =>
@@ -200,21 +204,31 @@ namespace Codebound.Game
                     Directory.CreateDirectory(dir);
                     string src = lang == "c" ? "computer.c" : "computer.cpp";
                     File.WriteAllText(Path.Combine(dir, src), code, new UTF8Encoding(false));
+                    var sources = new List<string> { src };
+                    foreach (var kv in files)   // names were validated by ComputerState.ValidFileName: no paths
+                    {
+                        File.WriteAllText(Path.Combine(dir, kv.Key), kv.Value, new UTF8Encoding(false));
+                        if (kv.Key.EndsWith(lang == "c" ? ".c" : ".cpp")) sources.Add(kv.Key);
+                    }
                     string std = lang == "c" ? "-std=c17" : "--driver-mode=g++ -std=c++17 -fno-exceptions -fno-rtti";
                     long maxMem = Math.Max(4L, ramMb) * 1048576L;
                     string args = $"{std} --target=wasm32-wasip1 \"--sysroot={Path.Combine(sdk, "share", "wasi-sysroot")}\" -O1 \"-isystem{include}\" " +
                                   $"-Wl,--import-memory -Wl,--export-memory -Wl,--initial-memory=4194304 -Wl,--max-memory={maxMem} -Wl,-z,stack-size=524288 " +
-                                  $"-fdiagnostics-color=never -o computer.wasm {src}";
+                                  $"-gdwarf-4 -gline-tables-only -fdiagnostics-color=never -o computer.wasm {string.Join(" ", sources)}";
                     var (rc, output) = RuntimeProcess.RunConfined(Path.Combine(sdk, "bin", "clang.exe"), args, dir, CompileTimeoutMs, 1536UL * 1048576UL, 4);
                     if (rc != 0)
                     {
                         string msg = rc == -1 ? $"Compiler stopped: took longer than {CompileTimeoutMs / 1000} s" : CleanDiagnostics(output, dir, sdk, include);
-                        var m = System.Text.RegularExpressions.Regex.Match(output, src.Replace(".", "\\.") + @":(\d+):\d+: (fatal )?error");
-                        compiled.Enqueue((prog, null, msg, m.Success ? int.Parse(m.Groups[1].Value) : (int?)null));
+                        var m = System.Text.RegularExpressions.Regex.Match(output, @"([A-Za-z0-9_]+\.(c|cpp|h|hpp)):(\d+):\d+: (fatal )?error");
+                        compiled.Enqueue((prog, null, msg, m.Success ? int.Parse(m.Groups[3].Value) : (int?)null, m.Success && m.Groups[1].Value != src ? m.Groups[1].Value : null, null));
                     }
-                    else compiled.Enqueue((prog, Convert.ToBase64String(File.ReadAllBytes(Path.Combine(dir, "computer.wasm"))), null, null));
+                    else
+                    {
+                        var all = new List<string> { src }; all.AddRange(files.Keys);
+                        compiled.Enqueue((prog, Convert.ToBase64String(File.ReadAllBytes(Path.Combine(dir, "computer.wasm"))), null, null, null, all));
+                    }
                 }
-                catch (Exception e) { compiled.Enqueue((prog, null, "C compiler not available: " + e.Message, null)); }
+                catch (Exception e) { compiled.Enqueue((prog, null, "C compiler not available: " + e.Message, null, null, null)); }
                 finally { try { Directory.Delete(dir, true); } catch { } }
             });
         }
@@ -267,58 +281,63 @@ namespace Codebound.Game
         /// <summary>A program asked the ship (in orbit) to fly to another world; GameBootstrap does the switch.</summary>
         public static event Action<PlacedBuilding, Planet> TravelRequested;
 
-        public bool StartProgram(PlacedBuilding computer, bool debug = false)
+        /// <param name="snippet">terminal one-liner: runs instead of the saved program, which is not changed</param>
+        public bool StartProgram(PlacedBuilding computer, bool debug = false, string snippet = null)
         {
             var st = (ComputerState)computer.State;
             if (programs.ContainsKey(computer.InstanceId)) Stop(computer);
             st.LastError = null; st.LastErrorLine = 0;
             if (st.Compromised) { st.Compromised = false; st.AddLog("[security] system restored from backup after a rogue-drone intrusion"); }
             if (System.Array.IndexOf(ComputerState.Languages, st.Language) < 0) return Fail(st, $"Language '{st.Language}' is not available yet.");
-            if (Encoding.UTF8.GetByteCount(st.Code ?? "") > st.MaxCodeBytes) return Fail(st, $"Program too large: storage is {st.MaxCodeBytes / 1024} KB.");
+            if (st.TotalCodeBytes > st.MaxCodeBytes) return Fail(st, $"Program too large: storage is {st.MaxCodeBytes / 1024} KB.");
             RuntimeProcess proc = null;
             if (st.Language == "python" || st.Language == "sql") { if ((proc = StartPython(st)) == null) return false; }
             else if (st.Language == "php") { if ((proc = StartPhp(st)) == null) return false; }
             else if (st.Language == "csharp") { if ((proc = StartCsharp(st)) == null) return false; }
             else if (st.Language == "c" || st.Language == "cpp")
             {
-                string bad = CSource.Check(st.Code);
+                var headers = new List<string>(); foreach (var f in st.Files.Keys) if (f.EndsWith(".h") || f.EndsWith(".hpp")) headers.Add(f);
+                string bad = CSource.Check(st.Code, headers);
+                foreach (var f in st.Files) if (bad == null && (bad = CSource.Check(f.Value, headers)) != null) { st.LastErrorFile = f.Key; break; }
                 if (bad != null) return Fail(st, bad);
                 if (!EnsureHost()) return Fail(st, RuntimeError);
             }
             else if (!EnsureHost()) return Fail(st, RuntimeError);
             bool watched = st.Language == "php" || st.Language == "csharp";   // single-threaded hosts: the CPU watchdog lives here
-            if (debug && watched) { st.AddLog($"[debug] the step debugger is not available for {st.Language} yet — running normally"); debug = false; }
             var prog = new Program { Computer = computer, St = st, LastTick = Time.time, Debug = debug, Proc = proc,
                                      BusySince = !watched ? -1 : Time.realtimeSinceStartup + (st.Language == "csharp" ? 15f : 0f) };   // C#: compiling first
             programs[computer.InstanceId] = prog;
             stats[computer.InstanceId] = new Stats { Running = true, RamMb = st.RamMb };
             st.Running = true;
-            st.AddLog($"[{(debug ? "debug" : "run")}] {DateTime.Now:HH:mm:ss} {st.Language}");
+            st.AddLog($"[{(snippet != null ? "snippet" : debug ? "debug" : "run")}] {DateTime.Now:HH:mm:ss} {st.Language}");
             if (st.Language == "c" || st.Language == "cpp")
             {
                 if (debug) st.AddLog($"[debug] the step debugger is not available for {st.Language} yet — running normally");
                 st.AddLog("[compile] clang → WebAssembly…");
-                CompileC(prog, st.Language, st.Code, st.RamMb, Application.temporaryCachePath);
+                CompileC(prog, st.Language, st.Code, new Dictionary<string, string>(st.Files), st.RamMb, Application.temporaryCachePath);
                 return true;
             }
             Send(prog, new Dictionary<string, object> {
-                { "t", "start" }, { "id", computer.InstanceId }, { "code", st.Code }, { "ram", st.RamMb }, { "name", "PC-" + computer.InstanceId },
+                { "t", "start" }, { "id", computer.InstanceId }, { "code", snippet ?? st.Code }, { "ram", st.RamMb }, { "name", "PC-" + computer.InstanceId },
                 { "lang", st.Language }, { "debug", debug }, { "bps", new List<object>(BpList(st)) },
-                { "db", st.SqlDb ?? "" }, { "storage", st.MaxCodeBytes } });
+                { "db", st.SqlDb ?? "" }, { "storage", st.MaxCodeBytes }, { "files", FilesOf(st) }, { "watches", new List<object>(st.Watches) } });
             return true;
         }
+
+        static Dictionary<string, object> FilesOf(ComputerState st) { var d = new Dictionary<string, object>(); foreach (var kv in st.Files) d[kv.Key] = kv.Value; return d; }
 
         static IEnumerable<object> BpList(ComputerState st) { foreach (var l in st.Breakpoints) yield return l; }
 
         public DebugInfo GetDebug(PlacedBuilding c) =>
-            programs.TryGetValue(c.InstanceId, out var p) ? new DebugInfo { Debugging = p.Debug, PausedLine = p.PausedLine, Vars = p.PausedVars } : default;
+            programs.TryGetValue(c.InstanceId, out var p) ? new DebugInfo { Debugging = p.Debug, PausedLine = p.PausedLine, Vars = p.PausedVars, Stack = p.PausedStack, Watches = p.PausedWatches } : default;
 
         /// <summary>Resume a paused program: "continue" runs to the next breakpoint, "step" stops at the next statement.</summary>
-        public void Resume(PlacedBuilding c, bool step)
+        /// <summary>mode: "continue" (to the next breakpoint), "step" (into), "over" (same function), "out" (back to the caller).</summary>
+        public void Resume(PlacedBuilding c, string mode)
         {
             if (!programs.TryGetValue(c.InstanceId, out var p) || p.PausedLine == 0) return;
-            p.PausedLine = 0; p.PausedVars = null;
-            Reply(p, new Dictionary<string, object> { { "mode", step ? "step" : "continue" } });
+            p.PausedLine = 0; p.PausedVars = null; p.PausedStack = null; p.PausedWatches = null;
+            Reply(p, new Dictionary<string, object> { { "mode", mode }, { "watches", new List<object>(p.St.Watches) } });
         }
 
         public void ToggleBreakpoint(PlacedBuilding c, int line)
@@ -335,8 +354,7 @@ namespace Codebound.Game
             var st = (ComputerState)computer.State;
             st.Running = false;
             if (!programs.TryGetValue(computer.InstanceId, out var p)) return;
-            programs.Remove(computer.InstanceId);
-            stats.Remove(computer.InstanceId);
+            End(p, "stopped", null);
             if (p.Proc != null) p.Proc.Shutdown(0); // Python: the process is the sandbox, so stopping = killing it
             else Send(p, new Dictionary<string, object> { { "t", "stop" }, { "id", computer.InstanceId } });
             st.AddLog("[stopped]");
@@ -352,19 +370,19 @@ namespace Codebound.Game
                 if (!programs.TryGetValue(c.p.Computer.InstanceId, out var cur) || cur != c.p) continue;   // stopped while compiling
                 if (c.error != null)
                 {
-                    c.p.St.LastErrorLine = c.line ?? 0;
+                    c.p.St.LastErrorLine = c.line ?? 0; c.p.St.LastErrorFile = c.file;
                     Fail(c.p.St, c.error);
-                    programs.Remove(c.p.Computer.InstanceId); stats.Remove(c.p.Computer.InstanceId);
+                    End(c.p, "error", c.p.St.LastError);
                     continue;
                 }
-                Send(c.p, new Dictionary<string, object> { { "t", "start" }, { "id", c.p.Computer.InstanceId }, { "lang", c.p.St.Language }, { "wasm", c.wasm },
+                Send(c.p, new Dictionary<string, object> { { "t", "start" }, { "id", c.p.Computer.InstanceId }, { "lang", c.p.St.Language }, { "wasm", c.wasm }, { "sources", new List<object>(c.sources) },
                                                          { "ram", c.p.St.RamMb }, { "name", "PC-" + c.p.Computer.InstanceId } });
             }
             if (host != null && host.HasExited && host.Eof && inbox.IsEmpty)
             {
                 RuntimeError = "JavaScript runtime stopped unexpectedly (exit code " + host.ExitCode + ")";
                 foreach (var p in new List<Program>(programs.Values))
-                    if (p.Proc == null) { Fail(p.St, RuntimeError); programs.Remove(p.Computer.InstanceId); stats.Remove(p.Computer.InstanceId); }
+                    if (p.Proc == null) { Fail(p.St, RuntimeError); End(p, "error", p.St.LastError); }
                 host = null;
             }
             if (inbox.IsEmpty)
@@ -372,7 +390,7 @@ namespace Codebound.Game
                     if (p.Proc != null && p.Proc.HasExited && p.Proc.Eof)
                     {   // the process died without reporting an exit (crash, OS memory kill...)
                         Fail(p.St, $"{p.St.Language} runtime stopped unexpectedly (exit code {p.Proc.ExitCode})");
-                        programs.Remove(p.Computer.InstanceId); stats.Remove(p.Computer.InstanceId);
+                        End(p, "error", p.St.LastError);
                     }
 
             foreach (var p in new List<Program>(programs.Values))   // PHP has no threads, so its CPU watchdog lives here
@@ -380,7 +398,7 @@ namespace Codebound.Game
                 {
                     p.Proc?.Shutdown(0);
                     Fail(p.St, $"CPU watchdog: ran {PhpWatchdogSeconds:0}s without calling the world API or sleep() — infinite loop?");
-                    programs.Remove(p.Computer.InstanceId); stats.Remove(p.Computer.InstanceId);
+                    End(p, "error", p.St.LastError);
                 }
 
             float now = Time.time;
@@ -418,7 +436,9 @@ namespace Codebound.Game
                         s.Waiting = null;
                         var call = p.Pending; p.Pending = null;
                         p.NextCallTime = now + 1f / Mathf.Max(1, Cps(p));
-                        p.Calls++;
+                        p.Calls++; p.TotalCalls++;
+                        if (call.TryGetValue("obj", out var to) && to is string target && target != "computer" && target != "debug")
+                            p.CallsByTarget[target] = (p.CallsByTarget.TryGetValue(target, out var cn) ? cn : 0) + 1;
                         Execute(p, call);
                     }
                     else s.Waiting = "cpu";
@@ -469,14 +489,28 @@ namespace Codebound.Game
                     if (reason == "error")
                     {
                         int errLine = m.TryGetValue("line", out var ln) && ln is double l ? (int)l : 0;
-                        Fail(p.St, (errLine > 0 ? $"line {errLine}: " : "") + (m["msg"] as string));
-                        p.St.LastErrorLine = errLine;
+                        string errFile = m.TryGetValue("file", out var fv) ? fv as string : null;
+                        if (errFile != null && !p.St.Files.ContainsKey(errFile))   // runtimes report names without the extension
+                            foreach (var k in p.St.Files.Keys) if (System.IO.Path.GetFileNameWithoutExtension(k) == errFile) { errFile = k; break; }
+                        Fail(p.St, (errFile != null ? errFile + " " : "") + (errLine > 0 ? $"line {errLine}: " : "") + (m["msg"] as string));
+                        p.St.LastErrorLine = errLine; p.St.LastErrorFile = errFile;
+                        End(p, "error", p.St.LastError);
                     }
-                    else if (reason == "done") { p.St.Running = false; p.St.AddLog("[program finished]"); }
-                    programs.Remove(id); stats.Remove(id);
+                    else { if (reason == "done") { p.St.Running = false; p.St.AddLog("[program finished]"); } End(p, reason == "done" ? "done" : "stopped", null); }
                     break;
             }
         }
+
+        /// <summary>Removes a program and adds the run to the computer's history.</summary>
+        void End(Program p, string result, string msg)
+        {
+            if (programs.TryGetValue(p.Computer.InstanceId, out var cur) && cur == p) { programs.Remove(p.Computer.InstanceId); stats.Remove(p.Computer.InstanceId); }
+            p.St.Record(new RunRecord { When = DateTime.Now.ToString("HH:mm:ss"), Language = p.St.Language, Result = result, Message = msg,
+                                        Seconds = Time.realtimeSinceStartup - p.StartedAt, Calls = p.TotalCalls });
+        }
+
+        /// <summary>How often the running program called each machine (and API object) — for the diagram tab.</summary>
+        public Dictionary<string, int> CallMap(PlacedBuilding c) => programs.TryGetValue(c.InstanceId, out var p) ? new Dictionary<string, int>(p.CallsByTarget) : null;
 
         /// <summary>An event for every running program (except `from`) that subscribed to it: HUD buttons, network messages.</summary>
         public void Broadcast(string name, object data, object from = null)
@@ -542,6 +576,8 @@ namespace Codebound.Game
                     {
                         p.PausedLine = Arg(0) is double dl ? (int)dl : -1;
                         p.PausedVars = Arg(1) as Dictionary<string, object> ?? new Dictionary<string, object>();
+                        p.PausedStack = Arg(2) as List<object>;
+                        p.PausedWatches = Arg(3) as List<object>;
                         return; // reply comes from Resume()
                     }
                     break;

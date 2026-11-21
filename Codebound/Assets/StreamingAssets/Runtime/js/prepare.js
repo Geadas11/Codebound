@@ -53,7 +53,22 @@ function instrument(src, isTs) {
     return [...names];
   }
 
+  function fnName(node) {
+    if (node.name && t.isIdentifier(node.name)) return node.name.text;
+    if (t.isConstructorDeclaration(node)) return 'constructor';
+    const p = node.parent;
+    if (p && t.isVariableDeclaration(p) && t.isIdentifier(p.name)) return p.name.text;
+    if (p && t.isPropertyAssignment(p) && t.isIdentifier(p.name)) return p.name.text;
+    return '(anonymous)';
+  }
+
   function visit(node) {
+    // call stack: every function body with braces enters/leaves a frame (inline, so line numbers do not move)
+    if (t.isFunctionLike(node) && node.body && t.isBlock(node.body)) {
+      const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+      inserts.push({ pos: node.body.getStart(sf) + 1, text: `__dbgIn(${JSON.stringify(fnName(node))},${line});try{`, pri: 1 });
+      inserts.push({ pos: node.body.end - 1, text: '}finally{__dbgOut()}', pri: -1 });
+    }
     if (kinds.has(node.kind) && node.parent && node.parent.kind !== K.LabeledStatement) {
       const isDirective = t.isExpressionStatement(node) && t.isStringLiteral(node.expression) && node.parent.kind === K.SourceFile;
       if (!isDirective && (lists.has(node.parent.kind) || embeds.has(node.parent.kind))) {
@@ -68,8 +83,8 @@ function instrument(src, isTs) {
     t.forEachChild(node, visit);
   }
   visit(sf);
-  // apply from the end so earlier positions stay valid; stable for equal positions
-  inserts.sort((a, b) => b.pos - a.pos);
+  // apply from the end so earlier positions stay valid; at the same position, lower pri ends up later in the text
+  inserts.sort((a, b) => b.pos - a.pos || (a.pri || 0) - (b.pri || 0));
   let out = src;
   for (const i of inserts) out = out.slice(0, i.pos) + i.text + out.slice(i.pos);
   return out;
@@ -109,7 +124,7 @@ function prepare(src, lang, debug) {
   const input = debug ? instrument(src, true) : src;
   const out = t.transpileModule(input, {
     fileName: 'computer.ts', reportDiagnostics: true,
-    compilerOptions: { target: t.ScriptTarget.ES2022, module: t.ModuleKind.None, sourceMap: true, removeComments: false },
+    compilerOptions: { target: t.ScriptTarget.ES2022, module: t.ModuleKind.CommonJS, sourceMap: true, removeComments: false },
   });
   const diag = (out.diagnostics || []).find(d => d.category === t.DiagnosticCategory.Error);
   if (diag) {

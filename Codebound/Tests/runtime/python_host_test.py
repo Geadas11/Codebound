@@ -7,7 +7,7 @@ HOST = os.path.join(ROOT, "Assets", "StreamingAssets", "Runtime", "py", "host.py
 PY = os.path.join(ROOT, "Tools", "python", "python.exe")
 
 
-def run(code, ram=32, debug=False, bps=(), debug_modes=(), timeout=20):
+def run(code, ram=32, debug=False, bps=(), debug_modes=(), timeout=20, files=None, watches=()):
     p = subprocess.Popen([PY, "-I", "-S", "-B", "-X", "utf8", HOST], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE, cwd=os.path.dirname(HOST))
     logs, pauses, subs, result = [], [], set(), {}
@@ -22,7 +22,7 @@ def run(code, ram=32, debug=False, bps=(), debug_modes=(), timeout=20):
         m = json.loads(raw)
         t = m["t"]
         if t == "ready":
-            send({"t": "start", "id": 1, "code": code, "ram": ram, "debug": debug, "bps": list(bps)})
+            send({"t": "start", "id": 1, "code": code, "ram": ram, "debug": debug, "bps": list(bps), "files": files or {}, "watches": list(watches)})
         elif t == "log":
             logs.append(m["msg"])
         elif t == "call":
@@ -43,7 +43,7 @@ def run(code, ram=32, debug=False, bps=(), debug_modes=(), timeout=20):
                     p.kill(); break                      # Unity stops Python programs by killing the process
                 r["events"] = [{"name": "tick", "data": {"n": ticks[0]}}]
             elif key == "debug.pause":
-                pauses.append((m["args"][0], m["args"][1]))
+                pauses.append((m["args"][0], m["args"][1]) if len(m["args"]) < 3 else (m["args"][0], m["args"][1], m["args"][2], m["args"][3]))
                 r["value"] = {"mode": debug_modes[len(pauses) - 1] if len(pauses) <= len(debug_modes) else "continue"}
             else: r["error"] = "unknown API " + key
             send(r)
@@ -115,11 +115,29 @@ print("ok  hud.set / hud.notify")
 
 code = "total = 0\nitems = ['a', 'b']\nfor i in range(3):\n    total += i\ndef f(x):\n    y = x * 2\n    return y\nlog(f(total))"
 r = run(code, debug=True, bps=[4, 6], debug_modes=["continue", "continue", "continue", "step", "continue"])
-lines = [l for l, _ in r["pauses"]]
+lines = [p[0] for p in r["pauses"]]
 check(r.get("reason") == "done" and r["logs"] == ["6"] and lines == [4, 4, 4, 6, 7], "debugger lines " + str(lines), r)
 check(r["pauses"][1][1].get("i") == 1 and r["pauses"][1][1].get("total") == 0 and r["pauses"][0][1].get("items") == ["a", "b"], "debugger vars", r)
 check(r["pauses"][3][1].get("x") == 3 and r["pauses"][4][1].get("y") == 6 and "drill" not in r["pauses"][0][1], "debugger locals", r)
 print("ok  debugger: breakpoints, step, variables (API names hidden)")
+
+code = "def add(a, b):\n    s = a + b\n    return s\nitems = [{'count': 3}]\nt = add(1, 2)\nt = add(t, 4)\nlog(t)\n"
+r = run(code, debug=True, bps=[5], debug_modes=["step", "out", "over", "continue"], watches=["items[0]['count']", "a", "nope", "items.__class__"])
+lines = [p[0] for p in r["pauses"]]
+check(r.get("reason") == "done" and r["logs"] == ["7"] and lines == [5, 2, 6, 7], "step into/out/over " + str(lines), r)
+check(r["pauses"][1][2] == ["add : line 2", "main : line 5"], "call stack", r)
+check(r["pauses"][0][3][0] == ["items[0]['count']", 3] and r["pauses"][1][3][1] == ["a", 1], "watch paths", r)
+check(r["pauses"][0][3][2][1] == "(not defined here)" and "use a name" in r["pauses"][0][3][3][1], "watches: undefined, no _private access", r)
+print("ok  debugger: call stack, step into/out/over, watch paths")
+
+r = run("import utils\nfrom utils import double\nlog(utils.double(4), double(21), utils.helper_name())\n",
+        files={"utils.py": "def double(x):\n    return x * 2\ndef helper_name():\n    return computer.name\n"})
+check(r.get("reason") == "done" and r["logs"] == ["8 42 PC-1"], "import another file (with the API)", r)
+r = run("import utils\nutils.broken()\n", files={"utils.py": "def broken():\n    return 1 / 0\n"})
+check(r.get("file") == "utils" and r.get("line") == 2 and "ZeroDivisionError" in r.get("msg", ""), "error in another file: file + line", r)
+r = run("import os\n", files={"utils.py": "x = 1\n"})
+check(r.get("reason") == "error" and "not available" in r.get("msg", ""), "real modules still blocked", r)
+print("ok  several files: import / from-import, errors name the file")
 
 leftover = os.path.join(os.path.dirname(HOST), "x.txt")
 check(not os.path.exists(leftover), "no files written")

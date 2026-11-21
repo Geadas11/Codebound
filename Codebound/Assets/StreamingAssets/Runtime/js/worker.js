@@ -17,7 +17,15 @@ function hostCall(obj, fn, argsJson) {
 }
 function hostLog(s) { parentPort.postMessage({ t: 'log', msg: String(s) }); }
 
-const context = vm.createContext({ __cb: hostCall, __log: hostLog, __dbgcfg: JSON.stringify({ on: workerData.debug, bps: workerData.bps }) }, {
+// Other files on the computer: require("name") compiles them on demand as functions in the sandbox realm.
+function hostMod(name) {
+  const src = workerData.modules && Object.prototype.hasOwnProperty.call(workerData.modules, String(name)) ? workerData.modules[String(name)] : null;
+  if (src === null) return undefined;
+  return new vm.Script('(function (module, exports, require) {' + src + '\n})', { filename: String(name) + '.js' }).runInContext(context);
+}
+
+const context = vm.createContext({ __cb: hostCall, __log: hostLog, __mod: hostMod,
+  __dbgcfg: JSON.stringify({ on: workerData.debug, bps: workerData.bps, watches: workerData.watches || [] }) }, {
   name: 'codebound-program',
   codeGeneration: { strings: false, wasm: false },
 });
@@ -26,10 +34,24 @@ const context = vm.createContext({ __cb: hostCall, __log: hostLog, __dbgcfg: JSO
 const PRELUDE = `
 'use strict';
 (function (global) {
-  const cb = __cb, rawLog = __log;
+  const cb = __cb, rawLog = __log, hostMod = __mod;
   const dbg = JSON.parse(__dbgcfg);
-  delete global.__cb; delete global.__log; delete global.__dbgcfg;
-  let bps = new Set(dbg.bps), stepping = false;
+  delete global.__cb; delete global.__log; delete global.__dbgcfg; delete global.__mod;
+  let bps = new Set(dbg.bps), mode = 'continue', pauseDepth = 0, pausing = false, watches = dbg.watches;
+  const stack = [{ fn: 'main', line: 0 }];
+
+  const modules = Object.create(null);
+  global.module = { exports: {} }; global.exports = global.module.exports;   // TypeScript's CommonJS output in the main file
+  global.require = function (name) {
+    const key = String(name).replace(/^\\.\\//, '').replace(/\\.(js|ts)$/, '');
+    if (key in modules) return modules[key].exports;
+    const fn = hostMod(key);
+    if (!fn) throw new Error("no file '" + key + "' on this computer");
+    const module = { exports: {} };
+    modules[key] = module;
+    fn(module, module.exports, global.require);
+    return module.exports;
+  };
   const handlers = Object.create(null);
   let dispatching = false; const queued = [];
 
@@ -73,12 +95,36 @@ const PRELUDE = `
     for (const k of Object.keys(v)) { if (n++ >= 20) { o['…'] = 'more'; break; } try { o[k] = snap(v[k], depth + 1); } catch (e) { o[k] = '<error>'; } }
     return o;
   }
+  // watch expressions: a name and a path (no code generation is allowed in the sandbox), e.g. items[0].count
+  const PATH = /^([A-Za-z_$][\\w$]*)((?:\\.[A-Za-z_$][\\w$]*|\\[\\d+\\]|\\["[^"]*"\\]|\\['[^']*'\\])*)$/;
+  function evalPath(expr, raw) {
+    const m = String(expr).trim().match(PATH);
+    if (!m) return '(use a name or a path, e.g. items[0].count)';
+    if (!(m[1] in raw) && !(m[1] in global)) return '(not defined here)';
+    let v = m[1] in raw ? raw[m[1]] : global[m[1]];
+    for (const p of (m[2].match(/\\.[A-Za-z_$][\\w$]*|\\[\\d+\\]|\\["[^"]*"\\]|\\['[^']*'\\]/g) || [])) {
+      if (v === null || v === undefined) return '(cannot read ' + p + ' of ' + v + ')';
+      v = v[p[0] === '.' ? p.slice(1) : p[1] === '"' || p[1] === "'" ? p.slice(2, -2) : Number(p.slice(1, -1))];
+    }
+    return snap(v, 0);
+  }
+  global.__dbgIn = function (name, line) { stack.push({ fn: name, line: line }); };
+  global.__dbgOut = function () { if (stack.length > 1) stack.pop(); };
   global.__dbg = function (line, getVars) {
-    if (!dbg.on || (!stepping && !bps.has(line))) return;
-    const vars = {}; const raw = getVars();
-    for (const k of Object.keys(raw)) vars[k] = snap(raw[k], 0);
-    const r = call('debug', 'pause', [line, vars]);
-    stepping = !!(r && r.mode === 'step');
+    stack[stack.length - 1].line = line;
+    if (!dbg.on || pausing) return;
+    const depth = stack.length;
+    if (!(bps.has(line) || mode === 'step' || (mode === 'over' && depth <= pauseDepth) || (mode === 'out' && depth < pauseDepth))) return;
+    pausing = true;
+    try {
+      const vars = {}; const raw = getVars();
+      for (const k of Object.keys(raw)) vars[k] = snap(raw[k], 0);
+      const w = watches.map(e => [e, evalPath(e, raw)]);
+      const frames = stack.slice().reverse().map(f => f.fn + ' : line ' + f.line);
+      const r = call('debug', 'pause', [line, vars, frames, w]);
+      mode = r && r.mode || 'continue'; pauseDepth = depth;
+      if (r && Array.isArray(r.watches)) watches = r.watches;
+    } finally { pausing = false; }
   };
 
   function machine(info) {
@@ -157,10 +203,11 @@ const PRELUDE = `
 `;
 
 function lineOf(err) {
-  const m = String(err && err.stack || '').match(/computer\.js:(\d+)/);
-  if (!m) return null;
-  const gen = Number(m[1]);
-  return workerData.lineMap ? (workerData.lineMap[gen] || null) : gen; // TypeScript: map back to the player's line
+  const m = String(err && err.stack || '').match(/([A-Za-z_][A-Za-z0-9_]*)\.js:(\d+)/);
+  if (!m) return { file: null, line: null };
+  const file = m[1] === 'computer' ? null : m[1], gen = Number(m[2]);
+  const map = file ? (workerData.moduleLineMaps || {})[file] : workerData.lineMap;   // TypeScript: back to the player's line
+  return { file, line: map ? (map[gen] || null) : gen };
 }
 
 try {
@@ -173,5 +220,6 @@ try {
 } catch (e) {
   const name = e && e.name ? e.name : 'Error';
   const msg = e && e.message !== undefined ? e.message : String(e);
-  parentPort.postMessage({ t: 'error', msg: name + ': ' + msg, line: lineOf(e) });
+  const at = lineOf(e);
+  parentPort.postMessage({ t: 'error', msg: name + ': ' + msg, line: at.line, file: at.file });
 }

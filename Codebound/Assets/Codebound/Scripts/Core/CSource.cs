@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace Codebound.Core
@@ -13,10 +14,11 @@ namespace Codebound.Core
         // any include-like directive anywhere on a line, even after a comment: "/* x */ #include", "%:include", "??=include"
         static readonly Regex IncludeLike = new Regex(@"(#|%:|\?\?=)\s*(/\*.*?\*/\s*)*(include_next|include|import|embed)\b", RegexOptions.Compiled);
         static readonly Regex SafeInclude = new Regex(@"^\s*#\s*include\s*<([A-Za-z0-9_+\-./]+)>\s*(//.*)?$", RegexOptions.Compiled);
+        static readonly Regex LocalInclude = new Regex(@"^\s*#\s*include\s*""([A-Za-z0-9_]+\.(h|hpp))""\s*(//.*)?$", RegexOptions.Compiled);
         static readonly Regex Forbidden = new Regex(@"__has_include|__has_embed|\bincbin\b|\b(asm|__asm|__asm__)\b", RegexOptions.Compiled);
 
         /// <summary>Null when the source may be compiled, otherwise a message with the line number.</summary>
-        public static string Check(string code)
+        public static string Check(string code, ICollection<string> localHeaders = null)
         {
             var lines = (code ?? "").Replace("\r\n", "\n").Split('\n');
             for (int i = 0; i < lines.Length; i++)
@@ -29,9 +31,11 @@ namespace Codebound.Core
                 var bad = Forbidden.Match(line);
                 if (bad.Success) return $"line {first + 1}: '{bad.Value}' is not allowed on Codebound computers";
                 if (!IncludeLike.IsMatch(line)) continue;
+                var local = LocalInclude.Match(line);
+                if (local.Success && localHeaders != null && localHeaders.Contains(local.Groups[1].Value)) continue;   // one of this computer's own files
                 var m = SafeInclude.Match(line);
                 if (!m.Success || m.Groups[1].Value.Contains("..") || m.Groups[1].Value.StartsWith("/"))
-                    return $"line {first + 1}: only system headers can be included, like #include <stdio.h> or #include <codebound.h>";
+                    return $"line {first + 1}: only system headers, like #include <stdio.h>, or this computer's own .h files, like #include \"util.h\", can be included";
             }
             return null;
         }

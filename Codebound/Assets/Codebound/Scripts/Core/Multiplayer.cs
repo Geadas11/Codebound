@@ -43,7 +43,7 @@ namespace Codebound.Core
                     for (int k = i + 1; k < end; k++)
                     {
                         string bl = lines[k].TrimEnd('\r');
-                        if (locked && (bl.StartsWith("bx code ") || bl.StartsWith("bx sqldb "))) continue;
+                        if (locked && (bl.StartsWith("bx code ") || bl.StartsWith("bx sqldb ") || bl.StartsWith("bx files ") || bl.StartsWith("bx hist "))) continue;   // every file and the run history stay private
                         o.Append(locked && bl.StartsWith("bx pwd ") ? "bx pwd locked" : bl).Append('\n');
                     }
                     i = end - 1;

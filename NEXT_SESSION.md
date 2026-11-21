@@ -38,7 +38,7 @@ Play Mode por CLI: `editor set_auto_tick` → `editor.playmode start` → `statu
 3c. ~~Etapa 7 base~~ (plataforma, subida programada, viagem entre mundos) feita — `Core/Space.cs`, `Game/SpaceView.cs`.
 4. Equipamento do jogador (armas/ferramentas melhores), minas/barreiras.
 5. ~~PHP~~ e ~~C#~~ feitos (testes: `Tests/runtime/php_host_test.py`, `csharp_host_test.py`; depois de mudar `Tools/cshost`, recompilar com o `dotnet.exe` do Unity). C e C++ feitos (`Tests/runtime/c_host_test.py`). Todas as 10 linguagens funcionam. Estado das ferramentas nesta máquina: PHP 8.0.30 em `C:\wamp64` (não incluído no projeto), .NET SDK instalado (Roslyn), nenhum compilador C/C++. Plano proposto: C e C++ compilados para WebAssembly (clang + wasi-sdk, ~150 MB, exige download autorizado) e executados no Node já incluído (isolamento do próprio WASM); PHP com o PHP oficial para Windows (download autorizado) num processo com Job Object e `disable_functions`/`open_basedir`; C# com Roslyn num processo separado e lista branca de APIs verificada na árvore sintática + Job Object.
-6. ~~Etapas 2, 4 e 5~~ completas (ver TASKS). Falta traduzir o painel de máquinas/editor e as legendas de som.
+6. ~~Etapas 2, 3, 4 e 5~~ completas (ver TASKS). Falta traduzir o painel de máquinas/editor e as legendas de som. Etapa 3: só faltam builds Linux/macOS (módulos do Unity + Node/Python por plataforma — downloads, pedir autorização).
 7. Etapa 8: arte final, tutorial, desempenho.
 
 ## Avisos
@@ -49,4 +49,5 @@ Play Mode por CLI: `editor set_auto_tick` → `editor.playmode start` → `statu
 - **Barras invertidas:** a shell desta máquina interpreta `\` em heredocs/python inline. Para código com barras invertidas, usar as ferramentas Write/Edit.
 - Play Mode sem domain reload: estado estático novo precisa de reset em `SubsystemRegistration`.
 - Testar UI sem rato real: enviar `PointerDownEvent`/`PointerMoveEvent` (com `EventType.MouseDrag`)/`PointerUpEvent` para `panel.visualTree` via `script eval` (ver DEVELOPMENT_LOG parte 6).
-- Build via `script eval`: ligar `editor set_auto_tick` antes (com ele desligado o build ficou pendurado).
+- Build via `script eval`: ligar `editor set_auto_tick` antes (com ele desligado o build ficou pendurado). Com o Editor fechado: `unity build --target StandaloneWindows64 --execute-method Codebound.EditorTools.BuildScript.BuildWindows Codebound`.
+- Play Mode por script: depois de `GameBootstrap.NewGame(seed)` fazer `Time.timeScale = 1` (o ecrã inicial deixou o tempo parado).

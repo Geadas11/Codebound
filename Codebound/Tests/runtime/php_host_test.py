@@ -10,7 +10,7 @@ PM = open(os.path.join(ROOT, "Assets", "Codebound", "Scripts", "Game", "ProgramM
 DISABLED = "".join(re.findall(r'"([^"]*)"', PM.split("public const string PhpDisabled =")[1].split(";")[0]))
 
 
-def run(code, ram=32, timeout=20):
+def run(code, ram=32, timeout=20, files=None, debug=False, bps=(), modes=(), watches=()):
     args = [PHP, "-n", f"-d", f"memory_limit={ram}M", "-d", "open_basedir=" + os.path.join(RUNTIME, "no-files-here"),
             "-d", "disable_functions=" + DISABLED, "-d", "display_errors=stderr", "-d", "log_errors=0", "-d", "html_errors=0",
             "-d", "max_execution_time=0", "-d", "allow_url_fopen=0", "-d", "allow_url_include=0", "-d", "opcache.enable_cli=0",
@@ -29,7 +29,7 @@ def run(code, ram=32, timeout=20):
             result.setdefault("bad_id", m)
         if t == "ready":
             result["version"] = m["version"]
-            send({"t": "start", "id": 1, "code": code, "ram": ram})
+            send({"t": "start", "id": 1, "code": code, "ram": ram, "files": files or {}, "debug": debug, "bps": list(bps), "watches": list(watches)})
         elif t == "log":
             logs.append(m["msg"])
         elif t == "call":
@@ -41,6 +41,10 @@ def run(code, ram=32, timeout=20):
                 if ore[0] <= 0: r["warn"] = "drill.mine(): depleted"
                 ore[0] -= 1
             elif key == "m7.status": r["value"] = {"status": "idle"}
+            elif key == "debug.pause":
+                result.setdefault("pauses", []).append(m["args"])
+                n = len(result["pauses"])
+                r["value"] = {"mode": modes[n - 1] if n <= len(modes) else "continue"}
             elif key == "computer.subscribe": subs.add(m["args"][0]); r["value"] = True
             elif key == "computer.sleep": result["slept"] = m["args"][0]; r["value"] = None
             elif key == "hud.set": logs.append("hud:" + json.dumps(m["args"])); r["value"] = True
@@ -103,5 +107,20 @@ for fn in ("exec", "shell_exec", "proc_open", "fsockopen", "getenv", "ini_set", 
 
 logs, r = run('$a = [];\nwhile (true) $a[] = str_repeat("x", 1 << 20);\n', ram=16)
 check("memory limit = computer RAM", r.get("reason") == "error" and "Out of memory" in r.get("msg", ""), r)
+
+logs, r = run('echo double(21), " ", Box::make()->v, "\n";\n', files={"lib.php": "<?php\nfunction double($x) { return $x * 2; }\nclass Box { public $v = 7; static function make() { return new Box(); } }\n"})
+check("several files: functions and classes from another file", logs == ["42 7"] and r.get("reason") == "done", (logs, r))
+logs, r = run('broken();\n', files={"lib.php": "<?php\nfunction broken() {\n    throw new Exception('boom');\n}\n"})
+check("error inside another file names the file and line", r.get("file") == "lib" and r.get("line") == 3 and "boom" in r.get("msg", ""), r)
+logs, r = run('echo 1;\n', files={"bad.php": "<?php\n$x = ;\n"})
+check("syntax error in another file", r.get("file") == "bad" and r.get("line") == 2, r)
+
+code = 'function add($a, $b) {\n    $s = $a + $b;\n    return $s;\n}\n$items = [["count" => 3]];\n$t = add(1, 2);\n$t = add($t, 4);\necho $t, "\n";\n'
+logs, r = run(code, debug=True, bps=[6], modes=["step", "out", "over", "continue"], watches=["$items[0]['count']", "t", "nope"])
+lines = [p[0] for p in r.get("pauses", [])]
+check("debugger: breakpoint, step into, out, over (PHP pauses after the statement on that line)", r.get("reason") == "done" and logs == ["7"] and lines[:1] == [6] and 2 in lines and lines[-1] in (7, 8), (lines, r))
+inside = [p for p in r.get("pauses", []) if p[0] == 2]
+check("debugger: call stack inside add()", inside and inside[0][2][0].startswith("add : line 2") and inside[0][2][-1].startswith("main : line 7"), r.get("pauses"))
+check("debugger: watches on globals", r["pauses"][0][3][0] == ["$items[0]['count']", 3] and r["pauses"][0][3][2][1] == "(not defined here)", r.get("pauses"))
 
 print("ALL PHP RUNTIME TESTS PASSED")

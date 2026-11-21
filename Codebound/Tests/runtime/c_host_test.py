@@ -9,23 +9,27 @@ RUNTIME_JS = os.path.join(ROOT, "Assets", "StreamingAssets", "Runtime", "js")
 INCLUDE = os.path.join(ROOT, "Assets", "StreamingAssets", "Runtime", "c")
 
 
-def compile_(code, lang, ram=32):
+def compile_(code, lang, ram=32, files=None):
     d = tempfile.mkdtemp(prefix="cbcc")
     src = os.path.join(d, "computer.c" if lang == "c" else "computer.cpp")
     open(src, "w", encoding="utf-8").write(code)
+    sources = [os.path.basename(src)]
+    for name, text in (files or {}).items():
+        open(os.path.join(d, name), "w", encoding="utf-8").write(text)
+        if name.endswith(".c" if lang == "c" else ".cpp"): sources.append(name)
     std = ["-std=c17"] if lang == "c" else ["-std=c++17", "-fno-exceptions", "-fno-rtti"]
     args = [os.path.join(SDK, "bin", "clang.exe" if lang == "c" else "clang++.exe"), "--target=wasm32-wasip1",
             "--sysroot=" + os.path.join(SDK, "share", "wasi-sysroot"), "-O1", *std, "-isystem", INCLUDE,
             "-Wl,--import-memory", "-Wl,--export-memory", "-Wl,--initial-memory=4194304", f"-Wl,--max-memory={ram * 1048576}",
-            "-Wl,-z,stack-size=524288", "-o", os.path.join(d, "computer.wasm"), src]
+            "-Wl,-z,stack-size=524288", "-gdwarf-4", "-gline-tables-only", "-o", "computer.wasm", *sources]
     r = subprocess.run(args, capture_output=True, text=True, cwd=d)
     wasm = open(os.path.join(d, "computer.wasm"), "rb").read() if r.returncode == 0 else None
     shutil.rmtree(d, ignore_errors=True)
-    return wasm, r.stderr
+    return wasm, r.stderr, sources + [n for n in (files or {}) if n not in sources]
 
 
-def run(code, lang="c", ram=32, timeout=30):
-    wasm, err = compile_(code, lang, ram)
+def run(code, lang="c", ram=32, timeout=30, files=None):
+    wasm, err, sources = compile_(code, lang, ram, files)
     if wasm is None:
         return [], {"reason": "compile", "msg": err}
     node = shutil.which("node")
@@ -42,7 +46,7 @@ def run(code, lang="c", ram=32, timeout=30):
         m = json.loads(raw)
         t = m["t"]
         if t == "ready":
-            send({"t": "start", "id": 1, "lang": lang, "wasm": base64.b64encode(wasm).decode(), "ram": ram})
+            send({"t": "start", "id": 1, "lang": lang, "wasm": base64.b64encode(wasm).decode(), "ram": ram, "sources": sources})
         elif t == "log":
             logs.append(m["msg"])
         elif t == "call":
@@ -108,5 +112,17 @@ check("memory limit = computer RAM (malloc fails)", logs == ["malloc failed"], (
 
 logs, r = run('int main(void) { for (;;) { } }\n', timeout=15)
 check("CPU watchdog stops infinite loops", r.get("reason") == "error" and "watchdog" in r.get("msg", ""), r)
+
+logs, r = run('#include <stdio.h>\n#include "util.h"\nint main(void) {\n  printf("%d\\n", twice(21));\n  return 0;\n}\n', files={"util.h": "int twice(int x);\n", "util.c": "#include \"util.h\"\nint twice(int x) { return x * 2; }\n"})
+check("several files: a .c file and its header", logs == ["42"] and r.get("reason") == "done", (logs, r))
+
+logs, r = run('#include <stdio.h>\nint boom(int *p) {\n    return *p;\n}\nint main(void) {\n    puts("before");\n    return boom((int *)0x7ffffff0);\n}\n')
+check("runtime error (trap) reports the source line", r.get("reason") == "error" and r.get("line") == 3 and r.get("file") is None, r)
+
+logs, r = run('#include "lib.h"\nint main(void) { return crash(); }\n', files={"lib.h": "int crash(void);\n", "lib.c": "#include \"lib.h\"\nint crash(void) {\n    volatile int *p = (int *)0x7ffffff0;\n    return *p;\n}\n"})
+check("trap inside another file: file + line", r.get("file") == "lib.c" and r.get("line") == 4, r)
+
+logs, r = run('#include <vector>\n#include <cstdio>\nint main() {\n    std::vector<int> v{1};\n    int *p = (int *)0x7ffffff0;  // in WebAssembly address 0 is valid memory, so nullptr would not trap\n    std::printf("%d\\n", v[0] + *p);\n}\n', lang="cpp")
+check("C++ trap reports the line", r.get("reason") == "error" and r.get("line") == 6, r)
 
 print("ALL C/C++ RUNTIME TESTS PASSED")

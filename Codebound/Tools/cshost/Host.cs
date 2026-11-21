@@ -207,9 +207,9 @@ namespace Codebound
     {
         const string FileName = "computer.cs";
 
-        static void Exit(string reason, string msg = null, int? line = null)
+        static void Exit(string reason, string msg = null, int? line = null, string file = null)
         {
-            Proto.Send(new JsonObject { ["t"] = "exit", ["id"] = Proto.Id?.DeepClone(), ["reason"] = reason, ["msg"] = msg, ["line"] = line });
+            Proto.Send(new JsonObject { ["t"] = "exit", ["id"] = Proto.Id?.DeepClone(), ["reason"] = reason, ["msg"] = msg, ["line"] = line, ["file"] = file });
             Environment.Exit(0);
         }
 
@@ -232,23 +232,48 @@ namespace Codebound
 
             var parse = new CSharpParseOptions(LanguageVersion.CSharp12);
             var tree = CSharpSyntaxTree.ParseText(code, parse, FileName, Encoding.UTF8);
+            // the computer's other files: more classes in the same program (only the main file has top-level statements)
+            var others = new List<SyntaxTree>();
+            if (start["files"] is JsonObject files)
+                foreach (var kv in files)
+                {
+                    string n = kv.Key.EndsWith(".cs") ? kv.Key.Substring(0, kv.Key.Length - 3) : kv.Key;
+                    if (System.Text.RegularExpressions.Regex.IsMatch(n, @"^[A-Za-z_]\w*$") && n != "computer")
+                        others.Add(CSharpSyntaxTree.ParseText(kv.Value?.GetValue<string>() ?? "", parse, n + ".cs", Encoding.UTF8));
+                }
             var usings = CSharpSyntaxTree.ParseText("global using System; global using System.Collections.Generic; global using System.Linq; global using System.Text; " +
                                                     "global using System.Text.Json.Nodes; global using Codebound; global using static Codebound.Game;", parse, "usings.cs", Encoding.UTF8);
-            var comp = CSharpCompilation.Create("computer", new[] { tree, usings }, References(),
+            var comp = CSharpCompilation.Create("computer", new[] { tree, usings }.Concat(others), References(),
                 new CSharpCompilationOptions(OutputKind.ConsoleApplication, allowUnsafe: false, optimizationLevel: OptimizationLevel.Debug,
                                              nullableContextOptions: NullableContextOptions.Disable));
             var errors = comp.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error).ToList();
             if (errors.Count > 0)
             {
                 var e = errors[0];
-                int? l = e.Location.IsInSource && e.Location.SourceTree == tree ? e.Location.GetLineSpan().StartLinePosition.Line + 1 : (int?)null;
-                Exit("error", $"{e.Id}: {e.GetMessage(System.Globalization.CultureInfo.InvariantCulture)}" + (errors.Count > 1 ? $" (+{errors.Count - 1} more)" : ""), l);
+                bool player = e.Location.IsInSource && (e.Location.SourceTree == tree || others.Contains(e.Location.SourceTree));
+                int? l = player ? e.Location.GetLineSpan().StartLinePosition.Line + 1 : (int?)null;
+                Exit("error", $"{e.Id}: {e.GetMessage(System.Globalization.CultureInfo.InvariantCulture)}" + (errors.Count > 1 ? $" (+{errors.Count - 1} more)" : ""), l,
+                     player ? FileOf(e.Location.SourceTree.FilePath) : null);
             }
-            string violation = Sandbox.Check(comp, tree);
-            if (violation != null)
+            foreach (var t in new[] { tree }.Concat(others))
             {
+                string violation = Sandbox.Check(comp, t);
+                if (violation == null) continue;
                 int lineNo = int.TryParse(violation.Substring(5, violation.IndexOf(':') - 5), out var ln) ? ln : 0;
-                Exit("error", "Sandbox: " + violation, lineNo > 0 ? lineNo : (int?)null);
+                Exit("error", "Sandbox: " + violation, lineNo > 0 ? lineNo : (int?)null, FileOf(t.FilePath));
+            }
+            if (start["debug"]?.GetValue<bool>() == true)
+            {
+                // instrument the main file (checked above in its original form); if that fails to compile, run without the debugger
+                var dbgTree = CSharpSyntaxTree.ParseText(Dbg.Instrument(comp, tree), parse, FileName, Encoding.UTF8);
+                var dbgComp = comp.ReplaceSyntaxTree(tree, dbgTree);
+                if (dbgComp.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error)) Proto.Log("[debug] this program could not be instrumented — running without the debugger");
+                else
+                {
+                    comp = dbgComp; Dbg.On = true;
+                    if (start["bps"] is JsonArray bps) foreach (var b in bps) Dbg.Bps.Add((int)b.GetValue<double>());
+                    if (start["watches"] is JsonArray ws) Dbg.Watches = ws.Select(x => x?.ToString() ?? "").ToList();
+                }
             }
 
             var pe = new MemoryStream(); var pdb = new MemoryStream();
@@ -284,10 +309,17 @@ namespace Codebound
         {
             if (e is OutOfMemoryException || e is InsufficientExecutionStackException)
                 Exit("error", e is OutOfMemoryException ? $"Out of memory: program exceeded {Proto.RamMb} MB RAM" : "Stack overflow: recursion too deep");
-            int? line = null;
+            int? line = null; string file = null;
             foreach (var f in new StackTrace(e, true).GetFrames() ?? new StackFrame[0])
-                if (f.GetFileName() == FileName) { line = f.GetFileLineNumber(); break; }
-            Exit("error", $"{e.GetType().Name}: {e.Message}", line);
+                if (f.GetFileName() is string fn && fn.EndsWith(".cs") && fn != "usings.cs") { line = f.GetFileLineNumber(); file = FileOf(fn); break; }
+            Exit("error", $"{e.GetType().Name}: {e.Message}", line, file);
+        }
+
+        /// <summary>null for the main file, otherwise the file's name without .cs.</summary>
+        static string FileOf(string path)
+        {
+            string n = System.IO.Path.GetFileName(path ?? "");
+            return n == FileName || n.Length == 0 ? null : n.EndsWith(".cs") ? n.Substring(0, n.Length - 3) : n;
         }
     }
 }

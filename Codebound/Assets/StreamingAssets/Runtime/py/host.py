@@ -9,7 +9,7 @@
 #   3. PEP 578 audit hook: blocks file, network, process, ctypes, frame/trace access from player code
 #   4. restricted builtins (no open/eval/exec/compile/input) and an import allow-list
 #   5. CPU watchdog thread: 3 s without calling the world API => program terminated
-import sys, os, json, threading, time, types, builtins
+import sys, os, json, threading, time, types, builtins, re
 
 PY_FILE = "computer.py"
 WATCHDOG_S = 3.0
@@ -135,7 +135,9 @@ class _State:
     dispatching = False
     debug = False
     bps = set()
-    stepping = False
+    mode = "continue"          # debugger: continue | step | over | out
+    pause_depth = 0
+    watches = []
     log_count = 0
 
 
@@ -312,14 +314,54 @@ def _snap(v, depth=0):
 API_NAMES = set()
 
 
+_PATH = re.compile(r"^([A-Za-z_]\w*)((?:\.[A-Za-z]\w*|\[\d+\]|\[\"[^\"]*\"\]|\['[^']*'\])*)$")
+_PART = re.compile(r"\.[A-Za-z]\w*|\[\d+\]|\[\"[^\"]*\"\]|\['[^']*'\]")
+
+
+def _watch(expr, frame):
+    """Watch expressions are a name and a path (items[0].count): no eval, and no _private attributes."""
+    m = _PATH.match(str(expr).strip())
+    if not m:
+        return "(use a name or a path, e.g. items[0].count)"
+    name = m.group(1)
+    if name in frame.f_locals:
+        v = frame.f_locals[name]
+    elif name in frame.f_globals:
+        v = frame.f_globals[name]
+    else:
+        return "(not defined here)"
+    try:
+        for p in _PART.findall(m.group(2)):
+            v = getattr(v, p[1:]) if p[0] == "." else v[int(p[1:-1])] if p[1].isdigit() else v[p[2:-2]]
+    except Exception as e:
+        return f"({type(e).__name__}: {e})"
+    return _snap(v)
+
+
+def _frames(frame):
+    out = []
+    while frame is not None:
+        if frame.f_code.co_filename == PY_FILE:
+            out.append(("main" if frame.f_code.co_name == "<module>" else frame.f_code.co_name) + " : line " + str(frame.f_lineno))
+        frame = frame.f_back
+    return out
+
+
 def _tracer(frame, event, arg):
     if frame.f_code.co_filename != PY_FILE:
         return None
-    if event == "line" and (_State.stepping or frame.f_lineno in _State.bps):
-        vars_ = {k: _snap(v) for k, v in frame.f_locals.items()
-                 if not k.startswith("__") and k not in API_NAMES and not isinstance(v, types.ModuleType)}
-        r = _call("debug", "pause", [frame.f_lineno, vars_])
-        _State.stepping = bool(r and r.get("mode") == "step")
+    if event == "line":
+        stack = _frames(frame)
+        depth, m = len(stack), _State.mode
+        if frame.f_lineno in _State.bps or m == "step" or (m == "over" and depth <= _State.pause_depth) or (m == "out" and depth < _State.pause_depth):
+            vars_ = {k: _snap(v) for k, v in frame.f_locals.items()
+                     if not k.startswith("__") and k not in API_NAMES and not isinstance(v, types.ModuleType)}
+            watches = [[w, _watch(w, frame)] for w in _State.watches]
+            r = _call("debug", "pause", [frame.f_lineno, vars_, stack, watches])
+            _State.mode = (r.get("mode") if isinstance(r, dict) else None) or "continue"
+            _State.pause_depth = depth
+            if isinstance(r, dict) and isinstance(r.get("watches"), list):
+                _State.watches = [str(x) for x in r["watches"]]
     return _tracer
 
 
@@ -352,18 +394,37 @@ def _stats(ram_mb):
 
 
 # ---------------------------------------------------------------- main
-def _error_line(exc):
-    if isinstance(exc, SyntaxError) and exc.filename == PY_FILE:
-        return exc.lineno
-    line, tb = None, exc.__traceback__
+def _error_at(exc):
+    """(file, line) of the error in the player's code: file None = main file."""
+    names = {PY_FILE} | {n + ".py" for n in PLAYER_FILES}
+    if isinstance(exc, SyntaxError) and exc.filename in names:
+        return (None if exc.filename == PY_FILE else exc.filename[:-3]), exc.lineno
+    at, tb = (None, None), exc.__traceback__
     while tb is not None:
-        if tb.tb_frame.f_code.co_filename == PY_FILE:
-            line = tb.tb_lineno
+        f = tb.tb_frame.f_code.co_filename
+        if f in names:
+            at = (None if f == PY_FILE else f[:-3]), tb.tb_lineno
         tb = tb.tb_next
-    return line
+    return at
+
+
+PLAYER_FILES = {}      # other files on the computer: name (without .py) -> source
+_player_modules = {}
+_module_globals = {}   # API names and safe builtins for player modules (set in main)
+
+
+def _player_module(name):
+    if name not in _player_modules:
+        mod = types.ModuleType(name)
+        mod.__dict__.update(_module_globals)
+        _player_modules[name] = mod   # registered first: circular imports see the partial module, like CPython
+        exec(compile(PLAYER_FILES[name], name + ".py", "exec"), mod.__dict__)
+    return _player_modules[name]
 
 
 def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):
+    if level == 0 and name in PLAYER_FILES:
+        return _player_module(name)
     if level != 0 or name.split(".")[0] not in ALLOWED_MODULES:
         raise ImportError(f"module '{name}' is not available on Codebound computers "
                           f"(allowed: {', '.join(sorted(ALLOWED_MODULES))})")
@@ -379,6 +440,11 @@ def main():
     code = str(start.get("code") or "")
     _State.debug = bool(start.get("debug"))
     _State.bps = set(start.get("bps") or [])
+    _State.watches = [str(w) for w in (start.get("watches") or [])]
+    for fname, src in (start.get("files") or {}).items():
+        n = str(fname)[:-3] if str(fname).endswith(".py") else str(fname)
+        if n.isidentifier():
+            PLAYER_FILES[n] = str(src)
 
     limited = apply_limits(ram)
     for m in ALLOWED_MODULES:            # import before the hook so their own internal imports/opens succeed
@@ -389,7 +455,7 @@ def main():
     try:
         compiled = compile(code, PY_FILE, "exec")
     except SyntaxError as e:
-        send({"t": "exit", "id": PROGRAM_ID, "reason": "error", "msg": f"SyntaxError: {e.msg}", "line": e.lineno}); return
+        send({"t": "exit", "id": PROGRAM_ID, "reason": "error", "msg": f"SyntaxError: {e.msg}", "line": e.lineno, "file": None}); return
 
     safe_builtins = {k: v for k, v in vars(builtins).items()
                      if k not in ("open", "eval", "exec", "compile", "input", "breakpoint", "help", "exit", "quit", "__import__", "__loader__", "__spec__")}
@@ -403,6 +469,8 @@ def main():
         i = _call("machines", "find", [t])
         g[t] = Machine(i) if i else None
     API_NAMES.update(g.keys())
+    _module_globals.update(g)
+    _module_globals.pop("__name__", None)
     if not limited:
         _log("[runtime] warning: OS memory limit could not be applied on this platform")
 
@@ -418,7 +486,8 @@ def main():
     except MemoryError:
         send({"t": "exit", "id": PROGRAM_ID, "reason": "error", "msg": f"Out of memory: program exceeded {ram} MB RAM", "line": None})
     except BaseException as e:           # includes SystemExit/KeyboardInterrupt raised by player code
-        send({"t": "exit", "id": PROGRAM_ID, "reason": "error", "msg": f"{type(e).__name__}: {e}", "line": _error_line(e)})
+        f, ln = _error_at(e)
+        send({"t": "exit", "id": PROGRAM_ID, "reason": "error", "msg": f"{type(e).__name__}: {e}", "line": ln, "file": f})
     finally:
         _out.flush()
         os._exit(0)
