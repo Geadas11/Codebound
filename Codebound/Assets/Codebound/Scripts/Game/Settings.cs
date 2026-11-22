@@ -10,10 +10,13 @@ namespace Codebound.Game
     /// <summary>Player options (PlayerPrefs, per machine). Accessibility settings from the Prompt §7 live here.</summary>
     public static class Settings
     {
-        static int I(string k, int d) { try { return PlayerPrefs.GetInt(k, d); } catch { return d; } }
-        static float F(string k, float d) { try { return PlayerPrefs.GetFloat(k, d); } catch { return d; } }
-        static void Set(string k, int v) { PlayerPrefs.SetInt(k, v); PlayerPrefs.Save(); Version++; }
-        static void Set(string k, float v) { PlayerPrefs.SetFloat(k, v); PlayerPrefs.Save(); Version++; }
+        // PlayerPrefs is the registry on Windows: far too slow to read per building per frame, so values are cached here
+        static readonly Dictionary<string, int> ints = new Dictionary<string, int>();
+        static readonly Dictionary<string, float> floats = new Dictionary<string, float>();
+        static int I(string k, int d) { if (ints.TryGetValue(k, out var v)) return v; try { v = PlayerPrefs.GetInt(k, d); } catch { v = d; } return ints[k] = v; }
+        static float F(string k, float d) { if (floats.TryGetValue(k, out var v)) return v; try { v = PlayerPrefs.GetFloat(k, d); } catch { v = d; } return floats[k] = v; }
+        static void Set(string k, int v) { ints[k] = v; PlayerPrefs.SetInt(k, v); PlayerPrefs.Save(); Version++; }
+        static void Set(string k, float v) { floats[k] = v; PlayerPrefs.SetFloat(k, v); PlayerPrefs.Save(); Version++; }
 
         /// <summary>Bumped on every change so cached styles can rebuild.</summary>
         public static int Version { get; private set; }

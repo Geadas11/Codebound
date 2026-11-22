@@ -6,7 +6,7 @@ namespace Codebound.Core
     /// <summary>
     /// Procedural audio: every Codebound sound is synthesized here (oscillators, noise, envelopes, filters),
     /// so there are no third-party audio assets or licences. Mono float samples in [-1, 1].
-    /// shortcut: simple synthesis until the Etapa 8 sound pass; recipe names are the stable contract.
+    /// Recipe names are the stable contract; the music is composed in Music.cs.
     /// </summary>
     public static class Synth
     {
@@ -15,17 +15,14 @@ namespace Codebound.Core
         public sealed class Recipe { public string Name; public float Seconds; public bool Loop; public Func<double, Random, double> Wave; public float LowPass = 1f; }
 
         static double Sin(double f, double t) => Math.Sin(2 * Math.PI * f * t);
-        static double Tri(double f, double t) { double p = t * f % 1.0; return 4 * Math.Abs(p - 0.5) - 1; }
         static double Saw(double f, double t) => 2 * (t * f % 1.0) - 1;
         static double Sq(double f, double t) => t * f % 1.0 < 0.5 ? 1 : -1;
         static double Dec(double t, double k) => Math.Exp(-t * k);                 // exponential decay envelope
         static double Pulse(double t, double period, double k) => Dec(t % period, k); // repeating decay
-        static double Midi(int n) => 440.0 * Math.Pow(2, (n - 69) / 12.0);
 
         // a fixed pseudo-random "hit" pattern: true if a click starts in this small window
         static double Crackle(double t, Random r, double density) => r.NextDouble() < density / Rate ? (r.NextDouble() * 2 - 1) : 0;
 
-        static readonly int[] Chords = { 57, 53, 48, 55 };   // A2 F2 C2 G2 roots, 4 s each → 16 s loop
 
         public static readonly Dictionary<string, Recipe> Recipes = new Dictionary<string, Recipe>();
 
@@ -55,18 +52,7 @@ namespace Codebound.Core
             R("rain", 4f, true, (t, r) => 0.6 * (r.NextDouble() * 2 - 1) + 1.5 * Crackle(t, r, 120), 0.5f);
             R("storm", 4f, true, (t, r) => 0.7 * (r.NextDouble() * 2 - 1) * (0.6 + 0.4 * Sin(0.5, t)) + 0.4 * Sin(35, t), 0.15f);
 
-            // ---- adaptive music layers (16 s loops in A minor: Am F C G)
-            R("mus_calm", 16f, true, (t, r) =>
-            {
-                int root = Chords[(int)(t / 4) % 4]; double env = Math.Min(1, (t % 4) / 1.5) * Math.Min(1, (4 - t % 4) / 0.5);
-                return env * (0.3 * Tri(Midi(root + 12), t) + 0.2 * Tri(Midi(root + 16 - (root == 57 ? 1 : 0)), t) + 0.2 * Tri(Midi(root + 19), t));
-            }, 0.15f);
-            R("mus_industry", 16f, true, (t, r) =>
-            {
-                int root = Chords[(int)(t / 4) % 4];
-                return 0.6 * Saw(Midi(root - 12), t) * Pulse(t, 0.25, 14) + 0.25 * (r.NextDouble() * 2 - 1) * Pulse(t + 0.125, 0.5, 40);
-            }, 0.2f);
-            R("mus_danger", 16f, true, (t, r) => 0.4 * Saw(Midi(33), t) * (0.6 + 0.4 * Sin(0.25, t)) + 0.25 * Sin(Midi(46), t) * Math.Abs(Sin(0.0625, t)) + 0.3 * Pulse(t, 0.5, 30) * Sin(Midi(33), t), 0.12f);
+            // ---- music: composed in Music.cs (mus_calm, mus_night, mus_industry, mus_danger)
 
             // ---- one-shots
             R("mine", 0.15f, false, (t, r) => Dec(t, 30) * (0.6 * (r.NextDouble() * 2 - 1) + 0.5 * Sin(120, t)), 0.4f);
@@ -88,6 +74,7 @@ namespace Codebound.Core
         /// <summary>Renders a recipe: one-pole low-pass, loops cross-faded at the seam, normalised to 0.8 peak.</summary>
         public static float[] Render(string name)
         {
+            if (Music.Has(name)) return Music.Render(name, Rate);
             var rec = Recipes[name];
             int n = Math.Max(1, (int)(rec.Seconds * Rate));
             var data = new float[n];

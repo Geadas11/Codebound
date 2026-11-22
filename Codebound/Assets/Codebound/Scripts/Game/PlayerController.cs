@@ -44,8 +44,7 @@ namespace Codebound.Game
 
             if (dir.x != 0) sr.flipX = dir.x < 0;
             walkTime = dir == Vector2.zero ? 0 : walkTime + Time.deltaTime;
-            float bob = Mathf.Abs(Mathf.Sin(walkTime * 14f)) * 0.06f;
-            sr.transform.localScale = new Vector3(1, 1 + bob, 1);
+            sr.sprite = PixelArtFactory.Player(dir == Vector2.zero ? -1 : (int)(walkTime * 9f) % PixelArtFactory.PlayerFrames);
         }
 
         bool Blocked(float x, float y)

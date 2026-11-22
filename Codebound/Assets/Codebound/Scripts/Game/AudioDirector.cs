@@ -6,7 +6,7 @@ namespace Codebound.Game
 {
     /// <summary>
     /// Adaptive audio from synthesized clips: machine loops whose sound follows the machine's state, biome/weather
-    /// ambience, three music layers (calm / industry / danger) mixed by what is happening, one-shot effects,
+    /// ambience, four music layers composed in Music.cs (day / night / industry / danger) mixed by what is happening, one-shot effects,
     /// programmable alarms and on-screen sound captions with direction (accessibility).
     /// </summary>
     public sealed class AudioDirector : MonoBehaviour
@@ -19,7 +19,7 @@ namespace Codebound.Game
 
         GameSession session;
         readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
-        AudioSource musCalm, musIndustry, musDanger, ambA, ambB, weather, sfx;
+        AudioSource musCalm, musNight, musIndustry, musDanger, ambA, ambB, weather, sfx;
         readonly AudioSource[] voices = new AudioSource[MachineVoices];
         readonly int[] voiceOwner = new int[MachineVoices];
         readonly Dictionary<int, float> nextBeep = new Dictionary<int, float>();
@@ -53,10 +53,9 @@ namespace Codebound.Game
         public void Init(GameSession s)
         {
             session = s; Instance = this;
-            musCalm = Source("mus_calm", true); musCalm.clip = Clip("mus_calm");
-            musIndustry = Source("mus_industry", true); musIndustry.clip = Clip("mus_industry");
-            musDanger = Source("mus_danger", true); musDanger.clip = Clip("mus_danger");
-            foreach (var m in new[] { musCalm, musIndustry, musDanger }) m.Play();   // same length: layers stay in sync
+            musCalm = Source("mus_calm", true); musNight = Source("mus_night", true);
+            musIndustry = Source("mus_industry", true); musDanger = Source("mus_danger", true);
+            ComposeMusic();
             ambA = Source("ambA", true); ambB = Source("ambB", true); weather = Source("weather", true);
             sfx = Source("sfx", false);
             for (int i = 0; i < MachineVoices; i++) { voices[i] = Source("machine" + i, true); voiceOwner[i] = 0; }
@@ -223,10 +222,38 @@ namespace Codebound.Game
             foreach (var v in voiceOwner) if (v != 0) working++;
             float industry = Mathf.Clamp01(working / 4f);
             mood = Mathf.MoveTowards(mood, danger ? 1 : 0, dt * 0.4f);
+            if (!musicStarted)
+            {
+                if (musicJob == null || !musicJob.IsCompleted) return;   // still composing in the background
+                StartMusic();
+            }
             float music = 0.3f * Settings.MusicVolume * Master;
-            musCalm.volume = music * (1f - 0.7f * mood);
+            float day = Mathf.Clamp01(session.State.Clock.Daylight * 1.5f - 0.25f);   // the bells take over at dusk
+            musCalm.volume = music * (1f - 0.7f * mood) * day;
+            musNight.volume = music * (1f - 0.7f * mood) * (1f - day) * 1.1f;
             musIndustry.volume = music * industry * (1f - mood) * 0.8f;
             musDanger.volume = music * mood;
+        }
+
+        System.Threading.Tasks.Task<float[][]> musicJob;
+        bool musicStarted;
+
+        /// <summary>The four music layers are composed off the main thread (a few hundred ms), then start together.</summary>
+        void ComposeMusic() => musicJob = System.Threading.Tasks.Task.Run(() => System.Array.ConvertAll(Music.Layers, Synth.Render));
+
+        void StartMusic()
+        {
+            musicStarted = true;
+            var data = musicJob.Result;
+            var sources = new[] { musCalm, musNight, musIndustry, musDanger };
+            for (int i = 0; i < Music.Layers.Length; i++)
+            {
+                var c = AudioClip.Create(Music.Layers[i], data[i].Length, 1, Synth.Rate, false);
+                c.SetData(data[i], 0);
+                clips[Music.Layers[i]] = c;
+                sources[i].clip = c;
+            }
+            foreach (var m in sources) m.Play();   // same length and start: the layers stay in sync
         }
 
         void Update()

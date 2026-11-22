@@ -21,6 +21,7 @@ namespace Codebound.Core
         public readonly Lightning Lightning;
         public readonly Skills Skills = new Skills();
         public readonly Story Story = new Story();
+        public readonly Tutorial Tutorial = new Tutorial();
         public Research Research => Factory.Research;
         public double PlayerX, PlayerY;
         /// <summary>Multiplayer guests' inventories, kept by the host and saved with the world.</summary>
@@ -46,6 +47,7 @@ namespace Codebound.Core
             Ecology = new Ecology(this);
             Lightning = new Lightning(this, seed);
             Factory.Ecology = Ecology;
+            Factory.ActionCompleted += (b, product) => { if (b.Def.Kind == BuildingKind.Drill && product != null) Tutorial.AutoMined = true; };
         }
 
         public int Seed => World.Generator.Seed;
@@ -142,6 +144,7 @@ namespace Codebound.Core
             foreach (var line in g.Ecology.SaveLines()) w.WriteLine(line);
             w.WriteLine(g.Skills.SaveLine());
             if (g.Story.SaveLine() is string sl) w.WriteLine(sl);
+            w.WriteLine(g.Tutorial.SaveLine());
             w.WriteLine("end");
         }
 
@@ -163,7 +166,7 @@ namespace Codebound.Core
             GameState g = null;
             PlacedBuilding last = null;
             var pending = new List<(string[] parts, int line)>();
-            string line; int n = 1; bool ended = false;
+            string line; int n = 1; bool ended = false, sawTutorial = false;
             while ((line = r.ReadLine()) != null)
             {
                 n++;
@@ -208,6 +211,7 @@ namespace Codebound.Core
                         case "eco": Need(g).Ecology.Load(p); break;
                         case "skills": Need(g).Skills.Load(p); break;
                         case "story": Need(g).Story.Load(p); break;
+                        case "tutorial": Need(g).Tutorial.Load(p); sawTutorial = true; break;
                         case "end": ended = true; break;
                         default: throw new InvalidDataException("Unknown record '" + p[0] + "'");
                     }
@@ -222,6 +226,7 @@ namespace Codebound.Core
                 }
             }
             if (g == null || !ended) throw new InvalidDataException("Save file is truncated");
+            if (!sawTutorial) g.Tutorial.Skip();   // a save from before the tutorial: that player is past the first steps
             return g;
         }
 

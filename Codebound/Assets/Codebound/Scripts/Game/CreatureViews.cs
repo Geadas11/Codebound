@@ -53,6 +53,7 @@ namespace Codebound.Game
                 v.Body.transform.position = new Vector3((float)c.X, (float)c.Y, 0);
                 float bob = c.Type == CreatureType.Drone ? Mathf.Sin(Time.time * 6 + c.Id) * 0.08f : 0;
                 v.Body.transform.position += new Vector3(0, bob, 0);
+                if (v.Fade < 0) v.Body.sprite = PixelArtFactory.Creature(c.Type, Settings.ReduceEffects ? 0 : (int)(Time.time * (c.Type == CreatureType.Drone ? 12 : 5) + c.Id) % 2);
                 bool hurt = c.Health < c.MaxHealth;
                 v.Bar.enabled = hurt;
                 v.Bar.transform.localPosition = new Vector3(-0.4f, 0.55f, 0);

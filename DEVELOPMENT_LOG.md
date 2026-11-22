@@ -239,3 +239,12 @@
 - Descoberto ao testar: a variável `pad` nunca existiu nos programas (o jogo e o TASKS diziam `pad.launch()`); adicionada em JS/Python/PHP/C#.
 - Teste de rede deixou `planet_1_home.cbsave` na pasta de saves (mundo de teste com seed 1); a remoção automática foi bloqueada — pode ser apagado à mão.
 - Testes: 129/129 EditMode; runtimes JS/TS, Python, PHP, C#, C/C++ a passar; build + self-test PASS.
+
+## Sessão 4 (cont.): Etapa 8
+- Desempenho medido antes de mexer (`PerformanceTests` com 2000 edifícios + decomposição temporária por passo do tick): `LinkStorageHubs` 4,3 ms/tick (todos os hubs × todos os edifícios) e `RebuildNetworks` 21,8 ms (todos os postes × todos) — passaram a usar a grelha/baldes espaciais, mantendo a mesma ordem de resultados. Em Play Mode, `BuildingViews.LateUpdate` gastava 31,6 ms/frame: `Settings.ReduceEffects`/`ColorblindPalette` liam `PlayerPrefs` (registo do Windows) por edifício — cache em `Settings`.
+- `Core/Tutorial.cs` + `Game/TutorialView.cs`; linha `tutorial` no save (sem ela = save antigo → concluído); viaja entre mundos.
+- `PixelArtFactory` refeito: `Tile` (Blot periódico, detalhes), `Edge` (franja do tipo de chão mais forte, máscara de 4 lados, espuma), `Resource(r, variante)`, `Tree(variante)`, `Building(def, frame)` + `Frames(def)`, `Shadow`, `Player(frame)`, `Creature(t, frame)`. `ChunkRenderer` com camada de bordas (lê o pedaço + 1 célula de margem uma vez) e variantes de recursos. `BuildingViews` guarda os SpriteRenderers, troca de frame só quando muda.
+- Verificação de frames: texturas não legíveis → cópia pela GPU (Blit + ReadPixels) para comparar; as criaturas eram simétricas (o espelho dava o mesmo frame) — corrigido.
+- `Core/Music.cs`: partitura em notas + instrumentos sintetizados, caudas das notas dão a volta ao loop; `Synth.Render` delega as camadas `mus_*`; `AudioDirector` compõe com `Task.Run` e arranca as 4 camadas juntas; dia/noite por `Clock.Daylight`.
+- Nota de teste: depois de `NewGame` por script, além de `Time.timeScale = 1`, é preciso `TitleMenu.IsOpen = false` (o jogo real fecha o ecrã inicial antes).
+- Testes: 135/135 EditMode; build + self-test PASS.

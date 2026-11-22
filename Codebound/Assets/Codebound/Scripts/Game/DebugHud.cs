@@ -46,6 +46,8 @@ namespace Codebound.Game
 
         static Texture2D Tex(Color c) { var t = new Texture2D(1, 1); t.SetPixel(0, 0, c); t.Apply(); return t; }
 
+        static string E(string kind, string value) => Loc.T(kind + "." + value, value.Replace('_', ' '));
+
         void OnGUI()
         {
             UiGui.Begin();
@@ -57,19 +59,23 @@ namespace Codebound.Game
 
             // status
             GUILayout.BeginArea(new Rect(10, 10, 330, 184), box);
-            GUILayout.Label("<b><color=#5ef0a0>CODEBOUND</color></b>  <size=11>BUILD. CODE. SURVIVE. EXPLORE.</size>", label);
+            GUILayout.Label("<b><color=#5ef0a0>CODEBOUND</color></b>  <size=11>" + Loc.T("hud.tagline", "BUILD. CODE. SURVIVE. EXPLORE.") + "</size>", label);
             var clk = session.State.Clock; var env = session.Surroundings;
-            GUILayout.Label($"Seed {session.Seed}   FPS {fps:0}   Day {clk.Day} {clk.ClockText} {clk.Season}", small);
-            GUILayout.Label($"{WorldClock.WeatherName(env.Weather, gen.BiomeAt(pc))}   air {env.AmbientC:0}°C{(env.Breathable ? "" : "  <color=#ffb347>unbreathable</color>")}{(env.Radiation > 0 ? "  <color=#9cff6b>radiation</color>" : "")}", small);
-            GUILayout.Label($"Pos {pc}  Biome {gen.BiomeAt(pc)}  Tile {gen.TileAt(pc)}", small);
+            GUILayout.Label(Loc.T("hud.line1", "Seed {0}   FPS {1}   Day {2} {3} {4}", session.Seed, fps.ToString("0"), clk.Day, clk.ClockText, E("season", clk.Season.ToString())), small);
+            string weather = WorldClock.WeatherName(env.Weather, gen.BiomeAt(pc));
+            GUILayout.Label(Loc.T("hud.air", "{0}   air {1}°C", E("weather", weather.Replace(" ", "_")), env.AmbientC.ToString("0"))
+                + (env.Breathable ? "" : "  <color=#ffb347>" + Loc.T("hud.unbreathable", "unbreathable") + "</color>")
+                + (env.Radiation > 0 ? "  <color=#9cff6b>" + Loc.T("hud.radiation", "radiation") + "</color>" : ""), small);
+            GUILayout.Label(Loc.T("hud.pos", "Pos {0}  Biome {1}  Tile {2}", pc, E("biome", gen.BiomeAt(pc).ToString()), E("tile", gen.TileAt(pc).ToString())), small);
             var hd = session.World.DepositAt(mining.HoverCell);
             var hb = session.Grid.At(mining.HoverCell);
-            string hover = hb != null ? Loc.Building(hb.Def) + (hb.State != null ? $" [{hb.State.Status}]  E to open" : "") : hd.IsNone ? gen.TileAt(mining.HoverCell).ToString() : $"{hd.Type} x{hd.Amount}";
-            GUILayout.Label($"Cursor {mining.HoverCell}: {hover}", small);
+            string hover = hb != null ? Loc.Building(hb.Def) + (hb.State != null ? " [" + Loc.T("st." + hb.State.Status.Replace(' ', '_'), hb.State.Status) + "]  " + Loc.T("hud.eToOpen", "E to open") : "")
+                         : hd.IsNone ? E("tile", gen.TileAt(mining.HoverCell).ToString()) : $"{E("res", hd.Type.ToString())} x{hd.Amount}";
+            GUILayout.Label(Loc.T("hud.cursor", "Cursor {0}: {1}", mining.HoverCell, hover), small);
             var vt = session.State.Vitals;
             string V(float v) => v < 25 ? $"<color={Settings.Bad}>{v:0}</color>" : $"{v:0}";
-            string warn = vt.Warning != "" ? $"  <color=#ffb347><b>{vt.Warning}</b></color>" : "";
-            GUILayout.Label($"HP {V(vt.Health)}  Food {V(vt.Hunger)}  Water {V(vt.Thirst)}  O2 {V(vt.Oxygen)}  {vt.BodyTemp:0.0}°C{warn}", small);
+            string warn = vt.Warning != "" ? $"  <color=#ffb347><b>{E("warn", vt.Warning.Replace(' ', '_'))}</b></color>" : "";
+            GUILayout.Label(Loc.T("hud.vitals", "HP {0}  Food {1}  Water {2}  O2 {3}  {4}°C", V(vt.Health), V(vt.Hunger), V(vt.Thirst), V(vt.Oxygen), vt.BodyTemp.ToString("0.0")) + warn, small);
             GUILayout.EndArea();
 
             // mining progress

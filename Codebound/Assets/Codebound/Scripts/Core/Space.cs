@@ -110,6 +110,7 @@ namespace Codebound.Core
             foreach (var line in from.Hud.SaveLines()) t.Hud.LoadLine(line.Split(' '));
             t.Clock.Seconds = Math.Max(t.Clock.Seconds, from.Clock.Seconds);
             t.Story.CopyFrom(from.Story);
+            t.Tutorial.Index = from.Tutorial.Index; t.Tutorial.AutoMined = from.Tutorial.AutoMined;
             foreach (var kv in from.Guests)   // multiplayer guests fly along with their things
             {
                 var gi = t.GuestInventory(kv.Key); gi.Clear();

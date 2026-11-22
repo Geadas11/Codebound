@@ -69,19 +69,20 @@ namespace Codebound.Core.Hud
         }
 
         // ------------------------------------------------------------ starter content
-        public const string StarterHtml =
+        /// <summary>The starter box, with its labels in the player's language (it is plain HTML the player can edit).</summary>
+        public static string StarterHtml =>
             "<!-- Your HUD box. Edit the HTML and CSS, then press Apply. -->\n" +
             "<div class=\"card\">\n" +
-            "  <h3>Status</h3>\n" +
+            "  <h3>" + Loc.T("hudtpl.status", "Status") + "</h3>\n" +
             "  <p class=\"warn\">{{player.warning}}</p>\n" +
-            "  <p>Health {{player.health}}</p>\n" +
+            "  <p>" + Loc.T("hudtpl.health", "Health") + " {{player.health}}</p>\n" +
             "  <progress class=\"hp\" value=\"{{player.health}}\" max=\"100\"></progress>\n" +
-            "  <p>Food {{player.hunger}}  Water {{player.thirst}}  O2 {{player.oxygen}}  {{player.temp}} C</p>\n" +
-            "  <p>Biome: <b>{{player.biome}}</b></p>\n" +
-            "  <p>Position: {{player.x}}, {{player.y}}</p>\n" +
-            "  <p>Power: <span class=\"kw\">{{power.demandKW}} / {{power.capacityKW}} kW</span></p>\n" +
+            "  <p>" + Loc.T("hudtpl.vitals", "Food {0}  Water {1}  O2 {2}  {3} C", "{{player.hunger}}", "{{player.thirst}}", "{{player.oxygen}}", "{{player.temp}}") + "</p>\n" +
+            "  <p>" + Loc.T("hudtpl.biome", "Biome:") + " <b>{{player.biome}}</b></p>\n" +
+            "  <p>" + Loc.T("hudtpl.position", "Position:") + " {{player.x}}, {{player.y}}</p>\n" +
+            "  <p>" + Loc.T("hudtpl.power", "Power:") + " <span class=\"kw\">{{power.demandKW}} / {{power.capacityKW}} kW</span></p>\n" +
             "  <progress value=\"{{power.usage}}\" max=\"100\"></progress>\n" +
-            "  <p>Iron ore: {{inventory.iron_ore}}  Coal: {{inventory.coal}}</p>\n" +
+            "  <p>" + Loc.T("hudtpl.ores", "Iron ore: {0}  Coal: {1}", "{{inventory.iron_ore}}", "{{inventory.coal}}") + "</p>\n" +
             "</div>\n";
 
         public const string StarterCss =
@@ -93,7 +94,7 @@ namespace Codebound.Core.Hud
             ".hp { color: #ff5d5d; }\n" +
             ".warn { color: orange; font-weight: bold; }\n";
 
-        public static HudPanel Starter() => new HudPanel { Title = "Status", Html = StarterHtml, Css = StarterCss };
+        public static HudPanel Starter() => new HudPanel { Title = Loc.T("hudtpl.status", "Status"), Html = StarterHtml, Css = StarterCss };
 
         // ------------------------------------------------------------ save
         static readonly CultureInfo Inv = CultureInfo.InvariantCulture;

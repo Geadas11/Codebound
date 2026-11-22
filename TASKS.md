@@ -122,10 +122,16 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ SQL: comandos `land`, `mine_asteroid`, `dock`, `answer`, `transmit` (sem leitura dos dados do desafio — usar outra linguagem para os retransmissores)
 - ✅ 7 testes + Play Mode (programa JS: acoplar, resolver, minerar, transmitir → ecrã final) + cliente de rede: o convidado segue o anfitrião para o mundo vulcânico e aterra ao lado
 
-## Etapa 8 — Polimento (em progresso)
+## Etapa 8 — Polimento ✅ (exceto builds macOS/Linux)
 - ✅ Ecrã inicial (Continuar = save mais recente entre quicksave e autosave, Novo jogo com seed opcional, Idioma, Sair), mundo em pausa por trás; não aparece com -selftest/-host/-join/-seed/batchmode
 - ✅ Auto-save a cada 5 min em `autosave.cbsave` (separado do quicksave; nunca nos convidados)
-- ⬜ Arte final (substituir sprites procedurais mantendo 16 px/célula), animações, música composta, tutorial guiado, desempenho com bases grandes, builds macOS/Linux
+- ✅ Desempenho: base de 2000 edifícios — tick da simulação 5,06 → ~1,0 ms (hubs de armazenamento e redes elétricas com procura espacial em vez de todos-contra-todos), tick depois de mexer na rede 28 → ~4 ms; no ecrã 24,5 → 96,6 FPS (as opções liam o registo do Windows por edifício e por frame — agora em cache). 2 testes de desempenho com orçamento
+- ✅ Tutorial guiado (8 passos: madeira, pedra, perfuradora, eletricidade, computador, primeiro programa, mineração automática, investigação), verificado pelo estado do mundo, guardado, pode ser saltado; saves antigos começam com ele concluído; escondido nos convidados — 2 testes
+- ✅ Arte final em código: terreno com manchas e detalhes (ervas, flores, ondulações, fendas, ondas), 8 variantes, bordas suaves entre tipos de chão e espuma na água; 3 variantes de árvores (folhosa, pinheiro, arbusto) e de cada minério; sombras dos edifícios; detalhe nos edifícios lisos (hub, servidor, depurador, aquecedor, para-raios, plataforma de lançamento, muro reforçado…)
+- ✅ Animações: jogador a andar (4 frames), máquinas a trabalhar (perfuradora roda, ventoinha do gerador, engrenagem da montadora, chevrons das correias, chama da fornalha, bolhas do laboratório, LEDs do servidor, grelha do depurador, resistência do aquecedor), criaturas (patas, rotores); respeitam "reduzir efeitos" — frames distintos verificados
+- ✅ Música composta (`Core/Music.cs`): peça de 16 compassos em lá menor a 96 BPM (secções A/B, ~40 s, loop sem costura), 4 camadas sincronizadas — dia (melodia, arpejo, pad, eco), noite (sinos, entra ao anoitecer), indústria (baixo, bombo, pratos), perigo (drone, tímpanos, cordas em trémulo); composta numa thread em segundo plano — 2 testes; WAVs em `Codebound/Screenshots/mus_*.wav`
+- ✅ HUD traduzido: caixa de estado (tempo, estações, biomas, terrenos, recursos, avisos dos vitais) e a caixa "Estado" inicial do HUD programável
+- ⬜ Builds macOS/Linux (precisam de módulos do Unity e do Node/Python de cada plataforma — downloads)
 
 ## Linguagens
 - ✅ PHP 8.5: um processo por programa, sem php.ini nem extensões, `open_basedir` numa pasta inexistente (nenhum ficheiro acessível), funções de processos/rede/ficheiros/ambiente/configuração removidas, `memory_limit` = RAM + Job Object (memória, sem processos filhos), vigia de CPU no Unity; API `$machines`, `$drill`, `$energy`, `$hud`, `$world`, `$computer->on()`, `sleep()` em tempo de jogo, `echo` → log — 24 testes de runtime

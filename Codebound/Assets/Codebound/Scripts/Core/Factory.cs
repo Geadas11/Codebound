@@ -38,7 +38,7 @@ namespace Codebound.Core
         readonly List<PendingAction> actions = new List<PendingAction>();
         readonly Dictionary<int, Network> networkOf = new Dictionary<int, Network>();
         readonly List<Network> networks = new List<Network>();
-        bool powerDirty = true;
+        bool powerDirty = true, powerDirtyForHubs = true;
 
         /// <summary>A machine finished an action with a product (drives "item_mined"/"item_smelted" program events).</summary>
         public event Action<PlacedBuilding, string> ActionCompleted;
@@ -46,12 +46,12 @@ namespace Codebound.Core
         public Factory(WorldState world, BuildGrid grid)
         {
             this.world = world; this.grid = grid;
-            grid.Placed += b => { b.State = CreateState(b.Def); if (b.State is GreenhouseState g) g.NearWater = NearWater(b); powerDirty = true; };
+            grid.Placed += b => { b.State = CreateState(b.Def); if (b.State is GreenhouseState g) g.NearWater = NearWater(b); powerDirty = powerDirtyForHubs = true; };
             grid.Removed += b =>
             {
                 for (int i = actions.Count - 1; i >= 0; i--)
                     if (actions[i].Machine == b) { var a = actions[i]; actions.RemoveAt(i); a.Done?.Invoke(null); }
-                powerDirty = true;
+                powerDirty = powerDirtyForHubs = true;
             };
         }
 
@@ -107,6 +107,24 @@ namespace Codebound.Core
             var nodes = new List<PlacedBuilding>();
             foreach (var b in grid.Buildings) if (IsNode(b)) nodes.Add(b);
 
+            // spatial buckets of PoleReach cells: every link (≤ PoleReach) and supply (≤ PoleSupply + half a building) is in the 3×3 around
+            var buckets = new Dictionary<(int, int), List<int>>();
+            (int, int) Key(double x, double y) => ((int)Math.Floor(x / PoleReach), (int)Math.Floor(y / PoleReach));
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                var k = Key(nodes[i].CenterX, nodes[i].CenterY);
+                if (!buckets.TryGetValue(k, out var l)) buckets[k] = l = new List<int>();
+                l.Add(i);
+            }
+            var near = new List<int>();
+            void Near(PlacedBuilding b)   // node indexes around b, in list order (same order as the old all-pairs scan)
+            {
+                near.Clear();
+                var (kx, ky) = Key(b.CenterX, b.CenterY);
+                for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) if (buckets.TryGetValue((kx + dx, ky + dy), out var l)) near.AddRange(l);
+                near.Sort();
+            }
+
             foreach (var start in nodes)
             {
                 if (networkOf.ContainsKey(start.InstanceId)) continue;
@@ -120,8 +138,12 @@ namespace Codebound.Core
                     if (n.Def.Kind == BuildingKind.Generator) net.Generators.Add(n);
                     if (n.Def.Kind == BuildingKind.Solar) net.Solars.Add(n);
                     if (n.Def.Kind == BuildingKind.Battery) net.Batteries.Add(n);
-                    foreach (var m in nodes)
+                    Near(n);
+                    foreach (int i in near)
+                    {
+                        var m = nodes[i];
                         if (!networkOf.ContainsKey(m.InstanceId) && n.DistanceTo(m) <= PoleReach) { networkOf[m.InstanceId] = net; stack.Push(m); }
+                    }
                 }
             }
 
@@ -130,8 +152,10 @@ namespace Codebound.Core
                 if (!IsConsumer(c)) continue;
                 var (cw, ch) = c.Size;
                 double pad = Math.Max(cw, ch) / 2.0;
-                foreach (var n in nodes)
+                Near(c);
+                foreach (int i in near)
                 {
+                    var n = nodes[i];
                     double reach = (n.Def.Kind == BuildingKind.Pole ? PoleSupply : GeneratorSupply) + pad;
                     if (n.DistanceTo(c) <= reach) { var net = networkOf[n.InstanceId]; net.Consumers.Add(c); networkOf[c.InstanceId] = net; break; }
                 }
@@ -475,14 +499,30 @@ namespace Codebound.Core
             LinkStorageHubs();
         }
 
+        int hubRelink;
+        readonly List<PlacedBuilding> found = new List<PlacedBuilding>();
+
+        /// <summary>Hubs see the chests within their radius. Relinked when something is built or removed (and once a second,
+        /// in case a building's state object was replaced), looking only at the cells around each hub.</summary>
         void LinkStorageHubs()
         {
+            bool relink = powerDirtyForHubs || ++hubRelink >= 20;
+            if (relink) { powerDirtyForHubs = false; hubRelink = 0; }
+            int r = (int)Math.Ceiling(StorageHubState.Radius) + 2;
             foreach (var b in grid.Buildings)
             {
                 if (!(b.State is StorageHubState hub)) continue;
-                hub.Chests.Clear();
-                foreach (var c in grid.Buildings)
-                    if (c.State is StorageState s && c.DistanceTo(b) <= StorageHubState.Radius) hub.Chests.Add(s);
+                if (relink)
+                {
+                    found.Clear();
+                    int cx = (int)Math.Floor(b.CenterX), cy = (int)Math.Floor(b.CenterY);
+                    for (int dx = -r; dx <= r; dx++)
+                        for (int dy = -r; dy <= r; dy++)
+                            if (grid.At(new Cell(cx + dx, cy + dy)) is PlacedBuilding c && c.State is StorageState && c.DistanceTo(b) <= StorageHubState.Radius && !found.Contains(c)) found.Add(c);
+                    found.Sort((p, q) => p.InstanceId.CompareTo(q.InstanceId));   // same order as before: the order they were built
+                    hub.Chests.Clear();
+                    foreach (var c in found) hub.Chests.Add((StorageState)c.State);
+                }
                 hub.Status = hub.PowerSatisfaction <= 0 ? "no power" : $"{hub.Chests.Count} chests";
             }
         }

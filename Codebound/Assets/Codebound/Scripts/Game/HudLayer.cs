@@ -208,7 +208,7 @@ namespace Codebound.Game
             {
                 case "player.x": return Mathf.FloorToInt(pos.x).ToString(CultureInfo.InvariantCulture);
                 case "player.y": return Mathf.FloorToInt(pos.y).ToString(CultureInfo.InvariantCulture);
-                case "player.biome": return st.World.Generator.BiomeAt(GameSession.CellAt(pos)).ToString();
+                case "player.biome": { var b = st.World.Generator.BiomeAt(GameSession.CellAt(pos)).ToString(); return Loc.T("biome." + b, b); }
                 case "planet.name": return StarSystem.Get(st.HomeSeed, st.PlanetId)?.Name ?? st.PlanetId;
                 case "ship.phase": case "ship.altitude": case "ship.velocity": case "ship.heat": case "ship.fuel":
                 {
@@ -232,7 +232,7 @@ namespace Codebound.Game
                 case "player.thirst": return Mathf.RoundToInt(st.Vitals.Thirst).ToString(CultureInfo.InvariantCulture);
                 case "player.oxygen": return Mathf.RoundToInt(st.Vitals.Oxygen).ToString(CultureInfo.InvariantCulture);
                 case "player.temp": return st.Vitals.BodyTemp.ToString("0.0", CultureInfo.InvariantCulture);
-                case "player.warning": return st.Vitals.Warning;
+                case "player.warning": return st.Vitals.Warning == "" ? "" : Loc.T("warn." + st.Vitals.Warning.Replace(' ', '_'), st.Vitals.Warning);
                 case "player.ambient": return session.Surroundings.AmbientC.ToString("0", CultureInfo.InvariantCulture);
                 case "game.day": return st.Clock.Day.ToString(CultureInfo.InvariantCulture);
                 case "game.clock": return st.Clock.ClockText;
