@@ -13,7 +13,9 @@ namespace Codebound.Core
     /// </summary>
     public static class Multiplayer
     {
-        public const int Port = 47820, ProtocolVersion = 1;
+        public const int Port = 47820, ProtocolVersion = 2;
+        public const int MaxGuests = 8, MaxChat = 200, MaxSnippet = 4096;
+        public const double MoveSpeed = 5, MoveBurst = 6;   // cells/s of PlayerController.Speed; burst absorbs network jitter
         public const double ActionReach = 6;   // cells; a little over the local reach to absorb latency
         public const int MaxGuestLine = 256 * 1024, MaxHostLine = 32 * 1024 * 1024, MaxProgramChars = 64 * 1024;
         public const string Builder = "builder", Visitor = "visitor", Admin = "admin";   // admin: may also remove what others built
@@ -24,7 +26,7 @@ namespace Codebound.Core
         // ---------------------------------------------------------------- snapshots (host → guest)
         /// <summary>The save text minus secrets: password-protected computers go out without their hash, code or database,
         /// and other guests' inventories are left out.</summary>
-        public static string Snapshot(GameState g)
+        public static string Snapshot(GameState g, ICollection<Cell> unlocked = null)
         {
             var w = new StringWriter(); SaveSystem.Write(g, w);
             var lines = w.ToString().Split('\n');
@@ -32,13 +34,25 @@ namespace Codebound.Core
             for (int i = 0; i < lines.Length; i++)
             {
                 string l = lines[i].TrimEnd('\r');
-                if (l.Length == 0 || l.StartsWith("ginv ")) continue;
+                if (l.Length == 0 || l.StartsWith("ginv ") || l.StartsWith("gbody ")) continue;
                 if (l.StartsWith("b "))
                 {
                     int end = i + 1;
                     while (end < lines.Length && (lines[end].StartsWith("bx ") || lines[end].StartsWith("bi ") || lines[end].StartsWith("bh ") || lines[end].StartsWith("bo "))) end++;
                     bool locked = false;
                     for (int k = i + 1; k < end; k++) if (lines[k].StartsWith("bx pwd ")) locked = true;
+                    if (locked && unlocked != null)   // this guest gave the right password: it may see the code (never the hash)
+                    {
+                        var bp = l.Split(' ');
+                        if (bp.Length >= 4 && int.TryParse(bp[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int bx) && int.TryParse(bp[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out int by)
+                            && unlocked.Contains(new Cell(bx, by)))
+                        {
+                            o.Append(l).Append('\n');
+                            for (int k = i + 1; k < end; k++) { string bl = lines[k].TrimEnd('\r'); o.Append(bl.StartsWith("bx pwd ") ? "bx pwd locked" : bl).Append('\n'); }
+                            i = end - 1;
+                            continue;
+                        }
+                    }
                     o.Append(l).Append('\n');
                     for (int k = i + 1; k < end; k++)
                     {
@@ -73,7 +87,12 @@ namespace Codebound.Core
                 var sb = kv.Value;
                 if (!have.TryGetValue(kv.Key, out var tb)) tb = t.Grid.Place(sb.Def, sb.Origin, sb.Rotation);
                 if (tb == null) continue;   // cannot happen with the same seed and deltas; skip rather than break the session
-                if (tb == editing && tb.State is ComputerState oc && sb.State is ComputerState nc) { nc.Code = oc.Code; nc.Language = oc.Language; }   // keep what the guest is typing
+                if (tb == editing && tb.State is ComputerState oc && sb.State is ComputerState nc)   // keep what the guest is typing
+                {
+                    nc.Code = oc.Code; nc.Language = oc.Language;
+                    nc.Files.Clear(); foreach (var f in oc.Files) nc.Files[f.Key] = f.Value;
+                    nc.Watches.Clear(); nc.Watches.AddRange(oc.Watches);
+                }
                 tb.State = sb.State; tb.Health = sb.Health; tb.Owner = sb.Owner;
             }
 
@@ -81,6 +100,57 @@ namespace Codebound.Core
             if (s.Research.SaveLine() is string rl) t.Research.Load(rl.Split(' '));
             foreach (var line in s.Exploration.SaveLines()) t.Exploration.Load(line.Split(' '));
             t.Ecology.CopyFrom(s.Ecology);
+        }
+
+        // ---------------------------------------------------------------- chat, movement, vitals (host side checks)
+        /// <summary>Chat text made safe to show: no control characters or rich-text tags, at most MaxChat characters. Null if nothing is left.</summary>
+        public static string CleanChat(string text)
+        {
+            if (text == null) return null;
+            var sb = new System.Text.StringBuilder();
+            foreach (char c in text)
+            {
+                if (char.IsControl(c)) continue;
+                sb.Append(c == '<' ? '‹' : c == '>' ? '›' : c);
+                if (sb.Length >= MaxChat) break;
+            }
+            string r = sb.ToString().Trim();
+            return r.Length == 0 ? null : r;
+        }
+
+        /// <summary>Is a guest's reported move believable? Speed is limited by a budget that refills at MoveSpeed (up to MoveBurst cells),
+        /// and the feet may not end in a solid cell. A jump back to the spawn point (respawn) is always allowed.</summary>
+        public static bool CheckMove(Func<Cell, bool> solid, ref double budget, double dt, double ox, double oy, double nx, double ny, double spawnX, double spawnY)
+        {
+            if (double.IsNaN(nx) || double.IsNaN(ny) || double.IsInfinity(nx) || double.IsInfinity(ny) || Math.Abs(nx) > 1e7 || Math.Abs(ny) > 1e7) return false;
+            budget = Math.Min(MoveBurst, budget + Math.Max(0, dt) * MoveSpeed * 1.2);
+            if (Math.Abs(nx - spawnX) < 3 && Math.Abs(ny - spawnY) < 3) return true;
+            double d = Math.Sqrt((nx - ox) * (nx - ox) + (ny - oy) * (ny - oy));
+            if (d > budget) return false;
+            if (d > 0.01 && solid(new Cell((int)Math.Floor(nx), (int)Math.Floor(ny - 0.2)))) return false;   // feet, as in PlayerController
+            budget -= d;
+            return true;
+        }
+
+        /// <summary>Vitals reported by a guest, kept in range.</summary>
+        public static void LoadVitals(Vitals v, string line)
+        {
+            var p = (line ?? "").Split(' ');
+            if (p.Length < 6 || p[0] != "vitals") throw new FormatException("bad vitals");
+            var t = new Vitals(); t.Load(p);
+            float C(float x, float lo, float hi) => float.IsNaN(x) ? hi : Math.Max(lo, Math.Min(hi, x));
+            v.Health = C(t.Health, 1, Vitals.Max); v.Hunger = C(t.Hunger, 0, Vitals.Max); v.Thirst = C(t.Thirst, 0, Vitals.Max);
+            v.Oxygen = C(t.Oxygen, 0, Vitals.Max); v.BodyTemp = C(t.BodyTemp, 25, 45);
+        }
+
+        /// <summary>Optional world password compared in constant time.</summary>
+        public static bool WorldPasswordOk(string expected, string given)
+        {
+            if (string.IsNullOrEmpty(expected)) return true;
+            given = given ?? "";
+            int diff = expected.Length ^ given.Length;
+            for (int i = 0; i < expected.Length; i++) diff |= expected[i] ^ (i < given.Length ? given[i] : 0);
+            return diff == 0;
         }
 
         // ---------------------------------------------------------------- guest actions (validated on the host)

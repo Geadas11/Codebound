@@ -63,14 +63,14 @@ namespace Codebound.Game
 
             var st = s.State;
             st.Grid.Placed += b => Play("place", Pos(b), null);
-            st.Lightning.Struck += (x, y, rod) => Play("thunder", new Vector2((float)x, (float)y), rod ? "[thunder] the lightning rod took a strike" : "[thunder] lightning strike");
+            st.Lightning.Struck += (x, y, rod) => Play("thunder", new Vector2((float)x, (float)y), rod ? Loc.T("cap.rod", "[thunder] the lightning rod took a strike") : Loc.T("cap.lightning", "[thunder] lightning strike"));
             st.Grid.Removed += b => Play("remove", Pos(b), null);
             st.Creatures.Died += c => Play("dissolve", new Vector2((float)c.X, (float)c.Y), null);
-            st.Creatures.WaveArrived += n => Play("alarm", null, $"[alarm] {n} creature{(n > 1 ? "s" : "")} approaching");
-            st.Creatures.BuildingDestroyed += b => Play("error", Pos(b), $"[crash] {b.Def.DisplayName} destroyed");
-            st.Creatures.IntrusionStarted += (b, c) => Play("alarm", Pos(b), $"[intrusion alarm] drone breaking into PC-{b.InstanceId}");
-            st.Creatures.ComputerCompromised += b => Play("alarm", Pos(b), $"[security alarm] PC-{b.InstanceId} compromised");
-            st.Research.Completed += t => Play("chime", null, $"[chime] research complete: {t.Name}");
+            st.Creatures.WaveArrived += n => Play("alarm", null, Loc.T(n > 1 ? "cap.waveN" : "cap.wave1", n > 1 ? "[alarm] {0} creatures approaching" : "[alarm] a creature is approaching", n));
+            st.Creatures.BuildingDestroyed += b => Play("error", Pos(b), Loc.T("cap.destroyed", "[crash] {0} destroyed", Loc.Building(b.Def)));
+            st.Creatures.IntrusionStarted += (b, c) => Play("alarm", Pos(b), Loc.T("cap.intrusion", "[intrusion alarm] drone breaking into PC-{0}", b.InstanceId));
+            st.Creatures.ComputerCompromised += b => Play("alarm", Pos(b), Loc.T("cap.compromised", "[security alarm] PC-{0} compromised", b.InstanceId));
+            st.Research.Completed += t => Play("chime", null, Loc.T("cap.research", "[chime] research complete: {0}", Loc.Tech(t)));
         }
 
         static Vector2 Pos(PlacedBuilding b) => new Vector2((float)b.CenterX, (float)b.CenterY);
@@ -154,7 +154,7 @@ namespace Codebound.Game
                     if (!nextBeep.TryGetValue(b.InstanceId, out float t) || Time.time >= t)
                     {
                         nextBeep[b.InstanceId] = Time.time + 4f;
-                        Play("beep", Pos(b), $"[warning beep] {b.Def.DisplayName}: {b.State.Status}");
+                        Play("beep", Pos(b), Loc.T("cap.beep", "[warning beep] {0}: {1}", Loc.Building(b.Def), Loc.T("st." + b.State.Status.Replace(' ', '_'), b.State.Status)));
                     }
                 }
                 if (vol > 0) near.Add((b, d, vol, pitch, clip));
@@ -242,18 +242,18 @@ namespace Codebound.Game
             // turret shots
             int shots = 0; PlacedBuilding shooter = null;
             foreach (var b in session.Grid.Buildings) if (b.State is TurretState ts) { shots += ts.Shots; if (ts.LastShotTime >= session.State.Clock.Seconds - 0.2) shooter = b; }
-            if (shots > lastShots && shooter != null) Play("shot", Pos(shooter), "[zap] turret firing");
+            if (shots > lastShots && shooter != null) Play("shot", Pos(shooter), Loc.T("cap.turret", "[zap] turret firing"));
             lastShots = shots;
 
             // the player getting hurt
             float hp = session.State.Vitals.Health;
             hurtCooldown -= dt;
-            if (hp < lastHealth - 0.5f && hurtCooldown <= 0) { Play("hurt", null, "[pain] you are hurt"); hurtCooldown = 1.2f; }
+            if (hp < lastHealth - 0.5f && hurtCooldown <= 0) { Play("hurt", null, Loc.T("cap.hurt", "[pain] you are hurt")); hurtCooldown = 1.2f; }
             lastHealth = hp;
 
             // programmable alarms
             var hud = session.State.Hud;
-            while (hud.Alarms.Count > 0) Play("alarm", null, "[program alarm] " + hud.Alarms.Dequeue());
+            while (hud.Alarms.Count > 0) Play("alarm", null, Loc.T("cap.programAlarm", "[program alarm] {0}", hud.Alarms.Dequeue()));
         }
 
         void OnGUI()

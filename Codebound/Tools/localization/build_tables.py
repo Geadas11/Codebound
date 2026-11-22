@@ -166,6 +166,9 @@ def main():
     more = {}
     exec(open(os.path.join(here, "tables_more.py"), encoding="utf-8").read(), more)   # -I: no imports from the script folder
     T.update(more["T2"])
+    e5 = {}
+    exec(open(os.path.join(here, "tables_etapa5.py"), encoding="utf-8").read(), e5)
+    T.update(e5["T3"])
     out = os.path.join(here, "..", "..", "Assets", "StreamingAssets", "Localization")
     os.makedirs(out, exist_ok=True)
     for key, row in T.items():

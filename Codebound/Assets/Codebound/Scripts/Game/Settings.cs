@@ -117,7 +117,7 @@ namespace Codebound.Game
         {
             ("up", "Move up", Key.W), ("down", "Move down", Key.S), ("left", "Move left", Key.A), ("right", "Move right", Key.D),
             ("build", "Build mode", Key.B), ("rotate", "Rotate", Key.R), ("interact", "Open machine / computer", Key.E),
-            ("eat", "Eat", Key.F), ("research", "Research tree", Key.T), ("inventory", "Inventory", Key.Tab), ("journal", "Journal", Key.J), ("network", "Multiplayer", Key.N),
+            ("eat", "Eat", Key.F), ("research", "Research tree", Key.T), ("inventory", "Inventory", Key.Tab), ("journal", "Journal", Key.J), ("network", "Multiplayer", Key.N), ("chat", "Chat", Key.Enter),
             ("save", "Quick save", Key.F5), ("load", "Quick load", Key.F9),
         };
 

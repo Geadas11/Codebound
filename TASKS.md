@@ -85,11 +85,11 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ Energia renovável: painel solar 2×2 (40 kW × luz do dia × clima), bateria 1×1 (carrega só com sobra solar, descarrega quando falta), investigação Energy; ordem de fornecimento solar → carvão → bateria; `{{power.storedKJ}}`, `energy.stats().storedKJ`; carga guardada no save — 3 testes
 - ✅ Localização: 10 línguas (en, pt-PT, pt-BR, es, fr, de, it, ja, zh-Hans, ko), 115 textos (menu, teclas, HUD fixo, investigação, notificações, estruturas, itens, tecnologias), seletor no menu Esc, idioma do SO por omissão, fonte CJK do sistema; sintaxe e API de programação nunca traduzidas — 2 testes + Play Mode (ja, pt-PT)
 - ✅ Localização das descrições das tecnologias, registos e de todos os textos novos (230 chaves × 10 línguas)
-- ⬜ Localização ainda em falta: mensagens do painel de máquinas/editor de código e legendas de som (continuam em inglês)
+- ✅ Localização completa do painel de máquinas, editor de código (separadores, depurador, terminal, histórico, diagrama), dicas por linguagem, modo Guiado, estados das máquinas (só no ecrã: os programas continuam a ver os códigos em inglês) e legendas de som — 468 chaves × 10 línguas (`Tools/localization/tables_etapa5.py`), placeholders verificados em todas. Ficam em inglês: nomes dos exemplos, referência da API e código
 - ✅ Equipamento (funciona enquanto está no inventário, feito na montadora): multiferramenta laser (dano 25 e mineração 2×), placas de blindagem (metade do dano das criaturas), forro térmico (o fato fica a meio caminho dos 22 °C); armadilha de choque (pisável, 30 de dano + 3 s atordoado, 3 cargas, recarrega com fio de cobre — sem violência gráfica); muro reforçado (1000 HP); investigação Materials — 2 testes
 - ✅ Permissões multijogador: dono de cada edifício (guardado); construtores só removem o que construíram; novo papel administrador; painel N alterna visitante → construtor → administrador — 1 teste
 
-## Etapa 6 — Multijogador (base feita)
+## Etapa 6 — Multijogador ✅
 - ✅ LAN cooperativo com anfitrião autoritário (TCP, porta 47820, JSON por linha): painel N (nome, IP, abrir/entrar/desligar), `-host` / `-join <ip>` / `-name <n>` na linha de comandos
 - ✅ O anfitrião simula tudo (máquinas, programas, criaturas, poluição) e envia instantâneos 2×/s (save sem segredos: computadores com palavra-passe vão sem hash, código nem base de dados SQL); o convidado aplica-os no lugar (edifícios iguais não são recriados) e não simula
 - ✅ Ações do convidado validadas no anfitrião (`Multiplayer.Act`): construir, remover, minerar (limite 4/s), tirar/pôr itens, reparar, atacar, explorar, comer; alcance de 6 células, materiais, investigação, papel
@@ -97,7 +97,14 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ Permissões: construtor / visitante (só anda e luta), expulsar; projetos partilhados: o convidado edita e corre/para programas no computador do anfitrião (sandbox do anfitrião; palavra-passe verificada no anfitrião)
 - ✅ Outros jogadores visíveis com nome
 - ✅ 3 testes + verificação real: build como anfitrião (batchmode) + Editor como convidado → mundo recebido, 2 pedras mineradas, muro construído e devolvido no instantâneo
-- ⬜ Debug de programas para convidados, código de computadores trancados visível após palavra-passe, chat, posição do convidado validada (hoje confia-se na posição enviada), internet/NAT, vitais dos convidados guardados
+- ✅ Convidados com o editor completo: Run/Debug/Stop, Continue/Into/Over/Out, breakpoints, watches, ficheiros, terminal e snippets correm no anfitrião; consola, depurador (linha, pilha, variáveis, watches), monitor e diagrama chegam 4×/s só para o computador aberto
+- ✅ Computadores trancados: o convidado manda a palavra-passe uma vez (máx. 1 tentativa/s), o anfitrião verifica e passa a enviar o código e ficheiros só a esse convidado; o hash nunca sai do anfitrião
+- ✅ Chat (Enter): texto limpo (sem tags nem caracteres de controlo, 200 caracteres), 2 mensagens/s por convidado, nomes com a cor do jogador
+- ✅ Posição do convidado validada: orçamento de movimento (velocidade × 1,2 + 6 células de folga) e sem entrar em células sólidas; movimento impossível → o anfitrião devolve-o à última posição válida; voltar ao ponto de partida (respawn) é permitido
+- ✅ Vitais e posição de cada convidado guardados no mundo (`gbody`); ao voltar, o convidado aparece onde e como estava
+- ✅ Internet: palavra-passe do mundo opcional (comparação em tempo constante), máx. 8 convidados, ligações sem "hello" fechadas em 10 s, endereço por IP ou nome; botão "Abrir à internet" pede ao router por UPnP o reencaminhamento da porta 47820 (e mostra o IP externo), retirado ao parar de hospedar ou sair do jogo; se falhar, explica como reencaminhar à mão
+- ✅ 7 testes + verificação real: Editor como anfitrião + cliente de protocolo (13 verificações: palavra-passe do mundo, teletransporte corrigido, chat limpo, computador trancado/destrancado, programa e snippet do convidado com consola remota, vitais ao voltar) e Editor como convidado de um anfitrião simulado (depurador remoto e chat no ecrã, mensagens enviadas corretas)
+- ⬜ Não testado: UPnP num router real (só o texto dos pedidos/respostas); o tráfego não é cifrado
 
 ## Etapa 7 — Espaço (base feita)
 - ✅ Plataforma de lançamento 3×3 (desbloqueada por Ship: Launch Sequence), combustível carvão = 4 / petróleo = 10 unidades, até 250

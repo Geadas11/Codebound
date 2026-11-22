@@ -141,7 +141,7 @@ namespace Codebound.Game
                 {
                     var here = StarSystem.Get(state.HomeSeed, state.PlanetId);
                     state.Hud.Notify(Loc.T("notify.orbit", "ORBIT REACHED above {0}! Programs can now list worlds with pad.planets() and fly with pad.travel(id).", here?.Name ?? state.PlanetId));
-                    AudioDirector.Instance?.Play("chime", null, "[chime] orbit reached");
+                    AudioDirector.Instance?.Play("chime", null, Loc.T("cap.orbit", "[chime] orbit reached"));
                 }
                 else state.Hud.Notify(Loc.T("notify.aborted", "Launch {0}. The capsule parachuted back to the pad.", result));
             };

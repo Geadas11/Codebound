@@ -25,6 +25,8 @@ namespace Codebound.Core
         /// <summary>Multiplayer guests' inventories, kept by the host and saved with the world.</summary>
         public readonly Dictionary<string, Inventory> Guests = new Dictionary<string, Inventory>();
         public Inventory GuestInventory(string name) { if (!Guests.TryGetValue(name, out var i)) Guests[name] = i = new Inventory(40); return i; }
+        /// <summary>Where each guest was and how they were (health, food...) when last seen — they rejoin as they left.</summary>
+        public readonly Dictionary<string, GuestBody> GuestBodies = new Dictionary<string, GuestBody>();
 
         /// <summary>Which world of the star system this is (Etapa 7). HomeSeed names the whole system.</summary>
         public string PlanetId = "home";
@@ -116,6 +118,8 @@ namespace Codebound.Core
             w.WriteLine($"player {g.PlayerX.ToString("R", Inv)} {g.PlayerY.ToString("R", Inv)}");
             WriteInv(w, "inv", g.Inventory);
             foreach (var kv in g.Guests) WriteInv(w, "ginv " + kv.Key, kv.Value);
+            foreach (var kv in g.GuestBodies)
+                w.WriteLine($"gbody {kv.Key} {kv.Value.X.ToString("R", Inv)} {kv.Value.Y.ToString("R", Inv)} {kv.Value.Vitals.SaveLine().Substring("vitals ".Length)}");
             foreach (var kv in g.World.MinedDeltas) w.WriteLine($"mined {kv.Key.X} {kv.Key.Y} {kv.Value}");
             var extra = new SortedDictionary<string, string>();
             foreach (var b in g.Grid.Buildings)
@@ -190,6 +194,12 @@ namespace Codebound.Core
                         case "bo": Need(last).Owner = Multiplayer.ValidName(p[1]) ? p[1] : null; break;
                         case "hud": Need(g).Hud.LoadLine(p); break;
                         case "vitals": Need(g).Vitals.Load(p); break;
+                        case "gbody":
+                            if (!Multiplayer.ValidName(p[1])) break;
+                            var gb = new GuestBody { X = double.Parse(p[2], Inv), Y = double.Parse(p[3], Inv) };
+                            gb.Vitals.Load(new[] { "vitals", p[4], p[5], p[6], p[7], p[8] });
+                            Need(g).GuestBodies[p[1]] = gb;
+                            break;
                         case "clock": Need(g).Clock.Load(p); break;
                         case "research": Need(g).Research.Load(p); break;
                         case "explore": Need(g).Exploration.Load(p); break;
@@ -213,5 +223,15 @@ namespace Codebound.Core
         }
 
         static T Need<T>(T v) where T : class => v ?? throw new InvalidDataException("Record out of order");
+    }
+}
+
+namespace Codebound.Core
+{
+    /// <summary>A multiplayer guest's position and vitals, kept by the host.</summary>
+    public sealed class GuestBody
+    {
+        public double X, Y;
+        public readonly Vitals Vitals = new Vitals();
     }
 }
