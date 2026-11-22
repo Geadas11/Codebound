@@ -230,3 +230,12 @@
 - `MachinePanel` com caminho de convidado: estado do programa vem de `Net.RemotePc`; os exemplos ficam escondidos durante a execução (a barra não cabia em pt-PT).
 - Testes: 121/121 EditMode; build + self-test PASS; cliente de protocolo em Python contra o Editor anfitrião (13/13) e anfitrião simulado em Python para o Editor convidado (capturas `etapa6_guest.png`, `etapa6_chat.png`).
 - Ferramentas: o build não aceita `unity command --runtime` (sem suporte Pipeline no player), por isso os testes de rede usam o Editor + scripts Python. Heredoc voltou a estragar `\n` num patch — corrigido com um .py em ficheiro.
+
+## Sessão 4 (cont.): Etapa 6 cifrada e Etapa 7 completa
+- `Core/SecureChannel.cs`: DH grupo 14 (RFC 3526) com `BigInteger` + PBKDF2-SHA256 (20 000 iterações) da palavra-passe do mundo + HMAC das duas chaves públicas → 4 chaves (cifra/MAC por sentido). AES-256-CBC com IV aleatório, MAC sobre seq‖IV‖texto, comparação em tempo constante. A verificação explícita da palavra-passe foi retirada (a cifra já a verifica). Linhas de convidado até 1 MB (base64).
+- O cliente de teste passou de Python para C# (`Tests/nettest`, compilado com o .NET do Unity e com o próprio `SecureChannel.cs`) porque o Python incluído não tem AES.
+- Bug encontrado no teste real: o convidado mostrava "ligação perdida" em vez de "palavra-passe errada" — o anfitrião fecha logo a seguir ao kick; agora o convidado lê as mensagens pendentes antes de desistir.
+- Etapa 7: `Core/Orbit.cs` (`Story`, `Relays` com desafios determinísticos e `Check` por valor, `Asteroids`), `LaunchPadState` com porão, `Land`, `MineAsteroid`, `Dock`, `Answer`, `Transmit`; `Voyage.Carry` leva história, convidados e corpos; `Arrive` leva o porão. `EndingView` (GUI.depth à frente da leitura da órbita). `SpaceView` mostra a órbita.
+- Descoberto ao testar: a variável `pad` nunca existiu nos programas (o jogo e o TASKS diziam `pad.launch()`); adicionada em JS/Python/PHP/C#.
+- Teste de rede deixou `planet_1_home.cbsave` na pasta de saves (mundo de teste com seed 1); a remoção automática foi bloqueada — pode ser apagado à mão.
+- Testes: 129/129 EditMode; runtimes JS/TS, Python, PHP, C#, C/C++ a passar; build + self-test PASS.

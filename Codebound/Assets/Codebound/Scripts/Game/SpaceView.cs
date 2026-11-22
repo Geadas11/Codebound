@@ -44,14 +44,25 @@ namespace Codebound.Game
 
         void OnGUI()
         {
-            LaunchPadState lp = null;
-            foreach (var b in session.Grid.Buildings) if (b.State is LaunchPadState l && l.Phase == "ascent" && l.Flight != null) { lp = l; break; }
-            if (lp == null) return;
+            LaunchPadState lp = null, orbit = null;
+            foreach (var b in session.Grid.Buildings)
+                if (b.State is LaunchPadState l && l.Flight != null) { if (l.Phase == "ascent") { lp = l; break; } if (l.Phase == "orbit") orbit = l; }
+            if (lp == null && orbit == null) return;
             UiGui.Begin();
             if (box == null)
             {
                 var bg = new Texture2D(1, 1); bg.SetPixel(0, 0, new Color(0.02f, 0.03f, 0.06f, 0.92f)); bg.Apply();
                 box = new GUIStyle(GUI.skin.box) { normal = { background = bg, textColor = new Color(0.8f, 0.95f, 1f) }, fontSize = UiGui.Font(14), richText = true, alignment = TextAnchor.MiddleLeft, padding = new RectOffset(12, 12, 8, 8) };
+            }
+            if (lp == null)   // in orbit: where, fuel, cargo, story progress
+            {
+                var st = session.State;
+                int cargo = 0; for (int i = 0; i < orbit.Cargo.SlotCount; i++) cargo += orbit.Cargo[i].Count;
+                string where = StarSystem.Get(st.HomeSeed, st.PlanetId)?.Name ?? st.PlanetId;
+                GUI.Box(new Rect(UiGui.W / 2 - 230, 8, 460, 52),
+                    "<b>" + Loc.T("orbit.title", "IN ORBIT above {0}", where) + "</b>" + (orbit.Docked != null ? "  ·  " + Loc.T("orbit.docked", "docked at {0}", Relays.Name(orbit.Docked)) : "") + "\n" +
+                    Loc.T("orbit.line", "fuel {0}   cargo {1} items   key fragments {2}/{3}", orbit.Flight.Fuel.ToString("0"), cargo, st.Story.Fragments.Count, Relays.Total), box);
+                return;
             }
             var f = lp.Flight;
             string heatCol = f.Heat > 75 ? Settings.Bad : f.Heat > 50 ? "#ffd43b" : Settings.Good;

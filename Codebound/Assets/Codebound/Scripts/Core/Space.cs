@@ -109,6 +109,17 @@ namespace Codebound.Core
             foreach (var p in new List<Hud.HudPanel>(t.Hud.Panels)) t.Hud.Remove(p);
             foreach (var line in from.Hud.SaveLines()) t.Hud.LoadLine(line.Split(' '));
             t.Clock.Seconds = Math.Max(t.Clock.Seconds, from.Clock.Seconds);
+            t.Story.CopyFrom(from.Story);
+            foreach (var kv in from.Guests)   // multiplayer guests fly along with their things
+            {
+                var gi = t.GuestInventory(kv.Key); gi.Clear();
+                for (int i = 0; i < kv.Value.SlotCount; i++) if (!kv.Value[i].IsEmpty) gi.Add(kv.Value[i].ItemId, kv.Value[i].Count);
+            }
+            foreach (var kv in from.GuestBodies)
+            {
+                var b = new GuestBody(); b.Vitals.Load(kv.Value.Vitals.SaveLine().Split(' '));
+                t.GuestBodies[kv.Key] = b;   // position: set where the ship lands
+            }
         }
 
         /// <summary>Lands on `to` (a world visited before, or a new one when `saved` is null) and returns it.
@@ -136,9 +147,11 @@ namespace Codebound.Core
             {
                 var nl = (LaunchPadState)landed.State;
                 nl.Reserve = left; nl.LastResult = "landed on " + to.Name;
+                for (int i = 0; i < lp.Cargo.SlotCount; i++) if (!lp.Cargo[i].IsEmpty) nl.Cargo.Add(lp.Cargo[i].ItemId, lp.Cargo[i].Count);
                 t.PlayerX = landed.Origin.X + 1.5; t.PlayerY = landed.Origin.Y - 1.5;
             }
             else { t.PlayerX = s.X + 0.5; t.PlayerY = s.Y + 0.5; }
+            foreach (var b in t.GuestBodies.Values) { b.X = t.PlayerX; b.Y = t.PlayerY; }
             return t;
         }
     }
@@ -147,6 +160,9 @@ namespace Codebound.Core
     public sealed class LaunchPadState : MachineState
     {
         public readonly Inventory FuelBay = new Inventory(8);
+        public readonly Inventory Cargo = new Inventory(8);   // asteroid ore and relay salvage; taken out on the ground
+        public string Docked;       // planet id of the relay the ship is docked at (in orbit)
+        public int MinedDay; public readonly HashSet<int> Mined = new HashSet<int>();   // asteroids taken today
         public float Reserve;          // fuel units already in the tanks (left over from the last trip)
         public Ascent Flight;          // null on the ground
         public string Phase = "ready"; // ready | ascent | orbit
@@ -158,7 +174,7 @@ namespace Codebound.Core
         public static int UnitsOf(string item) => item == ItemDatabase.Coal ? 4 : item == ItemDatabase.Oil ? 10 : 0;
         public float FuelUnits { get { float u = Reserve; for (int i = 0; i < FuelBay.SlotCount; i++) if (!FuelBay[i].IsEmpty) u += UnitsOf(FuelBay[i].ItemId) * FuelBay[i].Count; return Math.Min(Ascent.MaxFuel, u); } }
 
-        public override IEnumerable<(string role, Inventory inv)> Inventories { get { yield return ("fuel", FuelBay); } }
+        public override IEnumerable<(string role, Inventory inv)> Inventories { get { yield return ("fuel", FuelBay); yield return ("cargo", Cargo); } }
         public override bool TryInsert(string itemId, int count) => UnitsOf(itemId) > 0 && FuelBay.TryAddAll(new[] { new ItemStack(itemId, count) });
 
         /// <summary>Starts the ascent. Returns null or why not.</summary>
@@ -175,10 +191,90 @@ namespace Codebound.Core
             return null;
         }
 
+        bool InOrbit => Phase == "orbit" && Flight != null;
+
+        /// <summary>From orbit back down to this pad. Costs 10 fuel; the rest stays in the tanks, the cargo can be unloaded here.</summary>
+        public string Land()
+        {
+            if (!InOrbit) return "the ship is not in orbit";
+            if (Flight.Fuel < Relays.LandFuel) return $"needs {Relays.LandFuel:0} fuel units to land, the tanks hold {Flight.Fuel:0}";
+            Reserve = Flight.Fuel - Relays.LandFuel; Flight = null; Phase = "ready"; Status = "ready"; Docked = null; LastResult = "landed";
+            return null;
+        }
+
+        /// <summary>Asteroids near this orbit today, each with whether it was mined already.</summary>
+        public List<object> AsteroidList(GameState g)
+        {
+            var l = new List<object>();
+            foreach (var a in Asteroids.Of(g.HomeSeed, g.PlanetId, g.Clock.Day)) l.Add(Asteroids.Info(a, MinedDay == g.Clock.Day && Mined.Contains(a.Id)));
+            return l;
+        }
+
+        /// <summary>Flies to asteroid `id`, mines it into the cargo hold and comes back. Null or why not.</summary>
+        public string MineAsteroid(GameState g, int id)
+        {
+            if (!InOrbit) return "the ship is not in orbit";
+            if (MinedDay != g.Clock.Day) { MinedDay = g.Clock.Day; Mined.Clear(); }
+            var a = Asteroids.Of(g.HomeSeed, g.PlanetId, g.Clock.Day).Find(x => x.Id == id);
+            if (a == null) return "no such asteroid (see pad.asteroids())";
+            if (Mined.Contains(id)) return "already mined today";
+            if (Flight.Fuel < a.Fuel + Relays.LandFuel) return $"needs {a.Fuel:0} fuel units plus {Relays.LandFuel:0} kept for landing";
+            if (!Cargo.TryAddAll(new[] { new ItemStack(a.Ore, a.Amount) })) return "the cargo hold is full: land and unload it";
+            Flight.Fuel -= a.Fuel; Mined.Add(id); Docked = null;
+            return null;
+        }
+
+        /// <summary>Docks at this world's Meridian relay (5 fuel). Returns the relay's log and check, or why not.</summary>
+        public string Dock(GameState g, out Dictionary<string, object> info)
+        {
+            info = null;
+            if (!InOrbit) return "the ship is not in orbit";
+            if (Relays.Name(g.PlanetId) == null) return "there is no relay above this world";
+            if (Docked != g.PlanetId)
+            {
+                if (Flight.Fuel < Relays.DockFuel + Relays.LandFuel) return $"needs {Relays.DockFuel:0} fuel units plus {Relays.LandFuel:0} kept for landing";
+                Flight.Fuel -= Relays.DockFuel; Docked = g.PlanetId;
+            }
+            var (kind, data, _) = Relays.Challenge(g.HomeSeed, g.PlanetId);
+            info = new Dictionary<string, object>
+            {
+                { "relay", Relays.Name(g.PlanetId) }, { "log", Relays.Log(g.PlanetId) }, { "check", kind }, { "data", data },
+                { "solved", g.Story.Fragments.Contains(g.PlanetId) }, { "fragments", (double)g.Story.Fragments.Count }, { "total", (double)Relays.Total },
+            };
+            return null;
+        }
+
+        /// <summary>Answers the docked relay's check. Right: the key fragment, plus salvage in the cargo the first time.</summary>
+        public string Answer(GameState g, object value)
+        {
+            if (!InOrbit || Docked != g.PlanetId) return "dock at the relay first (pad.dock())";
+            if (g.Story.Fragments.Contains(g.PlanetId)) return null;
+            var (_, _, answer) = Relays.Challenge(g.HomeSeed, g.PlanetId);
+            if (!Relays.Check(answer, value)) return "the relay rejected the answer";
+            g.Story.Fragments.Add(g.PlanetId);
+            foreach (var (item, count) in Relays.Salvage(g.PlanetId)) Cargo.TryAddAll(new[] { new ItemStack(item, count) });
+            g.Hud.Notify(g.Story.Fragments.Count < Relays.Total
+                ? Loc.T("notify.fragment", "{0} accepted your answer: antenna key fragment {1}/{2}. Salvage is in the ship's cargo.", Relays.Name(g.PlanetId), g.Story.Fragments.Count, Relays.Total)
+                : Loc.T("notify.allFragments", "All {0} key fragments recovered! From orbit above Kepler Landing, call pad.transmit().", Relays.Total));
+            return null;
+        }
+
+        /// <summary>The ending: from orbit above the home world, with all four fragments, unlock the long-range antenna.</summary>
+        public string Transmit(GameState g)
+        {
+            if (!InOrbit) return "the ship is not in orbit";
+            if (g.PlanetId != "home") return "the long-range antenna is on the home world: transmit from its orbit";
+            if (g.Story.Fragments.Count < Relays.Total) return $"the unlock code needs {Relays.Total} fragments, you have {g.Story.Fragments.Count}";
+            g.Story.End();
+            return null;
+        }
+
         public override void SaveExtra(IDictionary<string, string> d)
         {
             var inv = CultureInfo.InvariantCulture;
             d["phase"] = Phase;
+            if (Docked != null) d["docked"] = Docked;
+            if (Mined.Count > 0) d["mined"] = MinedDay.ToString(inv) + ":" + string.Join(",", Mined);
             d["reserve"] = Reserve.ToString("R", inv);
             if (Flight != null)
                 d["flight"] = string.Join(";", Array.ConvertAll(new[] { Flight.Altitude, Flight.Velocity, Flight.Fuel, Flight.Heat, Flight.Time, Flight.Throttle }, x => x.ToString("R", inv)));
@@ -189,6 +285,13 @@ namespace Codebound.Core
             var inv = CultureInfo.InvariantCulture;
             if (k == "phase") { Phase = v; Status = v; }
             else if (k == "reserve") Reserve = float.Parse(v, inv);
+            else if (k == "docked") Docked = v;
+            else if (k == "mined")
+            {
+                var p = v.Split(':');
+                MinedDay = int.Parse(p[0], inv);
+                if (p.Length > 1) foreach (var x in p[1].Split(',')) if (int.TryParse(x, NumberStyles.Integer, inv, out int id)) Mined.Add(id);
+            }
             else if (k == "flight")
             {
                 var p = v.Split(';');

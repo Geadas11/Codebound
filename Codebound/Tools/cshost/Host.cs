@@ -99,7 +99,7 @@ namespace Codebound
             ["drill"] = new[] { "mine" }, ["furnace"] = new[] { "smelt" }, ["conveyor"] = new[] { "start", "stop", "set_filter" },
             ["inserter"] = new[] { "start", "stop", "set_filter" }, ["greenhouse"] = new[] { "plant", "water", "harvest", "plots" },
             ["assembler"] = new[] { "craft" }, ["lab"] = new[] { "research", "techs" }, ["turret"] = new[] { "targets", "fire" },
-            ["launchpad"] = new[] { "launch", "throttle", "flight", "planets", "travel" },
+            ["launchpad"] = new[] { "launch", "throttle", "flight", "planets", "travel", "land", "asteroids", "mine_asteroid", "dock", "answer", "transmit" },
             ["server"] = new[] { "get", "set", "keys", "delete" }, ["storage_hub"] = new[] { "totals", "find" },
         };
         public string Id { get; }
@@ -135,6 +135,12 @@ namespace Codebound
         public JsonNode Flight() => Call("flight");
         public JsonNode Planets() => Call("planets");
         public JsonNode Travel(string planet) => Call("travel", planet);
+        public JsonNode Land() => Call("land");
+        public JsonNode Asteroids() => Call("asteroids");
+        public JsonNode MineAsteroid(int id) => Call("mine_asteroid", id);
+        public JsonNode Dock() => Call("dock");
+        public JsonNode Answer(object value) => Call("answer", value);
+        public JsonNode Transmit() => Call("transmit");
         public override string ToString() => $"<{Type} {Id}>";
     }
 
@@ -188,6 +194,7 @@ namespace Codebound
         public static Machine Lab { get; internal set; }
         public static Machine Turret { get; internal set; }
         public static Machine LaunchPad { get; internal set; }
+        public static Machine Pad => LaunchPad;
 
         public static void Log(params object[] parts) => Proto.Log(string.Join(" ", parts.Select(p => p switch { null => "null", bool b => b ? "true" : "false", JsonValue v when v.GetValueKind() == JsonValueKind.String => v.GetValue<string>(), JsonNode n => n.ToJsonString(), _ => Convert.ToString(p, System.Globalization.CultureInfo.InvariantCulture) })));
         /// <summary>Waits in game time without using CPU.</summary>

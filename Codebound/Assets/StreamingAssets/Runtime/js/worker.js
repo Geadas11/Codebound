@@ -145,6 +145,8 @@ const PRELUDE = `
     if (info.type === 'launchpad') {
       m.launch = () => call(id, 'launch'); m.throttle = (x) => call(id, 'throttle', [Number(x)]); m.flight = () => call(id, 'flight');
       m.planets = () => call(id, 'planets'); m.travel = (pid) => call(id, 'travel', [String(pid)]);
+      m.land = () => call(id, 'land'); m.asteroids = () => call(id, 'asteroids'); m.mineAsteroid = (aid) => call(id, 'mine_asteroid', [Number(aid)]);
+      m.dock = () => call(id, 'dock'); m.answer = (v) => call(id, 'answer', [v]); m.transmit = () => call(id, 'transmit');
     }
     if (info.type === 'server') { m.get = (k) => call(id, 'get', [String(k)]); m.set = (k, v) => call(id, 'set', [String(k), v]); m.keys = () => call(id, 'keys'); m.delete = (k) => call(id, 'delete', [String(k)]); }
     if (info.type === 'storage_hub') { m.totals = () => call(id, 'totals'); m.find = (item) => call(id, 'find', [String(item)]); }
@@ -199,6 +201,7 @@ const PRELUDE = `
     const i = call('machines', 'find', [t]);
     global[t] = i ? machine(i) : null;
   }
+  { const i = call('machines', 'find', ['launchpad']); global.pad = i ? machine(i) : null; }
 })(globalThis);
 `;
 

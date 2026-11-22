@@ -728,10 +728,32 @@ namespace Codebound.Game
                         case "flight":
                         case "planets":
                         case "travel":
+                        case "land":
+                        case "asteroids":
+                        case "mine_asteroid":
+                        case "dock":
+                        case "answer":
+                        case "transmit":
                         {
                             if (!(m.State is LaunchPadState lp)) break;
+                            var gs = session.State;
                             switch (fn)
                             {
+                                case "land": { string e = lp.Land(); Reply(p, e == null, warn: e != null ? "pad.land(): " + e : null); return; }
+                                case "asteroids": Reply(p, lp.AsteroidList(gs)); return;
+                                case "mine_asteroid":
+                                {
+                                    string e = Arg(0) is double aid ? lp.MineAsteroid(gs, (int)aid) : "needs an asteroid id";
+                                    Reply(p, e == null, warn: e != null ? "pad.mineAsteroid(): " + e : null); return;
+                                }
+                                case "dock":
+                                {
+                                    string e = lp.Dock(gs, out var info);
+                                    if (e != null) { Reply(p, null, warn: "pad.dock(): " + e); return; }
+                                    Reply(p, info); return;
+                                }
+                                case "answer": { string e = lp.Answer(gs, Arg(0)); Reply(p, e == null, warn: e != null ? "pad.answer(): " + e : null); return; }
+                                case "transmit": { string e = lp.Transmit(gs); Reply(p, e == null, warn: e != null ? "pad.transmit(): " + e : null); return; }
                                 case "launch": { lp.Underground = Caves.IsUnderground(session.State); string le = lp.Launch(session.State.Research); Reply(p, le == null, warn: le != null ? "pad.launch(): " + le : null); return; }
                                 case "throttle":
                                     if (lp.Flight == null || lp.Phase != "ascent") { Reply(p, false, warn: "pad.throttle(): not in flight"); return; }
@@ -754,7 +776,7 @@ namespace Codebound.Game
                                 default:
                                 {
                                     var dest = StarSystem.Get(session.State.HomeSeed, Arg(0) as string ?? "");
-                                    string te = Net.Current != Net.Mode.Off ? "travel is single-player for now" : Voyage.Check(session.State, m, dest);
+                                    string te = Net.IsGuest ? "only the host's world can travel" : Voyage.Check(session.State, m, dest);
                                     Reply(p, te == null, warn: te != null ? "pad.travel(): " + te : null);
                                     if (te == null) TravelRequested?.Invoke(m, dest);
                                     return;
@@ -874,10 +896,23 @@ namespace Codebound.Game
                     case "travel":
                     {
                         var dest = StarSystem.Get(session.State.HomeSeed, arg ?? "");
-                        err = Net.Current != Net.Mode.Off ? "travel is single-player for now" : Voyage.Check(session.State, m, dest);
+                        err = Net.IsGuest ? "only the host's world can travel" : Voyage.Check(session.State, m, dest);
                         if (err == null) TravelRequested?.Invoke(m, dest);
                         break;
                     }
+                    case "land": err = m.State is LaunchPadState lpl ? lpl.Land() : "not a launch pad"; break;
+                    case "mine_asteroid": err = m.State is LaunchPadState lpm ? (int.TryParse(arg, out int ast) ? lpm.MineAsteroid(session.State, ast) : "mine_asteroid needs an asteroid id") : "not a launch pad"; break;
+                    case "dock": err = m.State is LaunchPadState lpd ? lpd.Dock(session.State, out _) : "not a launch pad"; break;
+                    case "answer":
+                    {
+                        object val = null;   // a number, a JSON list or text
+                        if (double.TryParse(arg, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double av)) val = av;
+                        else if (arg != null && arg.TrimStart().StartsWith("[")) { try { val = Json.Parse(arg); } catch (FormatException) { val = arg; } }
+                        else val = arg;
+                        err = m.State is LaunchPadState lpa ? lpa.Answer(session.State, val) : "not a launch pad";
+                        break;
+                    }
+                    case "transmit": err = m.State is LaunchPadState lptr ? lptr.Transmit(session.State) : "not a launch pad"; break;
                     case "fire":
                         err = int.TryParse(arg, out int fid) ? session.State.Creatures.Fire(m, fid, session.State.Clock.Seconds) : "fire needs a creature id";
                         if (err == "cooldown" || err == "no_such_target") err = null;

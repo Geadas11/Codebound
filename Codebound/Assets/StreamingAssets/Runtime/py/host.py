@@ -200,7 +200,7 @@ class Machine:
         allowed = {"drill": {"mine"}, "furnace": {"smelt"}, "conveyor": {"start", "stop", "set_filter"},
                    "inserter": {"start", "stop", "set_filter"}, "greenhouse": {"plant", "water", "harvest", "plots"},
                    "assembler": {"craft"}, "lab": {"research", "techs"}, "turret": {"targets", "fire"},
-                   "launchpad": {"launch", "throttle", "flight", "planets", "travel"},
+                   "launchpad": {"launch", "throttle", "flight", "planets", "travel", "land", "asteroids", "mine_asteroid", "dock", "answer", "transmit"},
                    "server": {"get", "set", "keys", "delete"}, "storage_hub": {"totals", "find"}}.get(self.type, set())
         if name not in allowed:
             raise AttributeError(f"'{self.type}' has no function '{name}'")
@@ -468,6 +468,8 @@ def main():
     for t in ("drill", "furnace", "generator", "chest", "conveyor", "inserter", "greenhouse", "assembler", "lab", "turret"):
         i = _call("machines", "find", [t])
         g[t] = Machine(i) if i else None
+    i = _call("machines", "find", ["launchpad"])
+    g["pad"] = Machine(i) if i else None
     API_NAMES.update(g.keys())
     _module_globals.update(g)
     _module_globals.pop("__name__", None)

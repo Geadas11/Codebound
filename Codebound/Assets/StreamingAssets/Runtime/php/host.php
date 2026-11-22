@@ -99,7 +99,7 @@ final class Machine
     const OPS = ['drill' => ['mine'], 'furnace' => ['smelt'], 'conveyor' => ['start', 'stop', 'set_filter'],
         'inserter' => ['start', 'stop', 'set_filter'], 'greenhouse' => ['plant', 'water', 'harvest', 'plots'],
         'assembler' => ['craft'], 'lab' => ['research', 'techs'], 'turret' => ['targets', 'fire'],
-        'launchpad' => ['launch', 'throttle', 'flight', 'planets', 'travel'], 'server' => ['get', 'set', 'keys', 'delete'], 'storage_hub' => ['totals', 'find']];
+        'launchpad' => ['launch', 'throttle', 'flight', 'planets', 'travel', 'land', 'asteroids', 'mine_asteroid', 'dock', 'answer', 'transmit'], 'server' => ['get', 'set', 'keys', 'delete'], 'storage_hub' => ['totals', 'find']];
     public readonly string $id;
     public readonly string $type;
     public readonly string $name;
@@ -207,7 +207,7 @@ function cb_snap($v, int $d = 0)
 function cb_player_globals(): array
 {
     static $api = ['computer', 'machines', 'energy', 'world', 'hud', 'drill', 'furnace', 'generator', 'chest', 'conveyor', 'inserter', 'greenhouse',
-                   'assembler', 'lab', 'turret', 'launchpad', 'code', 'p', 'e', 'GLOBALS', 'argv', 'argc'];
+                   'assembler', 'lab', 'turret', 'launchpad', 'pad', 'code', 'p', 'e', 'GLOBALS', 'argv', 'argc'];
     $out = [];
     foreach ($GLOBALS as $k => $v) if (!str_starts_with($k, 'CB_') && !str_starts_with($k, '_') && !in_array($k, $api, true)) $out[$k] = $v;
     return $out;
@@ -303,6 +303,7 @@ foreach (['drill', 'furnace', 'generator', 'chest', 'conveyor', 'inserter', 'gre
     $i = cb_call('machines', 'find', [$t]);
     $$t = $i ? new Machine($i) : null;
 }
+$pad = $launchpad;
 unset($t, $i, $info, $start);
 
 ob_start('cb_output', 4096);

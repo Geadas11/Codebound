@@ -102,17 +102,25 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ Chat (Enter): texto limpo (sem tags nem caracteres de controlo, 200 caracteres), 2 mensagens/s por convidado, nomes com a cor do jogador
 - ✅ Posição do convidado validada: orçamento de movimento (velocidade × 1,2 + 6 células de folga) e sem entrar em células sólidas; movimento impossível → o anfitrião devolve-o à última posição válida; voltar ao ponto de partida (respawn) é permitido
 - ✅ Vitais e posição de cada convidado guardados no mundo (`gbody`); ao voltar, o convidado aparece onde e como estava
-- ✅ Internet: palavra-passe do mundo opcional (comparação em tempo constante), máx. 8 convidados, ligações sem "hello" fechadas em 10 s, endereço por IP ou nome; botão "Abrir à internet" pede ao router por UPnP o reencaminhamento da porta 47820 (e mostra o IP externo), retirado ao parar de hospedar ou sair do jogo; se falhar, explica como reencaminhar à mão
+- ✅ Tráfego cifrado: troca de chaves Diffie-Hellman (2048 bits) por ligação, misturada com a palavra-passe do mundo (PBKDF2) — a palavra-passe nunca viaja e um impostor sem ela não consegue ler nem escrever; mensagens AES-256-CBC + HMAC-SHA256 com número de sequência (sem leitura, alteração, repetição nem troca de ordem). Só a troca de chaves vai em claro. Protocolo versão 3 — 3 testes + cliente de protocolo em C# (`Tests/nettest`, 14 verificações) + build como anfitrião e Editor como convidado (palavra-passe errada recusada com a mensagem certa)
+- ✅ Internet: palavra-passe do mundo opcional, máx. 8 convidados, ligações sem "hello" fechadas em 10 s, endereço por IP ou nome; botão "Abrir à internet" pede ao router por UPnP o reencaminhamento da porta 47820 (e mostra o IP externo), retirado ao parar de hospedar ou sair do jogo; se falhar, explica como reencaminhar à mão
 - ✅ 7 testes + verificação real: Editor como anfitrião + cliente de protocolo (13 verificações: palavra-passe do mundo, teletransporte corrigido, chat limpo, computador trancado/destrancado, programa e snippet do convidado com consola remota, vitais ao voltar) e Editor como convidado de um anfitrião simulado (depurador remoto e chat no ecrã, mensagens enviadas corretas)
-- ⬜ Não testado: UPnP num router real (só o texto dos pedidos/respostas); o tráfego não é cifrado
+- ⬜ Não testado: UPnP num router real (só o texto dos pedidos/respostas) — fica para o jogador experimentar
 
-## Etapa 7 — Espaço (base feita)
+## Etapa 7 — Espaço ✅
 - ✅ Plataforma de lançamento 3×3 (desbloqueada por Ship: Launch Sequence), combustível carvão = 4 / petróleo = 10 unidades, até 250
 - ✅ Subida programada: `pad.launch()`, `pad.throttle(x)`, `pad.flight()` (JS/TS/Python; SQL `launch`/`throttle`/`travel`); física com viragem gravitacional automática, arrasto e aquecimento ∝ densidade·v³: a fundo sempre → escudo sobreaquece; demasiado tímido → sem combustível; falhar é seguro (cápsula volta de paraquedas)
 - ✅ Sistema solar determinístico (4 mundos: casa, vulcânico, deserto, ruínas) com viés de biomas; `pad.planets()`, `pad.travel(id)` custa 20 + 30/UA; cada mundo guardado em `planet_<seed>_<id>.cbsave`; inventário, investigação, vitais, HUD e relógio viajam; nave aterra com o combustível restante
 - ✅ Leitura do voo no ecrã, nave a subir com chama, chaves HUD `ship.*` e `planet.name`
 - ✅ 3 testes + Play Mode: programa JS levou a nave à órbita (29 de sobra com 200), listou planetas e viajou para o mundo vulcânico
-- ⬜ Viagem em multijogador, estações orbitais, asteroides, final narrativo
+- ✅ Variável `pad` (JS/TS, Python, PHP `$pad`, C# `Pad`), como o jogo sempre anunciou — antes só existia `machines.find("launchpad")`
+- ✅ Aterrar: `pad.land()` volta da órbita ao mesmo pad (10 de combustível); o porão (`cargo`) descarrega-se no painel do pad
+- ✅ Asteroides: `pad.asteroids()` (5 por dia e por mundo, determinísticos) e `pad.mineAsteroid(id)` (combustível 3 + distância, guarda sempre 10 para aterrar; cada um uma vez por dia) → ferro, cobre, titânio, urânio, cristal, silício no porão
+- ✅ Estações orbitais: um retransmissor Meridian acima de cada mundo; `pad.dock()` (5 de combustível) devolve o registo e um desafio de programação com dados (somar telemetria, contar linhas ERR, ordenar leituras, decifrar César); `pad.answer(valor)` certo → fragmento da chave da antena + despojos no porão
+- ✅ Final: com os 4 fragmentos, `pad.transmit()` na órbita do mundo inicial desbloqueia a antena e chama os colonos → ecrã final traduzido com estatísticas; o jogo continua. Progresso da história (`story`) guardado e levado entre mundos
+- ✅ Multijogador: a viagem do anfitrião (nave ou cavernas) leva os convidados — recarregam no novo mundo junto do anfitrião, com inventário e vitais; o porão viaja com a nave; os convidados não podem lançar viagens
+- ✅ SQL: comandos `land`, `mine_asteroid`, `dock`, `answer`, `transmit` (sem leitura dos dados do desafio — usar outra linguagem para os retransmissores)
+- ✅ 7 testes + Play Mode (programa JS: acoplar, resolver, minerar, transmitir → ecrã final) + cliente de rede: o convidado segue o anfitrião para o mundo vulcânico e aterra ao lado
 
 ## Etapa 8 — Polimento (em progresso)
 - ✅ Ecrã inicial (Continuar = save mais recente entre quicksave e autosave, Novo jogo com seed opcional, Idioma, Sair), mundo em pausa por trás; não aparece com -selftest/-host/-join/-seed/batchmode

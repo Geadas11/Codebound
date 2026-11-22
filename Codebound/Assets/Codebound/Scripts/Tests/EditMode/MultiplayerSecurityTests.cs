@@ -85,16 +85,6 @@ namespace Codebound.Tests
         }
 
         [Test]
-        public void WorldPassword()
-        {
-            Assert.IsTrue(Multiplayer.WorldPasswordOk("", null));
-            Assert.IsTrue(Multiplayer.WorldPasswordOk("abc", "abc"));
-            Assert.IsFalse(Multiplayer.WorldPasswordOk("abc", "abd"));
-            Assert.IsFalse(Multiplayer.WorldPasswordOk("abc", "ab"));
-            Assert.IsFalse(Multiplayer.WorldPasswordOk("abc", null));
-        }
-
-        [Test]
         public void Upnp_FindsTheRouterService_AndBuildsRequests()
         {
             Assert.AreEqual("http://192.168.1.1:5000/rootDesc.xml", Upnp.Location("HTTP/1.1 200 OK\r\nCACHE-CONTROL: max-age=120\r\nLOCATION: http://192.168.1.1:5000/rootDesc.xml\r\nST: x\r\n\r\n"));

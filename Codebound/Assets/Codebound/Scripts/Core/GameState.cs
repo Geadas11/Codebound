@@ -20,6 +20,7 @@ namespace Codebound.Core
         public readonly Ecology Ecology;
         public readonly Lightning Lightning;
         public readonly Skills Skills = new Skills();
+        public readonly Story Story = new Story();
         public Research Research => Factory.Research;
         public double PlayerX, PlayerY;
         /// <summary>Multiplayer guests' inventories, kept by the host and saved with the world.</summary>
@@ -140,6 +141,7 @@ namespace Codebound.Core
             foreach (var line in g.Exploration.SaveLines()) w.WriteLine(line);
             foreach (var line in g.Ecology.SaveLines()) w.WriteLine(line);
             w.WriteLine(g.Skills.SaveLine());
+            if (g.Story.SaveLine() is string sl) w.WriteLine(sl);
             w.WriteLine("end");
         }
 
@@ -205,6 +207,7 @@ namespace Codebound.Core
                         case "explore": Need(g).Exploration.Load(p); break;
                         case "eco": Need(g).Ecology.Load(p); break;
                         case "skills": Need(g).Skills.Load(p); break;
+                        case "story": Need(g).Story.Load(p); break;
                         case "end": ended = true; break;
                         default: throw new InvalidDataException("Unknown record '" + p[0] + "'");
                     }

@@ -228,6 +228,7 @@ namespace Codebound.Game
             "<b>turret</b>\n.targets() → [{id,type,health,distance}] (range 10)\n.fire(id) → true | false  (cooldown 0.6 s, needs power)\n<i>events: creature_detected, intrusion {computer, drone, seconds}</i>\n\n" +
             "<b>lab</b>\n.research(\"tech id\") → id | null (waits until done)\n.techs() → [{id,name,area,status,cost}]  — T shows the tree\n\n" +
             "<b>assembler</b>\n.craft(\"iron_gear\" | \"copper_wire\" | \"circuit\") → product | null\n\n" +
+            "<b>pad</b> (launch pad)\n.launch()  .throttle(0..1)  .flight()\nin orbit: .planets()  .travel(id)  .land()\n.asteroids()  .mineAsteroid(id)\n.dock() → {relay, log, check, data}  .answer(value)\n.transmit()  <i>(home orbit, 4 key fragments)</i>\n\n" +
             "<b>generator</b>, <b>chest</b>\n.status()  .contents()\n\n" +
             "<b>hud</b>\n.set(key, value)  .notify(text)  .alarm(text)\n\n" +
             "<b>Debug</b>: click line numbers for breakpoints, then Debug. F8 continue, F10 step.\n\n" +

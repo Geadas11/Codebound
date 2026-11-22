@@ -13,11 +13,11 @@ namespace Codebound.Core
     /// </summary>
     public static class Multiplayer
     {
-        public const int Port = 47820, ProtocolVersion = 2;
+        public const int Port = 47820, ProtocolVersion = 3;
         public const int MaxGuests = 8, MaxChat = 200, MaxSnippet = 4096;
         public const double MoveSpeed = 5, MoveBurst = 6;   // cells/s of PlayerController.Speed; burst absorbs network jitter
         public const double ActionReach = 6;   // cells; a little over the local reach to absorb latency
-        public const int MaxGuestLine = 256 * 1024, MaxHostLine = 32 * 1024 * 1024, MaxProgramChars = 64 * 1024;
+        public const int MaxGuestLine = 1024 * 1024, MaxHostLine = 32 * 1024 * 1024, MaxProgramChars = 64 * 1024;
         public const string Builder = "builder", Visitor = "visitor", Admin = "admin";   // admin: may also remove what others built
 
         static readonly Regex NameRx = new Regex("^[A-Za-z0-9_-]{1,16}$");
@@ -100,6 +100,7 @@ namespace Codebound.Core
             if (s.Research.SaveLine() is string rl) t.Research.Load(rl.Split(' '));
             foreach (var line in s.Exploration.SaveLines()) t.Exploration.Load(line.Split(' '));
             t.Ecology.CopyFrom(s.Ecology);
+            t.Story.CopyFrom(s.Story);
         }
 
         // ---------------------------------------------------------------- chat, movement, vitals (host side checks)
@@ -141,16 +142,6 @@ namespace Codebound.Core
             float C(float x, float lo, float hi) => float.IsNaN(x) ? hi : Math.Max(lo, Math.Min(hi, x));
             v.Health = C(t.Health, 1, Vitals.Max); v.Hunger = C(t.Hunger, 0, Vitals.Max); v.Thirst = C(t.Thirst, 0, Vitals.Max);
             v.Oxygen = C(t.Oxygen, 0, Vitals.Max); v.BodyTemp = C(t.BodyTemp, 25, 45);
-        }
-
-        /// <summary>Optional world password compared in constant time.</summary>
-        public static bool WorldPasswordOk(string expected, string given)
-        {
-            if (string.IsNullOrEmpty(expected)) return true;
-            given = given ?? "";
-            int diff = expected.Length ^ given.Length;
-            for (int i = 0; i < expected.Length; i++) diff |= expected[i] ^ (i < given.Length ? given[i] : 0);
-            return diff == 0;
         }
 
         // ---------------------------------------------------------------- guest actions (validated on the host)

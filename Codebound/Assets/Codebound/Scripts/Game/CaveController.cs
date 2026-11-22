@@ -25,7 +25,7 @@ namespace Codebound.Game
             var cell = build.MouseCell();
             if (!Caves.IsPortal(session.World.Generator, cell)) return;
             if (Vector2.Distance(new Vector2(cell.X + 0.5f, cell.Y + 0.5f), session.Player.position) > MiningController.Reach) return;
-            if (Net.Current != Net.Mode.Off) { session.State.Hud.Notify(Loc.T("cave.mp", "Caves are single-player for now")); return; }
+            if (Net.IsGuest) { session.State.Hud.Notify(Loc.T("cave.mpGuest", "Only the host can take the group underground (everyone follows)")); return; }
             bool down = !Caves.IsUnderground(session.State);
             string target = down ? Caves.UndergroundId(session.State.PlanetId) : Caves.SurfaceId(session.State.PlanetId);
             boot.SwitchWorld(target, saved => Caves.Pass(session.State, cell, saved),

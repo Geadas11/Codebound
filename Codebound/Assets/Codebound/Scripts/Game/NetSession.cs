@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using Codebound.Core;
@@ -54,10 +55,24 @@ namespace Codebound.Game
             Closed = true;
         }
 
+        /// <summary>Encryption of this connection; null/not ready only during the handshake.</summary>
+        public SecureChannel Chan;
+        public byte[] Salt;
+        public bool Secure => Chan != null && Chan.Ready;
+
         public void Send(Dictionary<string, object> msg)
         {
+            if (!Secure) return;   // nothing but the handshake travels in the clear
+            Write(Chan.Seal(Json.Write(msg)));
+        }
+
+        /// <summary>Handshake messages and the final kick of a failed handshake only.</summary>
+        public void SendPlain(Dictionary<string, object> msg) => Write(Json.Write(msg));
+
+        void Write(string line)
+        {
             if (Closed) return;
-            try { var b = Encoding.UTF8.GetBytes(Json.Write(msg) + "\n"); stream.Write(b, 0, b.Length); }
+            try { var b = Encoding.UTF8.GetBytes(line + "\n"); stream.Write(b, 0, b.Length); }
             catch (Exception) { Close(); }
         }
 
@@ -76,7 +91,8 @@ namespace Codebound.Game
         public static bool IsHost => Current == Mode.Host;
         public static string Status { get; private set; } = "offline";
         public static string MyName = "player", MyRole = Multiplayer.Builder;
-        public static string WorldPassword = "";   // host: asked of every guest when set (sent unencrypted — a game password only)
+        public static string WorldPassword = "";   // host: every guest must know it; it keys the encryption and never travels
+        static string joinPassword = "";
         public static readonly List<(string name, double x, double y)> Others = new List<(string, double, double)>();
         public static readonly List<(string from, string text, float at)> Chat = new List<(string, string, float)>();
 
@@ -92,6 +108,7 @@ namespace Codebound.Game
         static bool worldReceived;
         static float snapTimer, posTimer;
         static (int seed, Cell spawn)? spawnCache;
+        static string hostWorld;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics() { Disconnect(); Chat.Clear(); }
@@ -102,6 +119,7 @@ namespace Codebound.Game
         public static string StartHost()
         {
             Disconnect();
+            hostWorld = null;
             try { listener = new TcpListener(IPAddress.Any, Multiplayer.Port); listener.Start(); }
             catch (Exception e) { listener = null; return Status = Loc.T("net.cantHost", "could not host: {0}", e.Message); }
             Current = Mode.Host;
@@ -119,9 +137,8 @@ namespace Codebound.Game
                 server = new Peer(c, Multiplayer.MaxHostLine);
             }
             catch (Exception e) { return Status = Loc.T("net.cantConnect", "could not connect: {0}", (e.InnerException ?? e).Message); }
-            MyName = name; Current = Mode.Guest; worldReceived = false;
-            server.Send(new Dictionary<string, object> { { "t", "hello" }, { "name", name }, { "v", (double)Multiplayer.ProtocolVersion }, { "pass", password ?? "" } });
-            return Status = Loc.T("net.joining", "joining {0}…", address);
+            MyName = name; Current = Mode.Guest; worldReceived = false; joinPassword = password ?? "";
+            return Status = Loc.T("net.joining", "joining {0}…", address);   // hello goes out encrypted once the host's handshake arrives
         }
 
         public static void Disconnect()
@@ -218,19 +235,43 @@ namespace Codebound.Game
                 while (listener != null && listener.Pending())
                 {
                     var p = new Peer(listener.AcceptTcpClient(), Multiplayer.MaxGuestLine);
-                    if (peers.Count >= Multiplayer.MaxGuests) { p.Send(Msg("kick", Loc.T("net.full", "the world is full"))); p.Close(); }
-                    else peers.Add(p);
+                    if (peers.Count >= Multiplayer.MaxGuests) { p.SendPlain(Msg("kick", Loc.T("net.full", "the world is full"))); p.Close(); continue; }
+                    p.Chan = new SecureChannel(); p.Salt = SecureChannel.NewSalt();
+                    p.SendPlain(new Dictionary<string, object> { { "t", "hs" }, { "v", (double)SecureChannel.Version }, { "salt", Convert.ToBase64String(p.Salt) }, { "pub", Convert.ToBase64String(p.Chan.Public) } });
+                    peers.Add(p);
                 }
             }
             catch (Exception e) { Debug.LogWarning("Codebound net accept: " + e.Message); }
 
             float now = Time.realtimeSinceStartup;
+            string world = s.State.Seed + ":" + s.State.PlanetId;
+            if (world != hostWorld)
+            {
+                if (hostWorld != null)
+                    foreach (var p in peers)
+                    {
+                        if (p.Name == null) continue;
+                        var body = Body(s.State, p.Name);
+                        body.X = s.Player.position.x; body.Y = s.Player.position.y;   // everyone arrives next to the host
+                        p.X = body.X; p.Y = body.Y; p.MoveBudget = Multiplayer.MoveBurst; p.LastPos = now;
+                        p.Unlocked.Clear(); p.View = null;   // other world, other computers
+                    }
+                hostWorld = world; snapTimer = 0;
+            }
             foreach (var p in peers)
             {
                 if (p.Name == null && now - p.Connected > 10) { p.Close(); continue; }   // never said hello
                 int budget = 64;   // messages per frame per guest
-                while (budget-- > 0 && p.Inbox.TryDequeue(out var line))
+                while (budget-- > 0 && p.Inbox.TryDequeue(out var raw))
                 {
+                    if (!p.Secure) { if (!Handshake(p, raw)) break; continue; }
+                    string line;
+                    try { line = p.Chan.Open(raw); }
+                    catch (CryptographicException)
+                    {   // first message unreadable = the guest's password made different keys
+                        p.SendPlain(Msg("kick", p.Name == null ? Loc.T("net.wrongWorldPassword", "wrong world password") : "bad message"));
+                        p.Close(); break;
+                    }
                     Dictionary<string, object> m;
                     try { m = Json.Parse(line) as Dictionary<string, object>; } catch (FormatException) { m = null; }
                     if (m == null || !(m.TryGetValue("t", out var tv) && tv is string t)) continue;
@@ -326,13 +367,31 @@ namespace Codebound.Game
             return b;
         }
 
+        /// <summary>Host side: the guest's public value arrives in the clear; derive the keys from it and the world password.</summary>
+        static bool Handshake(Peer p, string raw)
+        {
+            try
+            {
+                var m = Json.Parse(raw) as Dictionary<string, object>;
+                if (m == null || S(m, "t") != "hs" || D(m, "v") != SecureChannel.Version) throw new FormatException("handshake");
+                var guestPub = Convert.FromBase64String(S(m, "pub") ?? "");
+                p.Chan.Complete(guestPub, WorldPassword, p.Salt, true, p.Chan.Public, guestPub);
+                return true;
+            }
+            catch (Exception e) when (e is FormatException || e is CryptographicException)
+            {
+                p.SendPlain(Msg("kick", Loc.T("net.version", "different game version")));
+                p.Close();
+                return false;
+            }
+        }
+
         static bool Hello(GameSession s, Peer p, string t, Dictionary<string, object> m)
         {
             string name = S(m, "name");
             string why = t != "hello" ? "say hello first" : D(m, "v") != Multiplayer.ProtocolVersion ? Loc.T("net.version", "different game version")
-                       : !Multiplayer.WorldPasswordOk(WorldPassword, S(m, "pass")) ? Loc.T("net.wrongWorldPassword", "wrong world password")
                        : !Multiplayer.ValidName(name) || name == MyName ? Loc.T("net.invalidName", "invalid name") : peers.Exists(o => o.Name == name) ? Loc.T("net.nameInUse", "name already in use") : null;
-            if (why != null) { p.Send(Msg("kick", why)); p.Close(); return false; }
+            if (why != null) { p.Send(Msg("kick", why)); p.Close(); return false; }   // encrypted: the guest has the keys by now
             p.Name = name;
             bool known = s.State.GuestBodies.ContainsKey(name);
             var body = Body(s.State, name);
@@ -419,6 +478,13 @@ namespace Codebound.Game
         {
             if (server == null || server.Closed)
             {
+                while (server != null && server.Inbox.TryDequeue(out var last))   // the host's reason may still be waiting (it closes right after a kick)
+                {
+                    if (!last.StartsWith("{")) { try { last = server.Secure ? server.Chan.Open(last) : null; } catch (CryptographicException) { last = null; } }
+                    Dictionary<string, object> km = null;
+                    try { if (last != null) km = Json.Parse(last) as Dictionary<string, object>; } catch (FormatException) { }
+                    if (km != null && S(km, "t") == "kick") Status = "kicked: " + S(km, "text");
+                }
                 string why = Status.StartsWith("kicked") ? Status : Loc.T("net.lost", "connection to the host lost");
                 Disconnect(); Status = why;
                 s.State.Hud.Notify(Loc.T("notify.disconnected", "Multiplayer: {0}", why));
@@ -435,9 +501,30 @@ namespace Codebound.Game
                 server.Send(new Dictionary<string, object> { { "t", "vit" }, { "line", s.State.Vitals.SaveLine() } });
             }
             string latest = null; Dictionary<string, object> latestMsg = null;
-            while (server.Inbox.TryDequeue(out var line))
+            while (server.Inbox.TryDequeue(out var raw))
             {
                 Dictionary<string, object> m;
+                string line = raw;
+                if (raw.StartsWith("{"))   // in the clear: only the handshake, or the kick of a failed one
+                {
+                    try { m = Json.Parse(raw) as Dictionary<string, object>; } catch (FormatException) { continue; }
+                    if (S(m, "t") == "kick") { Status = "kicked: " + S(m, "text"); server.Close(); return; }
+                    if (S(m, "t") != "hs" || server.Secure) continue;
+                    try
+                    {
+                        if (D(m, "v") != SecureChannel.Version) throw new FormatException("version");
+                        var hostPub = Convert.FromBase64String(S(m, "pub") ?? "");
+                        server.Chan = new SecureChannel();
+                        server.Chan.Complete(hostPub, joinPassword, Convert.FromBase64String(S(m, "salt") ?? ""), false, hostPub, server.Chan.Public);
+                    }
+                    catch (Exception e) when (e is FormatException || e is CryptographicException) { Status = "kicked: " + Loc.T("net.version", "different game version"); server.Close(); return; }
+                    server.SendPlain(new Dictionary<string, object> { { "t", "hs" }, { "v", (double)SecureChannel.Version }, { "pub", Convert.ToBase64String(server.Chan.Public) } });
+                    server.Send(new Dictionary<string, object> { { "t", "hello" }, { "name", MyName }, { "v", (double)Multiplayer.ProtocolVersion } });
+                    continue;
+                }
+                if (!server.Secure) continue;
+                try { line = server.Chan.Open(raw); }
+                catch (CryptographicException) { Status = "kicked: " + Loc.T("net.badData", "the connection was tampered with"); server.Close(); return; }
                 try { m = Json.Parse(line) as Dictionary<string, object>; } catch (FormatException) { continue; }
                 if (m == null || !(m.TryGetValue("t", out var tv) && tv is string t)) continue;
                 switch (t)
@@ -459,6 +546,18 @@ namespace Codebound.Game
             try { snap = SaveSystem.Read(new StringReader(latest)); }
             catch (InvalidDataException e) { Debug.LogWarning("Codebound net: bad snapshot: " + e.Message); return; }
             MyRole = S(latestMsg, "role") ?? Multiplayer.Visitor;
+            bool otherWorld = worldReceived && (snap.Seed != s.State.Seed || snap.PlanetId != s.State.PlanetId);
+            if (otherWorld)   // the host's ship flew (or went underground): follow, with our own vitals and things
+            {
+                snap.Vitals.Load(s.State.Vitals.SaveLine().Split(' '));
+                if (latestMsg.TryGetValue("you", out var yw) && yw is Dictionary<string, object> youW) { snap.PlayerX = D(youW, "x"); snap.PlayerY = D(youW, "y"); }
+                Multiplayer.LoadInventory(snap.Inventory, latestMsg.TryGetValue("inv", out var ivw) ? ivw as List<object> : null);
+                GuestUnlocked.Clear(); remotePcs.Clear();
+                var to = StarSystem.Get(snap.HomeSeed, snap.PlanetId);
+                snap.Hud.Notify(Loc.T("net.travelled", "The host's ship took everyone to {0}.", to?.Name ?? snap.PlanetId));
+                GameBootstrap.LoadState(snap);
+                return;
+            }
             if (!worldReceived)
             {
                 worldReceived = true;
@@ -641,7 +740,7 @@ namespace Codebound.Game
                 if (GUILayout.Button(Loc.T("net.host", "Host this world"))) { Remember(); Net.WorldPassword = joinPassword; Net.StartHost(); }
                 if (GUILayout.Button(Loc.T("net.join", "Join"))) { Remember(); Net.Join(address.Trim(), Net.MyName, joinPassword); }
                 GUILayout.EndHorizontal();
-                GUILayout.Label("<size=11>" + Loc.T("net.help2", "Host: the password is optional and is asked of everyone who joins (it travels unencrypted — don't reuse a real one). Join: the host's IP or name; on the internet the host must open port {0}. Guests keep their own inventory; programs run on the host's computer, in its sandbox.", Multiplayer.Port) + "</size>", label);
+                GUILayout.Label("<size=11>" + Loc.T("net.help3", "Host: the password is optional; everyone who joins must know it. The connection is always encrypted (with a password, also against impostors). Join: the host's IP or name; on the internet the host must open port {0}. Guests keep their own inventory; programs run on the host's computer, in its sandbox.", Multiplayer.Port) + "</size>", label);
             }
             else
             {

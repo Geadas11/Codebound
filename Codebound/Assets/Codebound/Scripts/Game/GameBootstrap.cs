@@ -145,6 +145,13 @@ namespace Codebound.Game
                 }
                 else state.Hud.Notify(Loc.T("notify.aborted", "Launch {0}. The capsule parachuted back to the pad.", result));
             };
+            var ending = gameObject.AddComponent<EndingView>();
+            ending.Init(Session);
+            state.Story.EndingReached += () =>
+            {
+                ending.Show();
+                AudioDirector.Instance?.Play("chime", null, Loc.T("cap.ending", "[fanfare] the long-range antenna transmits"));
+            };
             ProgramManager.TravelRequested += OnTravel;
             gameObject.AddComponent<DebugHud>().Init(Session, build, mining, this);
             if (SelfTest.Requested) gameObject.AddComponent<SelfTest>();

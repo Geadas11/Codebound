@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Protocol-level multiplayer guest that checks a running host (the Editor in Play Mode, see Program.cs).
+       Uses the game's own encryption and JSON code. Run:
+       "<Unity>/Editor/Data/DotNetSdk/dotnet.exe" build Codebound/Tests/nettest, then run bin/Release/nettest.dll with pcX pcY. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\Assets\Codebound\Scripts\Core\SecureChannel.cs" />
+    <Compile Include="..\..\Assets\Codebound\Scripts\Core\Json.cs" />
+  </ItemGroup>
+</Project>
