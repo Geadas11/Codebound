@@ -9,7 +9,7 @@ namespace Codebound.Core
     /// </summary>
     public enum MachineActivity : byte { None, Idle, Working, Blocked, NoPower }
 
-    public sealed class Factory
+    public sealed partial class Factory
     {
         public const float CoalEnergyKJ = 4000f;
         public const float GeneratorKW = 150f, DrillKW = 90f, ComputerKW = 20f, FurnaceFuelKW = 90f;
@@ -516,77 +516,6 @@ namespace Codebound.Core
                     if (target == null || target == b || target.State == null) continue;
                     if (target.State.TryInsert(item, 1)) { output.TryRemove(item, 1); break; }
                 }
-            }
-        }
-
-        void TickConveyors(float dt)
-        {
-            foreach (var b in belts) ((ConveyorState)b.State).ArrivedThisTick = false;
-            foreach (var b in belts)
-            {
-                var c = (ConveyorState)b.State;
-                if (c.Asleep || c.Item == null || c.ArrivedThisTick) continue;
-                if (!c.Running) { c.Status = "stopped"; continue; }
-                c.Progress = Math.Min(1f, c.Progress + ConveyorState.BeltSpeed * dt);
-                c.Status = "moving";
-                if (c.Progress < 1f) continue;
-                string item = c.Item;
-                var front = b.Origin.Move(b.Rotation);
-                var right = b.Origin.Move(b.Rotation.Next());
-                // sorter: the chosen item goes straight, others turn right; splitter: alternate, falling back to the other side
-                bool splitter = b.Def.Id == "splitter";
-                Cell first = b.Def.Id == "sorter" ? (c.Filter == null || c.Filter == item ? front : right) : splitter && c.Turn != 0 ? right : front;
-                Cell second = first.Equals(front) ? right : front;
-                bool moved = TryPass(b, c, item, first) || (splitter && TryPass(b, c, item, second));
-                if (moved && splitter) c.Turn = c.LastOut.Equals(front) ? 1 : 0;
-                if (moved) continue;
-                c.Status = "blocked";
-                if (Watchable(first) && (!splitter || Watchable(second)))   // wait for the way ahead to change
-                {
-                    SleepOn(b, first);
-                    if (splitter) SleepOn(b, second);
-                }
-            }
-        }
-
-        bool TryPass(PlacedBuilding b, ConveyorState c, string item, Cell cell)
-        {
-            var target = grid.At(cell);
-            if (target == null || target == b || target.State == null || !target.State.TryInsert(item, 1)) return false;
-            c.Slot.TryRemove(item, 1); c.Progress = 0; c.LastOut = cell;
-            return true;
-        }
-
-        void TickInserters(float dt)
-        {
-            foreach (var b in inserters)
-            {
-                var ins = (InserterState)b.State;
-                if (ins.Asleep) continue;
-                if (!ins.Running) { ins.Status = "stopped"; continue; }
-                bool longArm = b.Def.Id == "long_inserter";
-                float swing = longArm ? InserterState.SwingSeconds * 1.5f : InserterState.SwingSeconds;
-                ins.Progress = Math.Min(swing, ins.Progress + dt);
-                if (ins.Progress < swing) continue;
-                int reach = longArm ? 2 : 1;
-                var src = grid.At(b.Origin.Move(b.Rotation, -reach));
-                var dst = grid.At(b.Origin.Move(b.Rotation, reach));
-                var from = src?.State?.Extractable;
-                if (from == null || dst?.State == null) { ins.Status = "no source/target"; continue; }
-                ins.Status = "waiting";
-                bool moved = false;
-                for (int i = 0; i < from.SlotCount; i++)
-                {
-                    var s = from[i];
-                    if (s.IsEmpty || (ins.Filter != null && s.ItemId != ins.Filter)) continue;
-                    if (!dst.State.TryInsert(s.ItemId, 1)) { ins.Status = "target full"; continue; }
-                    from.TryRemove(s.ItemId, 1);
-                    ins.Progress = 0; ins.Moved++; ins.Status = "moving";
-                    moved = true;
-                    break;
-                }
-                var srcCell = b.Origin.Move(b.Rotation, -reach); var dstCell = b.Origin.Move(b.Rotation, reach);
-                if (!moved && Watchable(dstCell)) { SleepOn(b, srcCell); SleepOn(b, dstCell); }   // nothing to take, or nowhere to put it
             }
         }
 

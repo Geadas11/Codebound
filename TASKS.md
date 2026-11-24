@@ -136,7 +136,7 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 ## Simulação industrial (missão 2026-11-24) — ver `INDUSTRY_PLAN.md`
 - ✅ Etapa 0 — Auditoria: branch/estado confirmados, tag `pre-industry-2026-11-24`, 135/135 de base, problemas P1–P12 registados
 - ✅ Etapa 1 — Fundação: `GameState.Step` + `Simulation` com 12 sistemas por ordem (prepare/update/finish, perfil por sistema); relógio e relâmpagos por tick (antes por frame); contador de ticks no save; edifícios por ordem de construção; listas por tipo; sleep/wake de correias e braços com resultado idêntico; menos texto criado por tick; `MachinesNear` espacial com desempate por id; hash de estado — 7 testes novos (142/142), build + self-test PASS, Play Mode: 171 ticks = 8,55 s de relógio
-- ⬜ Etapa 2 — Correias com pistas e sequências, braços com mão/posição
+- ✅ Etapa 2 — Correias com 2 pistas (4 itens por pista, espaçamento, curvas, alimentação lateral, passo em dois tempos independente da ordem de construção; débito 1,9 → até 15 itens/s), braços com mão e posição (mesmo débito, só apanham o que o destino aceita, esperam com o item), migração de saves antigos, vista por pista e mão visível — 8 testes novos (150/150), build + self-test PASS, Play Mode verificado
 - ⬜ Etapa 3 — Fluidos · ⬜ 4 — Energia com prioridades · ⬜ 5 — Sinais · ⬜ 6 — Robôs · ⬜ 7 — Comboios · ⬜ 8 — Integração
 
 ## Linguagens

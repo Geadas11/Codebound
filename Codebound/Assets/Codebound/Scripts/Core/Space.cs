@@ -177,6 +177,7 @@ namespace Codebound.Core
 
         public override IEnumerable<(string role, Inventory inv)> Inventories { get { yield return ("fuel", FuelBay); yield return ("cargo", Cargo); } }
         public override bool TryInsert(string itemId, int count) => UnitsOf(itemId) > 0 && FuelBay.TryAddAll(new[] { new ItemStack(itemId, count) });
+        public override bool AcceptsItem(string itemId) => UnitsOf(itemId) > 0;
 
         /// <summary>Starts the ascent. Returns null or why not.</summary>
         public string Launch(Research r)

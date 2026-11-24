@@ -81,3 +81,10 @@ Ordem mantida: a auditoria confirmou que a Etapa 1 é pré-requisito de todas (o
 - **Testes**: 142/142 EditMode; build + self-test PASS; Play Mode (171 ticks = 8,55 s).
 - **Limitações**: paralelismo não ativado (sem ganho medido); hubs/armadilhas não adormecem quem espera por eles; alocações por tick não medidas (API não suportada no Mono); medições no Editor ruidosas.
 - **Retomar**: Etapa 2. As correias atuais (1 item/célula) passam a segmentos com 2 pistas e itens a distâncias relativas; manter a API (`start/stop/setFilter`) e migrar o `bx`/`bi item` dos saves antigos.
+
+### Etapa 2 — concluída (2026-11-24)
+- **Feito**: P7 (correias com 2 pistas, 4 itens/pista, distâncias relativas, curvas, alimentação lateral, dois passos por tick independentes da ordem de construção) e P8 (braço com mão, posição e tempos; só apanha o que o destino aceita). API dos programas, saves (com migração do item único), multijogador (instantâneos = save) e vistas mantidos.
+- **Ficheiros**: `Core/Logistics.cs` (novo), `Core/Machines.cs`, `Core/Factory.cs`, `Core/Networking.cs`, `Core/Research.cs`, `Core/Shelter.cs`, `Core/Space.cs`, `Game/ConveyorItemsView.cs`; testes `BeltLaneTests.cs` (novo), `FactoryTests.cs`, `SleepWakeTests.cs`, `PerformanceTests.cs`.
+- **Testes**: 150/150 EditMode; sleep/wake idêntico com 4000 edifícios × 1200 ticks; build + self-test PASS; Play Mode verificado.
+- **Limitações**: fusões de duas correias de frente para a mesma célula usam a regra de curva/lateral (não há "prioridade" configurável); filtros por pista não existem; o limite de desempenho de edição elétrica subiu para 25 ms (reconstrução completa das redes, Etapa 4).
+- **Retomar**: Etapa 3 — fluidos.

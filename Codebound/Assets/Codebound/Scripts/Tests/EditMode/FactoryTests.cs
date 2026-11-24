@@ -152,14 +152,15 @@ namespace Codebound.Tests
             var cs = (ConveyorState)conv.State;
 
             Assert.IsTrue(b1.State.TryInsert(ItemDatabase.IronOre, 1));
-            Assert.IsFalse(b1.State.TryInsert(ItemDatabase.IronOre, 1), "one item per belt cell");
+            Assert.IsTrue(b1.State.TryInsert(ItemDatabase.IronOre, 1), "two lanes: a second item fits beside the first");
+            Assert.IsFalse(b1.State.TryInsert(ItemDatabase.IronOre, 1), "but not a third in the middle of the cell");
             Run(g, 2f);
             Assert.AreEqual(ItemDatabase.IronOre, cs.Item, "programmable conveyor holds the item while stopped");
             Assert.AreEqual(0, ((StorageState)chest.State).Items.Count(ItemDatabase.IronOre));
 
             cs.Running = true;
             Run(g, 2f);
-            Assert.AreEqual(1, ((StorageState)chest.State).Items.Count(ItemDatabase.IronOre), "delivered once started");
+            Assert.AreEqual(2, ((StorageState)chest.State).Items.Count(ItemDatabase.IronOre), "both delivered once started");
 
             cs.Filter = ItemDatabase.Coal;
             Assert.IsTrue(b1.State.TryInsert(ItemDatabase.IronOre, 1));

@@ -19,6 +19,8 @@ namespace Codebound.Core
 
         /// <summary>Insert from a conveyor/drill/player. All-or-nothing.</summary>
         public virtual bool TryInsert(string itemId, int count) => false;
+        /// <summary>Would this machine ever take the item (ignoring whether it has room now)? Arms only pick up what the target accepts.</summary>
+        public virtual bool AcceptsItem(string itemId) => false;
 
         /// <summary>Named inventories, in a stable order (UI and save files use the names).</summary>
         public virtual IEnumerable<(string role, Inventory inv)> Inventories { get { yield break; } }
@@ -37,6 +39,7 @@ namespace Codebound.Core
     {
         public readonly Inventory Items = new Inventory(16);
         public override bool TryInsert(string itemId, int count) => Items.TryAddAll(new[] { new ItemStack(itemId, count) });
+        public override bool AcceptsItem(string itemId) => true;
         public override IEnumerable<(string, Inventory)> Inventories { get { yield return ("items", Items); } }
         public override Inventory Extractable => Items;
     }
@@ -59,6 +62,7 @@ namespace Codebound.Core
             if (Recipes.ContainsKey(itemId)) return Input.TryAddAll(new[] { new ItemStack(itemId, count) });
             return false;
         }
+        public override bool AcceptsItem(string itemId) => itemId == ItemDatabase.Coal || Recipes.ContainsKey(itemId);
 
         public override IEnumerable<(string, Inventory)> Inventories
         {
@@ -75,66 +79,6 @@ namespace Codebound.Core
         public readonly Inventory Output = new Inventory(1);
         public override IEnumerable<(string, Inventory)> Inventories { get { yield return ("output", Output); } }
         public override Inventory Extractable => Output;
-    }
-
-    /// <summary>Belt or programmable conveyor cell: carries one item at a time towards the front.</summary>
-    public sealed class ConveyorState : MachineState
-    {
-        public const float BeltSpeed = 1.875f; // cells per second
-        public readonly Inventory Slot = new Inventory(1);
-        public float Progress;     // 0 = just entered, 1 = at the front edge
-        internal Cell LastOut;     // where the last item went (splitters alternate from it)
-        bool running; string filter;
-        /// <summary>Belts: always; programmable conveyors: start()/stop().</summary>
-        public bool Running { get => running; set { if (running != value) { running = value; Touch(); } } }
-        /// <summary>Programmable conveyors only accept this item when set (sorters: the item that goes straight).</summary>
-        public string Filter { get => filter; set { if (filter != value) { filter = value; Touch(); } } }
-        public bool ArrivedThisTick;
-        public int Turn;           // splitter: which output goes next
-        public bool Sorts;         // sorter: the filter picks the exit instead of refusing items
-
-        public string Item => Slot[0].IsEmpty ? null : Slot[0].ItemId;
-
-        public override bool TryInsert(string itemId, int count)
-        {
-            if (count != 1 || Item != null || (Filter != null && !Sorts && Filter != itemId)) return false;
-            Slot.Add(itemId, 1);
-            Progress = 0; ArrivedThisTick = true;
-            return true;
-        }
-
-        public override IEnumerable<(string, Inventory)> Inventories { get { yield return ("item", Slot); } }
-        public override Inventory Extractable => Slot;
-        public override void SaveExtra(IDictionary<string, string> d)
-        {
-            d["prog"] = F(Progress); d["on"] = Running ? "1" : "0";
-            if (Filter != null) d["filter"] = Filter;
-        }
-        public override void LoadExtra(string k, string v)
-        {
-            if (k == "prog") Progress = PF(v); else if (k == "on") Running = v == "1"; else if (k == "filter") Filter = v;
-        }
-    }
-
-    /// <summary>Arm that moves one item at a time from the building behind it to the building in front.</summary>
-    public sealed class InserterState : MachineState
-    {
-        public const float SwingSeconds = 0.8f;
-        public float Progress;     // seconds since the last swing
-        bool running = true; string filter;
-        public bool Running { get => running; set { if (running != value) { running = value; Touch(); } } }
-        public string Filter { get => filter; set { if (filter != value) { filter = value; Touch(); } } }
-        public int Moved;          // total items moved (for programs and UI)
-
-        public override void SaveExtra(IDictionary<string, string> d)
-        {
-            d["on"] = Running ? "1" : "0";
-            if (Filter != null) d["filter"] = Filter;
-        }
-        public override void LoadExtra(string k, string v)
-        {
-            if (k == "on") Running = v == "1"; else if (k == "filter") Filter = v;
-        }
     }
 
     /// <summary>
@@ -163,6 +107,7 @@ namespace Codebound.Core
 
         public override bool TryInsert(string itemId, int count) =>
             Plants.IsSeed(itemId) && Seeds.TryAddAll(new[] { new ItemStack(itemId, count) });
+        public override bool AcceptsItem(string itemId) => Plants.IsSeed(itemId);
 
         public override IEnumerable<(string, Inventory)> Inventories { get { yield return ("seeds", Seeds); yield return ("output", Output); } }
         public override Inventory Extractable => Output;
@@ -232,6 +177,7 @@ namespace Codebound.Core
 
         public override bool TryInsert(string itemId, int count) =>
             IsIngredient(itemId) && Input.TryAddAll(new[] { new ItemStack(itemId, count) });
+        public override bool AcceptsItem(string itemId) => IsIngredient(itemId);
 
         public override IEnumerable<(string, Inventory)> Inventories { get { yield return ("input", Input); yield return ("output", Output); } }
         public override Inventory Extractable => Output;
@@ -266,6 +212,7 @@ namespace Codebound.Core
 
         public override bool TryInsert(string itemId, int count) =>
             itemId == ItemDatabase.Coal && Fuel.TryAddAll(new[] { new ItemStack(itemId, count) });
+        public override bool AcceptsItem(string itemId) => itemId == ItemDatabase.Coal;
 
         public override IEnumerable<(string, Inventory)> Inventories { get { yield return ("fuel", Fuel); } }
         public override void SaveExtra(IDictionary<string, string> d) => d["burn"] = F(BurnLeftKJ);

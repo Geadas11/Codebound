@@ -29,7 +29,7 @@ A especificação completa e normativa é o "Prompt Mestre" fornecido pelo utili
 | Fornalha | `smelt()` = 3,2 s por unidade, queima carvão. Ferro→placa, cobre→placa, pedra→tijolo. |
 | Primeira linguagem | JavaScript. Chamadas bloqueantes em tempo de jogo; eventos via `computer.on`. Erros com número de linha e dicas que explicam o problema sem dar a solução. |
 | Início | 6 silício salvado da nave (permite o 1.º computador). |
-| Transportadores | Correia (1 placa de ferro): passiva, sempre a mover. Transportador programável (ferro + cobre): parado até um programa chamar `start()`, aceita `setFilter(item)`. Ambos caminháveis. |
+| Transportadores | Correias com **duas pistas** (até 4 itens por pista em cada célula); curvas mantêm a pista, uma correia que entra de lado numa linha enche a pista desse lado; braços levam o item na mão e esperam com ele se o destino estiver cheio. Correia (1 placa de ferro): passiva, sempre a mover. Transportador programável (ferro + cobre): parado até um programa chamar `start()`, aceita `setFilter(item)`. Ambos caminháveis. |
 | Braço (inserter) | 2 placas de ferro + 1 de cobre. Tira 1 item a cada 0,8 s do edifício de trás e põe no da frente. Passivo por defeito; programas podem `stop()/start()/setFilter()`. Pega no primeiro item que encontra — usar filtros para escolher (ex.: só carvão para o combustível). |
 | Estufa | 2×2 (madeira, pedra, silício). 4 canteiros; um programa planta (gasta 1 fruta), rega (do tanque, que enche junto a um lago) e colhe (3 frutas). Cresce em ~3 min com luz total; à noite só com lâmpadas (30 kW). |
 | Montadora | 2×2. `craft(item)`: engrenagem (1 s), fio de cobre ×2 (0,5 s), circuito (3 s). 60 kW. |

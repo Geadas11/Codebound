@@ -60,6 +60,7 @@ namespace Codebound.Core
             foreach (var c in Chests) if (c.TryInsert(itemId, count)) return true;
             return false;
         }
+        public override bool AcceptsItem(string itemId) => true;
 
         /// <summary>For inserters: the first chest that has anything.</summary>
         public override Inventory Extractable

@@ -75,7 +75,7 @@ namespace Codebound.Tests
             Assert.IsTrue(belt.State.Asleep, "blocked at the end of the line: asleep");
             // an arm takes its item and another arrives: its own contents changed, so it must wake (found by the 8000-building probe)
             var c0 = (ConveyorState)belt.State;
-            c0.Slot.TryRemove(ItemDatabase.Stone, 1);
+            c0.Contents.TryRemove(ItemDatabase.Stone, 1);
             for (int i = 0; i < 5; i++) g.Step();
             Assert.IsTrue(c0.TryInsert(ItemDatabase.Stone, 1));
             Assert.IsFalse(c0.Asleep, "a new item on a sleeping belt wakes it");

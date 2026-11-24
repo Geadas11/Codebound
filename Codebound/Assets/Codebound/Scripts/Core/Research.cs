@@ -145,6 +145,7 @@ namespace Codebound.Core
         public string Current;   // tech being researched
 
         public override bool TryInsert(string itemId, int count) => Input.TryAddAll(new[] { new ItemStack(itemId, count) });
+        public override bool AcceptsItem(string itemId) => true;
         public override IEnumerable<(string, Inventory)> Inventories { get { yield return ("input", Input); } }
     }
 }

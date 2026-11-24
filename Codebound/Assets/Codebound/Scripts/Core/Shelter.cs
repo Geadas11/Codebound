@@ -19,6 +19,7 @@ namespace Codebound.Core
             Charges = MaxCharges; Status = $"{Charges} charges";
             return true;
         }
+        public override bool AcceptsItem(string itemId) => itemId == ItemDatabase.CopperWire;
         public override void SaveExtra(IDictionary<string, string> d) => d["charges"] = Charges.ToString(System.Globalization.CultureInfo.InvariantCulture);
         public override void LoadExtra(string k, string v) { if (k == "charges") Charges = int.Parse(v, System.Globalization.CultureInfo.InvariantCulture); }
     }

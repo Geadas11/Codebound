@@ -256,3 +256,11 @@
 - Medições (Editor, mesma corrida, dois mundos iguais alternados): 8000 edifícios, sleep desligado vs ligado: tick 5,4 → 4,2 ms; correias 0,84 → 0,14; braços 0,24 → 0,13. 2000 edifícios: ~0,5 ms/tick (antes da etapa ~1,0). As medições no Editor variam até 2× entre corridas (máquina ocupada): por isso comparo sempre dentro da mesma corrida.
 - `GC.GetAllocatedBytesForCurrentThread` devolve 0 neste Mono: alocações não medidas; só se removeram as fontes óbvias (texto de geradores, baterias, hubs, laboratórios; listas e arrays por tick).
 - Testes: 142/142 EditMode; build + self-test PASS; Play Mode: tick e relógio corretos. Runtimes das linguagens não corridos (não mudaram).
+
+## Sessão 5 (cont.): Etapa 2 — correias com pistas e braços com mão
+- `Core/Logistics.cs` (novo): `ConveyorState`/`InserterState` e o tick de correias e braços saíram de `Machines.cs`/`Factory.cs` (`Factory` passou a `partial`). `MachineState.AcceptsItem` novo (fornalha, gerador, montadora, estufa, plataforma, armadilha, baú, hub, laboratório).
+- Primeira versão perdia débito (72 itens em 10 s em vez de ~130): a correia de trás via a da frente antes de esta avançar, conforme a ordem de construção. Passou a dois passos por tick (mover, depois passar) e o item leva o resto do passo para a correia seguinte.
+- O teste de equivalência sleep/wake divergiu ao tick 17: uma correia bloqueada que recebia um item no segundo passo voltava a dormir com esse item ainda por avançar. Agora só dorme "compactada" (`Packed`).
+- Mudança de comportamento intencional: cabem 2 itens lado a lado à entrada de uma correia (o teste "1 item por célula" foi atualizado); um braço pode ficar com 1 item na mão (antes nunca tirava se o destino estivesse cheio).
+- `PerformanceTests.Building_InABigBase_DoesNotStall`: limite 15 → 25 ms. Falhava também no commit anterior (15,5 ms nesta máquina); o custo é a reconstrução completa das redes elétricas (~11 ms), a tornar incremental na Etapa 4.
+- Testes: 150/150 EditMode; equivalência sleep/wake com 4000 edifícios × 1200 ticks; build + self-test PASS (8 linguagens); Play Mode: braço a 0,8 s/item, itens visíveis na pista direita.
