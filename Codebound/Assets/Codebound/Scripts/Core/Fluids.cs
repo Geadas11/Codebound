@@ -78,6 +78,9 @@ namespace Codebound.Core
         bool running;
         public bool Running { get => running; set { if (running != value) { running = value; Touch(); } } }
         protected SwitchedFluidState() { Status = "stopped"; }
+        public override bool TakesCondition => true;
+        /// <summary>Started by a program and allowed by its signal condition.</summary>
+        public bool Working => Running && SignalAllows;
         public override void SaveExtra(IDictionary<string, string> d) { d["on"] = Running ? "1" : "0"; SaveMore(d); }
         public override void LoadExtra(string k, string v) { if (k == "on") Running = v == "1"; else LoadMore(k, v); }
         protected virtual void SaveMore(IDictionary<string, string> d) { }
@@ -292,7 +295,7 @@ namespace Codebound.Core
                     }
                     case PumpjackState pj:
                     {
-                        if (!pj.Running) { pj.Status = "stopped"; break; }
+                        if (!pj.Working) { pj.Status = pj.Running ? "disabled" : "stopped"; break; }
                         float want = Fluids.PumpjackRate * dt * pj.PowerSatisfaction;
                         if (pj.Box.Amount < want && pj.Box.Free >= Fluids.OilPerDeposit)
                             foreach (var c in b.Cells())
@@ -304,7 +307,7 @@ namespace Codebound.Core
                     case PumpState pu:
                     {
                         pu.RatePerSecond = 0;
-                        if (!pu.Running) { pu.Status = "stopped"; break; }
+                        if (!pu.Working) { pu.Status = pu.Running ? "disabled" : "stopped"; break; }
                         if (pu.PowerSatisfaction <= 0) { pu.Status = "no power"; break; }
                         var src = FirstSegment(b.BackCells(), null); var dst = FirstSegment(b.FrontCells(), null);
                         if (src == null || dst == null) { pu.Status = "no pipe"; break; }
@@ -338,7 +341,7 @@ namespace Codebound.Core
                     case FillerState fi:
                     {
                         Pull(FirstSegment(b.BackCells(), Fluids.CrudeOil), fi.Crude);
-                        if (!fi.Running) { fi.Status = "stopped"; break; }
+                        if (!fi.Working) { fi.Status = fi.Running ? "disabled" : "stopped"; break; }
                         if (fi.Crude.Amount < Fluids.FillerCrude) { fi.Status = "no oil"; break; }
                         if (!fi.Output[0].IsEmpty && fi.Output[0].Count >= ItemDatabase.Get(ItemDatabase.Oil).MaxStack) { fi.Status = "output full"; break; }
                         fi.Progress += dt * fi.PowerSatisfaction;

@@ -271,6 +271,7 @@ namespace Codebound.Game
                 case BuildingKind.Belt: case BuildingKind.Conveyor: case BuildingKind.Drill: case BuildingKind.Generator: case BuildingKind.Assembler: return 4;
                 case BuildingKind.Furnace: case BuildingKind.Lab: case BuildingKind.Server: case BuildingKind.Scrubber: case BuildingKind.Heater: case BuildingKind.Boiler: return 2;
                 case BuildingKind.Pumpjack: return 8;
+                case BuildingKind.Lamp: return 2;   // 0 = off, 1 = lit (the view picks, lamps do not cycle)
                 case BuildingKind.SteamEngine: case BuildingKind.OffshorePump: return 4;
                 default: return 1;
             }
@@ -323,6 +324,21 @@ namespace Codebound.Game
                     if ((x == 6 || x == 9) && y >= 1 && y <= 12) return Outline;
                     if ((y == 10 || y == 13) && x >= 3 && x <= 12) return Outline;
                     return Clear;
+                }
+                if (def.Kind == BuildingKind.Cable)   // a thin red cross: it joins every neighbouring cable
+                {
+                    bool v = x >= 7 && x <= 8, hz = y >= 7 && y <= 8;
+                    if (!v && !hz) return (x >= 6 && x <= 9 && y >= 6 && y <= 9) ? Outline : Clear;
+                    return Shade(body, (x == 7 || y == 8) ? 1.3f : 0.9f);
+                }
+                if (def.Kind == BuildingKind.Lamp)
+                {
+                    float lr = Mathf.Sqrt((x - 7.5f) * (x - 7.5f) + (y - 8.5f) * (y - 8.5f));
+                    bool lit = frame > 0;
+                    if (lr < 5f) return lit ? (lr < 2.5f ? new Color32(255, 250, 210, 255) : new Color32(255, 225, 120, 255)) : new Color32(120, 112, 80, 255);
+                    if (lr < 6f) return Outline;
+                    if (y <= 3 && x >= 5 && x <= 10) return y == 3 || x == 5 || x == 10 ? Outline : new Color32(90, 94, 104, 255);   // base
+                    return lit && lr < 8f ? new Color32(255, 230, 140, 90) : Clear;                                                   // glow
                 }
                 if (def.Kind == BuildingKind.Pipe || def.Kind == BuildingKind.Pump)
                 {
@@ -490,6 +506,21 @@ namespace Codebound.Game
                         if (cy < -2 && ((x / 6) % 2 == 1) && x > 3 && x < w - 4) return y == 6 || y == 7 ? new Color32(220, 60, 50, 255) : new Color32(40, 40, 45, 255);   // canisters
                         if (cy > 4 && Mathf.Abs(cx) < 3) return Shade(body, 0.6f);                                                  // nozzle
                         break;
+                    case "constant_combinator":
+                    case "arithmetic_combinator":
+                    case "decider_combinator":
+                    {
+                        if (y >= 12 && Mathf.Abs(x - 7.5f) < 15 - y) return new Color32(110, 220, 140, 255);                  // output arrow (front)
+                        if (x >= 3 && x <= 12 && y >= 3 && y <= 10)
+                        {
+                            if (x == 3 || x == 12 || y == 3 || y == 10) return Outline;
+                            bool mark = def.Id == "constant_combinator" ? ((x == 6 || x == 9) && y >= 4 && y <= 9) || ((y == 5 || y == 8) && x >= 4 && x <= 11)   // #
+                                : def.Id == "arithmetic_combinator" ? (x >= 7 && x <= 8 && y >= 4 && y <= 9) || (y >= 6 && y <= 7 && x >= 5 && x <= 10)          // +
+                                : (x >= 7 && x <= 8 && (y == 4 || (y >= 6 && y <= 7))) || (y == 9 && x >= 6 && x <= 9) || (x == 9 && y == 8);                  // ?
+                            return mark ? new Color32(255, 200, 80, 255) : new Color32(24, 32, 30, 255);                       // display
+                        }
+                        break;
+                    }
                     case "launchpad":
                     {
                         if (x < 4 || y < 4 || x > w - 5 || y > h - 5) return ((x + y) / 3) % 2 == 0 ? new Color32(240, 200, 40, 255) : new Color32(40, 40, 44, 255);   // hazard border

@@ -89,11 +89,56 @@ namespace Codebound.Game
             else ((ConveyorState)open.State).Filter = item;
         }
 
+        // ------------------------------------------------------------ signals
+        string sigText, sigError; PlacedBuilding sigFor;
+
+        /// <summary>Combinators and switchable machines: the setting text, what the networks carry, and the result.</summary>
+        void DrawSignals(MachineState st)
+        {
+            bool combinator = st is CombinatorState;
+            if (!combinator && !st.TakesCondition && !(st is CableState)) return;
+            var f = session.Factory;
+            if (st is CableState || f.OnSignalNetwork(open))
+            {
+                var sig = f.SignalsAt(open);
+                var parts = new List<string>();
+                foreach (var kv in sig) { parts.Add(kv.Key + "=" + kv.Value); if (parts.Count >= 12) { parts.Add("…"); break; } }
+                GUILayout.Label(L("mp.sigIn", "Signals: {0}", parts.Count == 0 ? "—" : string.Join(", ", parts)), small);
+            }
+            if (st is CableState) return;
+            if (sigFor != open) { sigFor = open; sigError = null; sigText = st is CombinatorState c0 ? c0.Config : st.Condition?.Text ?? ""; }
+            string help = st is CombinatorState cb ? (cb.Kind == BuildingKind.ConstantCombinator ? L("mp.sigConst", "Signals it sends, e.g. A=5,iron_plate=10")
+                : cb.Kind == BuildingKind.ArithmeticCombinator ? L("mp.sigArith", "left op right->output, e.g. iron_plate/10->A or EACH*2->EACH (+ - * / %)")
+                : L("mp.sigDecide", "condition->output, e.g. iron_plate<100->A (sends 1) or A>5->B:input"))
+                : L("mp.sigCond", "Works only while, e.g. iron_plate<100 (empty = always). Needs a signal cable next to it.");
+            GUILayout.Label("<i>" + help + "</i>", small);
+            GUILayout.BeginHorizontal();
+            GUI.SetNextControlName("sigcfg");
+            sigText = GUILayout.TextField(sigText ?? "", SignalSpec.MaxText);
+            if (GUILayout.Button(L("mp.apply", "Apply"), btn, GUILayout.Width(80)))
+            {
+                if (Net.IsGuest) { Net.SendAct(new Dictionary<string, object> { { "a", "cfg" }, { "x", (double)open.Origin.X }, { "y", (double)open.Origin.Y }, { "text", sigText ?? "" } }); sigError = null; }
+                else sigError = Factory.Configure(open, sigText ?? "");
+            }
+            GUILayout.EndHorizontal();
+            session.KeyboardCaptured = GUI.GetNameOfFocusedControl() == "sigcfg";   // typing here must not move the player
+            if (sigError != null) GUILayout.Label("<color=#ff7060>" + sigError + "</color>", small);
+            if (st.TakesCondition && st.Condition != null && f.OnSignalNetwork(open))
+                GUILayout.Label(st.SignalAllows ? L("mp.sigOn", "Condition holds: working") : L("mp.sigOff", "Condition does not hold: switched off"), small);
+            if (st is CombinatorState co && co.LastOutput.Count > 0)
+            {
+                var parts = new List<string>();
+                foreach (var kv in co.LastOutput) parts.Add(kv.Key + "=" + kv.Value);
+                GUILayout.Label(L("mp.sigOut", "Sends: {0}", string.Join(", ", parts)), small);
+            }
+        }
+
         // ------------------------------------------------------------ item transfer
         void DrawMachine()
         {
             var st = open.State;
-            float w = 420, h = 360;
+            bool signals = st is CombinatorState || st.TakesCondition || st is CableState;
+            float w = 420, h = signals ? 470 : 360;
             GUILayout.BeginArea(new Rect((UiGui.W - w) / 2, (UiGui.H - h) / 2, w, h), box);
             GUILayout.Label($"{Loc.Building(open.Def)} #{open.InstanceId}", title);
             string power = open.Def.Kind == BuildingKind.Drill ? "   " + L("mp.power", "power {0}%", (st.PowerSatisfaction * 100).ToString("0")) : "";
@@ -111,6 +156,7 @@ namespace Codebound.Game
             if (st is FurnaceState f) GUILayout.Label(L("mp.fuel", "Fuel energy left: {0} kJ", f.BurnLeftKJ.ToString("0")), small);
             if (!(st is PipeState))   // pipes say it in their status
                 foreach (var (fluid, amount) in st.FluidContents) GUILayout.Label(L("mp.fluid", "{0}: {1} units", L("fluid." + fluid, fluid), amount.ToString("0.0")), small);
+            DrawSignals(st);
             if (open.Def.Id == "sorter" && st is ConveyorState sc)   // set by hand: sorters need no program
             {
                 GUILayout.Label(L("mp.sorter", "Straight on: <b>{0}</b> — other items turn right", sc.Filter == null ? L("mp.everything", "everything") : Loc.Item(sc.Filter)), small);

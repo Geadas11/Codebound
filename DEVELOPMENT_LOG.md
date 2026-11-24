@@ -280,3 +280,10 @@
 - Resultado: edição longe 0,4 ms/tick, edição no meio de uma rede grande ~3 ms; limite de `Building_InABigBase_DoesNotStall` 25 → 5 ms.
 - Mudanças de comportamento: com falta de energia, os críticos são servidos primeiro (antes todos recebiam a mesma fração); baterias descarregam por ordem de id.
 - Testes: 164/164 EditMode (6 novos em `PowerTests`); runtimes JS, Python, PHP, SQL, C#, C/C++ PASS; build + self-test PASS; Play Mode: `energy.network()` em JS e as colunas novas em SQL.
+
+## Sessão 5 (cont.): Etapa 5 — sinais
+- `Core/Signals.cs` (novo): `SignalSpec` (sintaxe única, validação, aritmética sem exceções), `SignalCondition`, cabos, combinadores, lâmpada, sistema `signals` e ligações. 5 edifícios novos, tecnologia `circuit_network`, arte (cabo vermelho, ecrãs # + ?, lâmpada acesa/apagada), 20 textos × 10 línguas.
+- Decisão: **uma sintaxe de texto** para todas as configurações. Cada linguagem só precisa de `configure(text)` e `signals.read/send`; o painel tem um campo de texto; os convidados mandam o mesmo texto e o anfitrião valida com o mesmo código.
+- Decisão: cabos por vizinhança (como os tubos) em vez de fios ponto-a-ponto: cabe na ferramenta de construção que já existe. Uma só cor (limitação registada).
+- Bugs apanhados pelos testes: o analisador lia `EACH*-2` com o `-` como operador (agora o operador é o primeiro símbolo que não segue outro); uma edição de Python da Etapa 5 partiu a expressão da lista de funções (`'drill' has no function 'mine'`), apanhado pelo teste de runtime de Python e corrigido antes do commit.
+- Testes: 171/171 EditMode (7 novos em `SignalTests`); runtimes JS, Python, PHP, SQL, C#, C/C++ PASS; build + self-test PASS; Play Mode: JS (`signals.send/read`, `configure`, erro de sintaxe) e SQL (tabela `signals`, `send`, `configure`).

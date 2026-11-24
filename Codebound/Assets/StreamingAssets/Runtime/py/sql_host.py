@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # -I removes th
 import host as H
 
 CYCLE_BUDGET_S = 2.0
-GAME_TABLES = ("machines", "contents", "energy", "events", "game", "creatures")
+GAME_TABLES = ("machines", "contents", "energy", "events", "game", "creatures", "signals")
 SAFE_PRAGMAS = {"table_info", "table_list", "index_list", "index_info", "foreign_keys", "user_version"}
 DIRECTIVE = re.compile(r"^\s*--\s*@(every|once)\s*([0-9.]*)", re.I | re.M)
 
@@ -88,7 +88,7 @@ def refresh(db, snap, cycle):
     try:
         db.executescript("""
             DROP TABLE IF EXISTS temp.machines; DROP TABLE IF EXISTS temp.contents; DROP TABLE IF EXISTS temp.energy;
-            DROP TABLE IF EXISTS temp.events; DROP TABLE IF EXISTS temp.game; DROP TABLE IF EXISTS temp.creatures;
+            DROP TABLE IF EXISTS temp.events; DROP TABLE IF EXISTS temp.game; DROP TABLE IF EXISTS temp.creatures; DROP TABLE IF EXISTS temp.signals;
             CREATE TEMP TABLE machines(id TEXT, type TEXT, name TEXT, status TEXT, power REAL, busy INTEGER, distance REAL);
             CREATE TEMP TABLE contents(machine TEXT, role TEXT, item TEXT, count INTEGER);
             CREATE TEMP TABLE energy(capacity_kw REAL, demand_kw REAL, satisfaction REAL, available INTEGER,
@@ -96,6 +96,7 @@ def refresh(db, snap, cycle):
             CREATE TEMP TABLE events(name TEXT, machine TEXT, item TEXT, time REAL);
             CREATE TEMP TABLE game(time REAL, cycle INTEGER, pollution REAL, weather TEXT, temperature REAL, day INTEGER, daylight REAL);
             CREATE TEMP TABLE creatures(id INTEGER, type TEXT, health REAL, distance REAL);
+            CREATE TEMP TABLE signals(name TEXT, value INTEGER);
         """)
         db.executemany("INSERT INTO temp.machines VALUES (?,?,?,?,?,?,?)",
                        [(m["id"], m["type"], m["name"], m["status"], m["power"], 1 if m["busy"] else 0, m["distance"]) for m in snap["machines"]])
@@ -108,6 +109,7 @@ def refresh(db, snap, cycle):
                        [(ev.get("name"), (ev.get("data") or {}).get("machine"), (ev.get("data") or {}).get("item"), snap["time"]) for ev in snap["events"]])
         db.execute("INSERT INTO temp.game VALUES (?,?,?,?,?,?,?)", (snap["time"], cycle, snap.get("pollution", 0), snap.get("weather"), snap.get("temperature"), snap.get("day"), snap.get("daylight")))
         db.executemany("INSERT INTO temp.creatures VALUES (?,?,?,?)", [(c["id"], c["type"], c["health"], c["distance"]) for c in snap.get("creatures", [])])
+        db.executemany("INSERT INTO temp.signals VALUES (?,?)", [tuple(s) for s in snap.get("signals", [])])
         db.commit()
     finally:
         Sql.host_mode = False

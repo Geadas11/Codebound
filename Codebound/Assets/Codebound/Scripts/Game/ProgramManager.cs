@@ -616,6 +616,15 @@ namespace Codebound.Game
                     if (fn == "alarm") { session.State.Hud.Alarm($"PC-{p.Computer.InstanceId}: {Arg(0)}"); Reply(p, true); return; }
                     if (fn == "notify") { session.State.Hud.Notify($"{"PC-" + p.Computer.InstanceId}: {Arg(0)}"); Reply(p, true); return; }
                     break;
+                case "signals":
+                    if (fn == "read") { Reply(p, ToObjects(session.Factory.SignalsAt(p.Computer))); return; }
+                    if (fn == "send")
+                    {
+                        var sendErr = SetSignalOut((ComputerState)p.Computer.State, Arg(0) as Dictionary<string, object>);
+                        if (sendErr != null) { Reply(p, null, error: sendErr); return; }
+                        Reply(p, true); return;
+                    }
+                    break;
                 case "energy":
                     if (fn == "available") { Reply(p, session.Factory.HasPower(p.Computer)); return; }
                     if (fn == "stats")
@@ -662,6 +671,14 @@ namespace Codebound.Game
                     if (m == null) { Reply(p, null, error: $"Machine {obj} is gone or out of range ({Factory.ComputerRange} cells)."); return; }
                     switch (fn)
                     {
+                        case "configure":   // combinators and machine conditions: one text, e.g. "iron_plate<100"
+                        {
+                            var cfgErr = Factory.Configure(m, Arg(0) as string ?? "");
+                            if (cfgErr != null) { Reply(p, null, error: cfgErr); return; }
+                            Reply(p, true); return;
+                        }
+                        case "signals":
+                            Reply(p, ToObjects(session.Factory.SignalsAt(m))); return;
                         case "status":
                             Reply(p, new Dictionary<string, object> { { "status", m.State.Status }, { "power", m.State.PowerSatisfaction }, { "busy", session.Factory.HasAction(m) } });
                             return;
@@ -840,6 +857,31 @@ namespace Codebound.Game
         }
     
         // ------------------------------------------------------------ SQL
+        static Dictionary<string, object> ToObjects(Dictionary<string, int> d)
+        {
+            var o = new Dictionary<string, object>();
+            foreach (var kv in d) o[kv.Key] = kv.Value;
+            return o;
+        }
+
+        /// <summary>signals.send({A: 5}): what this computer puts on its signal networks (replaces the previous values; {} clears).</summary>
+        static string SetSignalOut(ComputerState cs, Dictionary<string, object> values)
+        {
+            if (values == null) return "signals.send needs an object like {A: 5}";
+            if (values.Count > SignalSpec.MaxPairs) return $"at most {SignalSpec.MaxPairs} signals";
+            var next = new Dictionary<string, int>();
+            foreach (var kv in values)
+            {
+                if (!SignalSpec.IsName(kv.Key)) return $"'{kv.Key}' is not a signal (items like iron_plate, fluid_water, or A-Z, 0-9)";
+                double v = kv.Value is double dv ? dv : kv.Value is bool bv ? (bv ? 1 : 0) : double.NaN;
+                if (double.IsNaN(v) || v < int.MinValue || v > int.MaxValue) return $"'{kv.Key}': the value must be a whole number";
+                if (v != 0) next[kv.Key] = (int)Math.Round(v);
+            }
+            cs.SignalOut.Clear();
+            foreach (var kv in next) cs.SignalOut[kv.Key] = kv.Value;
+            return null;
+        }
+
         /// <summary>energy.network(): the last tick of the computer's power network, by source and priority (null when it has none).</summary>
         static Dictionary<string, object> NetworkInfo(PowerStats s)
         {
@@ -871,6 +913,8 @@ namespace Codebound.Game
                 foreach (var (fluid, amount) in b.State.FluidContents)   // fluids as role 'fluid', whole units
                     contents.Add(new List<object> { "m" + b.InstanceId, "fluid", fluid, (int)Math.Round(amount) });
             }
+            var signals = new List<object>();
+            foreach (var kv in session.Factory.SignalsAt(p.Computer)) signals.Add(new List<object> { kv.Key, kv.Value });
             var creatures = new List<object>();
             foreach (var cr in session.State.Creatures.All)
             {
@@ -882,7 +926,7 @@ namespace Codebound.Game
             var events = new List<object>(p.Events);
             p.Events.Clear();
             return new Dictionary<string, object> {
-                { "time", Math.Round(Time.time, 2) }, { "pollution", Math.Round(session.State.Ecology.At(p.Computer.Origin), 1) }, { "weather", session.State.Clock.WeatherAt(session.World.Generator.BiomeAt(p.Computer.Origin)).ToString().ToLowerInvariant() }, { "temperature", Math.Round(Vitals.At(session.World.Generator, p.Computer.Origin, session.State.Clock).AmbientC, 1) }, { "day", session.State.Clock.Day }, { "daylight", Math.Round(session.State.Clock.Daylight, 3) }, { "machines", machines }, { "contents", contents }, { "events", events }, { "creatures", creatures },
+                { "time", Math.Round(Time.time, 2) }, { "pollution", Math.Round(session.State.Ecology.At(p.Computer.Origin), 1) }, { "weather", session.State.Clock.WeatherAt(session.World.Generator.BiomeAt(p.Computer.Origin)).ToString().ToLowerInvariant() }, { "temperature", Math.Round(Vitals.At(session.World.Generator, p.Computer.Origin, session.State.Clock).AmbientC, 1) }, { "day", session.State.Clock.Day }, { "daylight", Math.Round(session.State.Clock.Daylight, 3) }, { "machines", machines }, { "contents", contents }, { "events", events }, { "creatures", creatures }, { "signals", signals },
                 { "energy", EnergyRow(p, cap, dem) } };
         }
 
@@ -908,6 +952,14 @@ namespace Codebound.Game
                 string id = row != null && row.Count > 0 ? row[0] as string : null;
                 string action = row != null && row.Count > 1 ? (row[1] as string ?? "").ToLowerInvariant() : "";
                 string arg = row != null && row.Count > 2 ? row[2] as string : null;
+                if (id == "signals")   // INSERT INTO commands VALUES ('signals', 'send', 'A=5,B=2')
+                {
+                    var vals = new Dictionary<string, int>();
+                    string serr = action == "send" ? SignalSpec.ParsePairs(arg, vals) : "the signals row only knows 'send'";
+                    if (serr == null) { var cs = (ComputerState)p.Computer.State; cs.SignalOut.Clear(); foreach (var kv in vals) if (kv.Value != 0) cs.SignalOut[kv.Key] = kv.Value; }
+                    else warnings.Add("signals.send: " + serr);
+                    continue;
+                }
                 var m = Resolve(p, id);
                 if (m == null) { warnings.Add($"commands: machine '{id}' is gone or out of range"); continue; }
                 string err = null;
@@ -960,7 +1012,8 @@ namespace Codebound.Game
                         if (cv != null) { if (run.HasValue) cv.Running = run.Value; else cv.Filter = arg; cv.Status = cv.Running ? "moving" : "stopped"; }
                         if (ins != null) { if (run.HasValue) ins.Running = run.Value; else ins.Filter = arg; }
                         break;
-                    default: err = $"unknown action '{action}' (mine, smelt, craft, research, fire, plant, water, harvest, start, stop, set_filter)"; break;
+                    case "configure": err = Factory.Configure(m, arg ?? ""); break;
+                    default: err = $"unknown action '{action}' (mine, smelt, craft, research, fire, plant, water, harvest, start, stop, set_filter, configure)"; break;
                 }
                 if (err != null && err != "busy" && err != "nothing_ripe" && err != "nothing_to_water") warnings.Add($"{id}.{action}: {err}");
             }

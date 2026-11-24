@@ -211,6 +211,12 @@ namespace Codebound.Core
                         return "nothing to take";
                     }
                     case "repair": return g.Repair(g.Grid.At(c), inv);
+                    case "cfg":   // signal settings from a guest's machine panel (validated like any program's)
+                    {
+                        string text = a.TryGetValue("text", out var tv) ? tv as string : null;
+                        if (text == null || text.Length > SignalSpec.MaxText) return "bad setting";
+                        return Factory.Configure(g.Grid.At(c), text);
+                    }
                     case "sort":
                     {
                         var b = g.Grid.At(c);

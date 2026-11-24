@@ -57,6 +57,7 @@ namespace Codebound.Core
         void SleepOn(PlacedBuilding sleeper, Cell c)
         {
             if (!SleepEnabled) return;
+            if (sleeper.State.Condition != null && links.ContainsKey(sleeper.InstanceId)) return;   // its signals can change any tick: keep checking
             if (!sleepersAt.TryGetValue(c, out var l)) sleepersAt[c] = l = new List<PlacedBuilding>();
             l.Add(sleeper);
             sleeper.State.Asleep = true;
@@ -79,6 +80,9 @@ namespace Codebound.Core
             if (st is StorageHubState) yield return hubs;
             if (st is PipeState) yield return fluidPipes;
             if (IsFluidMachine(st)) yield return fluidMachines;
+            if (st is CableState) yield return cables;
+            if (st != null && IsSignalUser(st)) yield return signalUsers;
+            if (st is LampState) yield return lamps;
         }
 
         static void RemoveSorted(List<PlacedBuilding> l, PlacedBuilding b)
@@ -107,6 +111,7 @@ namespace Codebound.Core
                 if (b.State != null) b.State.Touched += () => { if (b.State != null) b.State.Asleep = false; WakeAround(b); };
                 WakeAround(b);   // whoever waited for something to appear here
                 PowerPlaced(b);
+                SignalPlaced(b);
                 if (b.State is StorageState || b.State is StorageHubState) hubsDirty = true;
                 if (b.State is PipeState) fluidDirty = true;
             };
@@ -117,6 +122,7 @@ namespace Codebound.Core
                 for (int i = actions.Count - 1; i >= 0; i--)
                     if (actions[i].Machine == b) { var a = actions[i]; actions.RemoveAt(i); a.Done?.Invoke(null); }
                 PowerRemoved(b);
+                SignalRemoved(b);
                 if (b.State is StorageState || b.State is StorageHubState) hubsDirty = true;
                 if (b.State is PipeState) fluidDirty = true;
             };
@@ -155,6 +161,9 @@ namespace Codebound.Core
                 case BuildingKind.Boiler: return new BoilerState();
                 case BuildingKind.SteamEngine: return new SteamEngineState();
                 case BuildingKind.Filler: return new FillerState();
+                case BuildingKind.Cable: return new CableState();
+                case BuildingKind.ConstantCombinator: case BuildingKind.ArithmeticCombinator: case BuildingKind.DeciderCombinator: return new CombinatorState(def.Kind);
+                case BuildingKind.Lamp: return new LampState();
                 default: return null;
             }
         }
@@ -169,7 +178,7 @@ namespace Codebound.Core
         static bool IsConsumer(PlacedBuilding b) => b.Def.Kind == BuildingKind.Drill || b.Def.Kind == BuildingKind.Computer
             || b.Def.Kind == BuildingKind.Greenhouse || b.Def.Kind == BuildingKind.Assembler || b.Def.Kind == BuildingKind.Lab || b.Def.Kind == BuildingKind.Turret
             || b.Def.Kind == BuildingKind.Scrubber || b.Def.Kind == BuildingKind.Server || b.Def.Kind == BuildingKind.StorageHub || b.Def.Kind == BuildingKind.Heater
-            || b.Def.Kind == BuildingKind.Pump || b.Def.Kind == BuildingKind.Pumpjack || b.Def.Kind == BuildingKind.Filler;
+            || b.Def.Kind == BuildingKind.Pump || b.Def.Kind == BuildingKind.Pumpjack || b.Def.Kind == BuildingKind.Filler || b.Def.Kind == BuildingKind.Lamp;
         public const float GrowLampKW = 30f, AssemblerKW = 60f, LabKW = 40f;
         /// <summary>Tech progress of the world (set by GameState).</summary>
         public Research Research = new Research();
@@ -189,7 +198,8 @@ namespace Codebound.Core
             if (c.Def.Kind == BuildingKind.Server) return 15f;
             if (c.Def.Kind == BuildingKind.Heater) return Shelter.HeaterKW;
             if (c.Def.Kind == BuildingKind.StorageHub) return 20f;
-            if (c.State is SwitchedFluidState sw && !sw.Running) return 0f;
+            if (c.State is SwitchedFluidState sw && !sw.Working) return 0f;
+            if (c.Def.Kind == BuildingKind.Lamp) return c.State.SignalAllows ? LampKW : 0f;
             if (c.Def.Kind == BuildingKind.Pump) return Fluids.PumpKW;
             if (c.Def.Kind == BuildingKind.Pumpjack) return Fluids.PumpjackKW;
             if (c.Def.Kind == BuildingKind.Filler) return Fluids.FillerKW;
@@ -216,7 +226,7 @@ namespace Codebound.Core
                 || st is ComputerState pc && pc.Running
                 || st is ScrubberState sc && sc.Status == "cleaning"
                 || st is LaunchPadState lp && lp.Phase == "ascent"
-                || s == "pumping" || s == "boiling" || s == "filling" || st is SteamEngineState se && se.OutputKW > 0;
+                || s == "pumping" || s == "boiling" || s == "filling" || st is SteamEngineState se && se.OutputKW > 0 || st is LampState lm && lm.Lit;
             if (!working && st is GreenhouseState gh) foreach (var v in gh.Growth) if (v >= 0 && v < 1) working = true;
             return working ? MachineActivity.Working : MachineActivity.Idle;
         }
@@ -374,6 +384,7 @@ namespace Codebound.Core
             yield return new SimSystem("power", () => UpdatePower(dt), PreparePower);
             yield return new SimSystem("machine actions", () => ProgressActions(dt), null, CompleteActions);
             yield return new SimSystem("outputs", PushOutputs);
+            yield return new SimSystem("signals", TickSignals);
             yield return new SimSystem("belts", () => TickConveyors(dt));
             yield return new SimSystem("inserters", () => TickInserters(dt));
             yield return new SimSystem("fluids", () => TickFluids(dt));
@@ -389,6 +400,7 @@ namespace Codebound.Core
             ProgressActions(dt);
             CompleteActions();
             PushOutputs();
+            TickSignals();
             TickConveyors(dt);
             TickInserters(dt);
             TickFluids(dt);

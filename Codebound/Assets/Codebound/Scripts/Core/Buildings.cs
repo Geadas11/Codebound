@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Codebound.Core
 {
-    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap, Pipe, Pump, Tank, OffshorePump, Pumpjack, Boiler, SteamEngine, Filler }
+    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap, Pipe, Pump, Tank, OffshorePump, Pumpjack, Boiler, SteamEngine, Filler, Cable, ConstantCombinator, ArithmeticCombinator, DeciderCombinator, Lamp }
 
     public sealed class BuildingDef
     {
@@ -25,7 +25,7 @@ namespace Codebound.Core
             || Kind == BuildingKind.LaunchPad || Kind == BuildingKind.Pump || Kind == BuildingKind.Pumpjack || Kind == BuildingKind.Filler;
 
         /// <summary>Belts can be walked over (Factorio-style); everything else blocks the player.</summary>
-        public bool Walkable => Kind == BuildingKind.Belt || Kind == BuildingKind.Conveyor || Kind == BuildingKind.ShockTrap || Kind == BuildingKind.Pipe;
+        public bool Walkable => Kind == BuildingKind.Belt || Kind == BuildingKind.Conveyor || Kind == BuildingKind.ShockTrap || Kind == BuildingKind.Pipe || Kind == BuildingKind.Cable;
 
         public (int w, int h) Size(Rotation r) => r.IsSideways() ? (Height, Width) : (Width, Height);
 
@@ -105,6 +105,16 @@ namespace Codebound.Core
                 new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.IronGear, 8), new ItemStack(ItemDatabase.CopperWire, 6)),
             new BuildingDef("filler", "Canister Filler", BuildingKind.Filler, 2, 2, 0x9a7a3a,
                 new ItemStack(ItemDatabase.IronPlate, 8), new ItemStack(ItemDatabase.IronGear, 4), new ItemStack(ItemDatabase.Circuit, 2)),
+            // circuit signals (Etapa 5 of the industrial simulation)
+            new BuildingDef("cable", "Signal Cable", BuildingKind.Cable, 1, 1, 0xc84a3a, new ItemStack(ItemDatabase.CopperWire, 1)),
+            new BuildingDef("constant_combinator", "Constant Combinator", BuildingKind.ConstantCombinator, 1, 1, 0x4a5a6a,
+                new ItemStack(ItemDatabase.CopperWire, 4), new ItemStack(ItemDatabase.Circuit, 2)),
+            new BuildingDef("arithmetic_combinator", "Arithmetic Combinator", BuildingKind.ArithmeticCombinator, 1, 1, 0x3a5a7a,
+                new ItemStack(ItemDatabase.CopperWire, 4), new ItemStack(ItemDatabase.Circuit, 3)),
+            new BuildingDef("decider_combinator", "Decider Combinator", BuildingKind.DeciderCombinator, 1, 1, 0x5a3a7a,
+                new ItemStack(ItemDatabase.CopperWire, 4), new ItemStack(ItemDatabase.Circuit, 3)),
+            new BuildingDef("lamp", "Lamp", BuildingKind.Lamp, 1, 1, 0xd8c86a,
+                new ItemStack(ItemDatabase.IronPlate, 1), new ItemStack(ItemDatabase.CopperWire, 2), new ItemStack(ItemDatabase.Silicon, 1)),
         };
 
         public static BuildingDef TryGet(string id) { foreach (var b in All) if (b.Id == id) return b; return null; }

@@ -96,12 +96,14 @@ namespace Codebound
     {
         static readonly Dictionary<string, string[]> Ops = new Dictionary<string, string[]>
         {
-            ["drill"] = new[] { "mine" }, ["furnace"] = new[] { "smelt" }, ["conveyor"] = new[] { "start", "stop", "set_filter" },
-            ["inserter"] = new[] { "start", "stop", "set_filter" }, ["greenhouse"] = new[] { "plant", "water", "harvest", "plots" },
+            ["drill"] = new[] { "mine" }, ["furnace"] = new[] { "smelt" }, ["conveyor"] = new[] { "start", "stop", "set_filter", "configure", "signals" },
+            ["inserter"] = new[] { "start", "stop", "set_filter", "configure", "signals" }, ["greenhouse"] = new[] { "plant", "water", "harvest", "plots" },
             ["assembler"] = new[] { "craft" }, ["lab"] = new[] { "research", "techs" }, ["turret"] = new[] { "targets", "fire" },
             ["launchpad"] = new[] { "launch", "throttle", "flight", "planets", "travel", "land", "asteroids", "mine_asteroid", "dock", "answer", "transmit" },
             ["server"] = new[] { "get", "set", "keys", "delete" }, ["storage_hub"] = new[] { "totals", "find" },
-            ["pump"] = new[] { "start", "stop" }, ["pumpjack"] = new[] { "start", "stop" }, ["filler"] = new[] { "start", "stop" },
+            ["pump"] = new[] { "start", "stop", "configure", "signals" }, ["pumpjack"] = new[] { "start", "stop", "configure", "signals" }, ["filler"] = new[] { "start", "stop", "configure", "signals" },
+            ["long_inserter"] = new[] { "configure", "signals" }, ["belt"] = new[] { "configure", "signals" }, ["lamp"] = new[] { "configure", "signals" },
+            ["constant_combinator"] = new[] { "configure", "signals" }, ["arithmetic_combinator"] = new[] { "configure", "signals" }, ["decider_combinator"] = new[] { "configure", "signals" },
         };
         public string Id { get; }
         public string Type { get; }
@@ -125,6 +127,9 @@ namespace Codebound
         public JsonNode Start() => Call("start");
         public JsonNode Stop() => Call("stop");
         public JsonNode SetFilter(string item) => Call("set_filter", item);
+        /// <summary>Combinators and machine conditions: "iron_plate&lt;100", "A*2->B", "A>5->B:input", "A=5,B=2".</summary>
+        public JsonNode Configure(string text) => Call("configure", text ?? "");
+        public JsonNode Signals() => Call("signals");
         public JsonNode Plant(int plot = -1, string species = null) => Call("plant", plot < 0 ? null : (object)plot, species);
         public JsonNode Water(int plot = -1) => plot < 0 ? Call("water") : Call("water", plot);
         public JsonNode Harvest(int plot = -1) => plot < 0 ? Call("harvest") : Call("harvest", plot);
@@ -167,6 +172,11 @@ namespace Codebound
         public bool Send(string channel, object data = null) => Proto.Call("computer", "send", channel, data is JsonNode || data is string || data is double || data is int || data is bool || data == null ? data : data.ToString())?.GetValue<bool>() ?? false;
     }
 
+    public sealed class SignalsApi
+    {
+        public JsonNode Read() => Proto.Call("signals", "read");
+        public JsonNode Send(IDictionary<string, int> values) => Proto.Call("signals", "send", values ?? new Dictionary<string, int>());
+    }
     public sealed class EnergyApi { public bool Available() => Proto.Call("energy", "available")?.GetValue<bool>() ?? false; public JsonNode Stats() => Proto.Call("energy", "stats"); public JsonNode Network() => Proto.Call("energy", "network"); }
     public sealed class WorldApi { public JsonNode Pollution() => Proto.Call("world", "pollution"); public JsonNode Weather() => Proto.Call("world", "weather"); }
     public sealed class HudApi
@@ -182,6 +192,7 @@ namespace Codebound
         public static MachineApi Machines { get; } = new MachineApi();
         public static ComputerApi Computer { get; } = new ComputerApi();
         public static EnergyApi Energy { get; } = new EnergyApi();
+        public static SignalsApi Signals { get; } = new SignalsApi();
         public static WorldApi World { get; } = new WorldApi();
         public static HudApi Hud { get; } = new HudApi();
         public static Machine Drill { get; internal set; }

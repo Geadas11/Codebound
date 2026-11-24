@@ -44,6 +44,7 @@ namespace Codebound.Core
         public bool Sorts;         // sorter: the filter picks the exit instead of refusing items
 
         public ConveyorState() { Contents.Changed += Reconcile; }
+        public override bool TakesCondition => true;
 
         public IReadOnlyList<BeltItem> Lane(int i) => lanes[i];
         internal List<BeltItem> LaneList(int i) => lanes[i];
@@ -214,6 +215,7 @@ namespace Codebound.Core
         public string Filter { get => filter; set { if (filter != value) { filter = value; Touch(); } } }
         public int Moved;          // total items moved (for programs and UI)
         public string Held => Hand[0].IsEmpty ? null : Hand[0].ItemId;
+        public override bool TakesCondition => true;
 
         public override IEnumerable<(string, Inventory)> Inventories { get { yield return ("hand", Hand); } }
 
@@ -245,7 +247,7 @@ namespace Codebound.Core
                 var c = (ConveyorState)b.State;
                 c.MovedNow = false;
                 if (c.Asleep || c.ItemCount == 0) continue;
-                if (!c.Running) { c.Status = "stopped"; continue; }
+                if (!c.Running || !c.SignalAllows) { c.Status = c.Running ? "disabled" : "stopped"; continue; }
                 for (int l = 0; l < ConveyorState.Lanes; l++)
                 {
                     var lane = c.LaneList(l);
@@ -262,7 +264,7 @@ namespace Codebound.Core
             foreach (var b in belts)
             {
                 var c = (ConveyorState)b.State;
-                if (c.Asleep || c.ItemCount == 0 || !c.Running) continue;
+                if (c.Asleep || c.ItemCount == 0 || !c.Running || !c.SignalAllows) continue;
                 bool blocked = false;
                 for (int l = 0; l < ConveyorState.Lanes; l++)
                 {
@@ -362,6 +364,7 @@ namespace Codebound.Core
                 var ins = (InserterState)b.State;
                 if (ins.Asleep) continue;
                 if (!ins.Running) { ins.Status = "stopped"; continue; }
+                if (!ins.SignalAllows) { ins.Status = "disabled"; continue; }
                 bool longArm = b.Def.Id == "long_inserter";
                 float halfSwing = (longArm ? InserterState.SwingSeconds * 1.5f : InserterState.SwingSeconds) / 2f;
                 float v = dt / halfSwing;

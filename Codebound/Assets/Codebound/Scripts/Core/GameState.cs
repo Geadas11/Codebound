@@ -183,6 +183,8 @@ namespace Codebound.Core
                 foreach (var (role, inv) in b.State.Inventories) WriteInv(w, "bi " + role, inv);
                 extra.Clear();
                 b.State.SaveExtra(extra);
+                if (b.State.Condition != null) extra["cond"] = b.State.Condition.Text;
+                if (b.State.TakesCondition && !b.State.SignalAllows) extra["sigoff"] = "1";
                 foreach (var kv in extra) w.WriteLine($"bx {kv.Key} {kv.Value}");
             }
             w.WriteLine(g.Vitals.SaveLine());
@@ -244,7 +246,11 @@ namespace Codebound.Core
                             foreach (var (role, inv) in Need(last).State.Inventories)
                                 if (role == p[1]) inv.Add(p[2], int.Parse(p[3], Inv));
                             break;
-                        case "bx": Need(last).State.LoadExtra(p[1], p.Length > 2 ? p[2] : ""); break;
+                        case "bx":
+                            if (p[1] == "cond") Need(last).State.SetCondition(p.Length > 2 ? p[2] : "");
+                            else if (p[1] == "sigoff") Need(last).State.SignalAllows = false;
+                            else Need(last).State.LoadExtra(p[1], p.Length > 2 ? p[2] : "");
+                            break;
                         case "bh": Need(last).Health = float.Parse(p[1], Inv); break;
                         case "bo": Need(last).Owner = Multiplayer.ValidName(p[1]) ? p[1] : null; break;
                         case "hud": Need(g).Hud.LoadLine(p); break;

@@ -102,3 +102,10 @@ Ordem mantida: a auditoria confirmou que a Etapa 1 é pré-requisito de todas (o
 - **Testes**: 164/164 EditMode; runtimes das 8 linguagens PASS; build + self-test PASS; Play Mode verificado.
 - **Limitações**: prioridades fixas por tipo de máquina (os jogadores ainda não as mudam); estatísticas só do último tick (sem histórico/gráficos); os acumuladores continuam a ser as baterias existentes; tirar um nó no meio de uma rede muito grande ainda percorre essa rede (~3 ms com 2000 edifícios).
 - **Retomar**: Etapa 5 — sinais.
+
+### Etapa 5 — concluída (2026-11-24)
+- **Feito**: P10 (sinais): cabos e redes de sinais, combinadores constante/aritmético/decisor, condições em braços, correias, bombas, bombas de petróleo, enchedoras e lâmpadas, ligação a baús, depósitos e computadores; uma sintaxe de texto comum; API nas 8 linguagens, SQL, painel, multijogador, saves exatos.
+- **Ficheiros**: `Core/Signals.cs` (novo), `Core/Machines.cs`, `Core/Logistics.cs`, `Core/Fluids.cs`, `Core/Factory.cs`, `Core/Buildings.cs`, `Core/GameState.cs`, `Core/Research.cs`, `Core/Multiplayer.cs`, `Game/ProgramManager.cs`, `Game/MachinePanel.cs`, `Game/PixelArtFactory.cs`, `Game/BuildingViews.cs`, runtimes JS/Python/PHP/SQL, `Tools/cshost/Host.cs`, `Tools/localization/tables_signals.py` (novo) e tabelas; testes `SignalTests.cs` (novo), `DeterminismTests.cs`.
+- **Testes**: 171/171 EditMode; runtimes das 8 linguagens PASS; build + self-test PASS; Play Mode verificado.
+- **Limitações**: uma cor de fio; combinadores sem energia; decisor sem `ANY/EVERYTHING`; HUD sem marcador próprio para sinais (usa `hud.set` nos programas).
+- **Retomar**: Etapa 6 — logística avançada (robôs).

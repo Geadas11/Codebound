@@ -96,6 +96,12 @@ namespace Codebound.Core
                 Cost = new[] { new ItemStack(ItemDatabase.Circuit, 10), new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.StoneBrick, 10) },
                 Prereqs = new[] { "fluid_handling" }, Unlocks = new[] { "pumpjack", "filler" } },
 
+            // ---- circuit signals (Etapa 5 of the industrial simulation)
+            new Tech { Id = "circuit_network", Name = "Circuit Network", Area = "Industry", Seconds = 35,
+                Description = "Signal cables carry chest contents, tank levels and computer signals; combinators do sums and comparisons; arms, belts, pumps and lamps can work only while a condition holds (iron_plate<100). Programs: signals.read(), signals.send({A: 5}), machine.configure(text).",
+                Cost = new[] { new ItemStack(ItemDatabase.Circuit, 10), new ItemStack(ItemDatabase.CopperWire, 20) },
+                Prereqs = new[] { "manufacturing" }, Unlocks = new[] { "cable", "constant_combinator", "arithmetic_combinator", "decider_combinator", "lamp" } },
+
             // ---- main line: rebuild the ship
             new Tech { Id = "ship_frame", Name = "Ship: Hull Frame", Area = "Space", MainLine = true, Seconds = 45,
                 Description = "Repair the crashed hull's frame.",

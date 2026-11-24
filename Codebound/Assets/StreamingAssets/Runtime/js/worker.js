@@ -151,6 +151,7 @@ const PRELUDE = `
     if (info.type === 'server') { m.get = (k) => call(id, 'get', [String(k)]); m.set = (k, v) => call(id, 'set', [String(k), v]); m.keys = () => call(id, 'keys'); m.delete = (k) => call(id, 'delete', [String(k)]); }
     if (info.type === 'storage_hub') { m.totals = () => call(id, 'totals'); m.find = (item) => call(id, 'find', [String(item)]); }
     if (info.type === 'lab') { m.research = (tech) => call(id, 'research', [String(tech)]); m.techs = () => call(id, 'techs'); }
+    if (['inserter', 'long_inserter', 'conveyor', 'belt', 'pump', 'pumpjack', 'filler', 'lamp', 'constant_combinator', 'arithmetic_combinator', 'decider_combinator'].includes(info.type)) { m.configure = (text) => call(id, 'configure', [text == null ? '' : String(text)]); m.signals = () => call(id, 'signals'); }
     if (info.type === 'pump' || info.type === 'pumpjack' || info.type === 'filler') { m.start = () => call(id, 'start'); m.stop = () => call(id, 'stop'); }
     if (info.type === 'conveyor' || info.type === 'inserter') {
       m.start = () => call(id, 'start');
@@ -193,6 +194,10 @@ const PRELUDE = `
   global.computer = computer;
   global.machines = machines;
   global.energy = energy;
+  global.signals = Object.freeze({
+    read: () => call('signals', 'read'),
+    send: (values) => call('signals', 'send', [values == null ? {} : values]),
+  });
   global.world = Object.freeze({ pollution: () => call('world', 'pollution'), weather: () => call('world', 'weather') });
   global.hud = Object.freeze({
     set: (key, value) => call('hud', 'set', [String(key), value === undefined ? null : value]),

@@ -103,7 +103,7 @@ namespace Codebound.Tests
         public void TickOrder_IsExplicit()
         {
             var g = new GameState(1);
-            CollectionAssert.AreEqual(new[] { "clock & weather", "power", "machine actions", "outputs", "belts", "inserters", "fluids", "greenhouses", "launch pads", "storage hubs", "creatures", "ecology", "lightning" },
+            CollectionAssert.AreEqual(new[] { "clock & weather", "power", "machine actions", "outputs", "signals", "belts", "inserters", "fluids", "greenhouses", "launch pads", "storage hubs", "creatures", "ecology", "lightning" },
                 g.Simulation.Systems.Select(s => s.Name).ToArray());
         }
 

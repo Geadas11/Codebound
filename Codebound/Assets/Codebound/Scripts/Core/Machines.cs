@@ -18,6 +18,22 @@ namespace Codebound.Core
         public event System.Action Touched;
         protected void Touch() => Touched?.Invoke();
 
+        /// <summary>Machines a signal condition can switch (arms, belts, pumps, pumpjacks, fillers, lamps).</summary>
+        public virtual bool TakesCondition => false;
+        /// <summary>Works only while this holds — when the machine is next to a signal network. Null = always.</summary>
+        public SignalCondition Condition { get; private set; }
+        /// <summary>The condition's result this tick (true when there is no condition or no network).</summary>
+        public bool SignalAllows { get; internal set; } = true;
+        /// <summary>Sets the condition from text like "iron_plate&lt;100" ("" clears it). Returns null or why not.</summary>
+        public string SetCondition(string text)
+        {
+            if (!TakesCondition) return "this machine has no condition";
+            var err = SignalSpec.ParseCondition(text, out var c);
+            if (err != null) return err;
+            if ((Condition?.Text ?? "") != (c?.Text ?? "")) { Condition = c; Touch(); }
+            return null;
+        }
+
         /// <summary>Insert from a conveyor/drill/player. All-or-nothing.</summary>
         public virtual bool TryInsert(string itemId, int count) => false;
         /// <summary>Would this machine ever take the item (ignoring whether it has room now)? Arms only pick up what the target accepts.</summary>
@@ -250,6 +266,8 @@ namespace Codebound.Core
         public int RamMb = 32;           // heap limit of the program's isolated worker
         public int MaxCodeBytes = 64 * 1024; // storage
         public string Language = "javascript";
+        /// <summary>What this computer puts on the signal networks next to it (signals.send).</summary>
+        public readonly Dictionary<string, int> SignalOut = new Dictionary<string, int>();
         public string Code = DefaultProgram;
         public bool Running;             // player intent: should the program be running
         public string LastError;
@@ -346,6 +364,7 @@ namespace Codebound.Core
             if (Watches.Count > 0) d["watch"] = B64(Json.Write(new List<object>(Watches)));
             if (History.Count > 0) { var h = new List<object>(); foreach (var r in History) h.Add(r.ToList()); d["hist"] = B64(Json.Write(h)); }
             if (!string.IsNullOrEmpty(SqlDb)) d["sqldb"] = System.Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(SqlDb));
+            if (SignalOut.Count > 0) d["sigout"] = SignalSpec.FormatPairs(SignalOut);
         }
 
         public override void LoadExtra(string k, string v)
@@ -356,6 +375,7 @@ namespace Codebound.Core
             else if (k == "comp") Compromised = v == "1";
             else if (k == "pwd") PasswordHash = v;
             else if (k == "sqldb") SqlDb = System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(v));
+            else if (k == "sigout") SignalSpec.ParsePairs(v, SignalOut);
             else if (k == "files" || k == "watch" || k == "hist")
             {
                 object j = Json.Parse(System.Text.Encoding.UTF8.GetString(System.Convert.FromBase64String(v)));

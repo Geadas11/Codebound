@@ -181,6 +181,9 @@ def main():
     pw = {}
     exec(open(os.path.join(here, "tables_power.py"), encoding="utf-8").read(), pw)
     T.update(pw["T7"])
+    sg = {}
+    exec(open(os.path.join(here, "tables_signals.py"), encoding="utf-8").read(), sg)
+    T.update(sg["T8"])
     out = os.path.join(here, "..", "..", "Assets", "StreamingAssets", "Localization")
     os.makedirs(out, exist_ok=True)
     for key, row in T.items():

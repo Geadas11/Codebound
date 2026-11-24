@@ -203,6 +203,9 @@ class Machine:
                    "launchpad": {"launch", "throttle", "flight", "planets", "travel", "land", "asteroids", "mine_asteroid", "dock", "answer", "transmit"},
                    "server": {"get", "set", "keys", "delete"}, "storage_hub": {"totals", "find"},
                    "pump": {"start", "stop"}, "pumpjack": {"start", "stop"}, "filler": {"start", "stop"}}.get(self.type, set())
+        if self.type in ("inserter", "long_inserter", "conveyor", "belt", "pump", "pumpjack", "filler", "lamp",
+                         "constant_combinator", "arithmetic_combinator", "decider_combinator"):
+            allowed = allowed | {"configure", "signals"}
         if name not in allowed:
             raise AttributeError(f"'{self.type}' has no function '{name}'")
         return lambda *a: _call(self.id, name, list(a))
@@ -246,6 +249,14 @@ class _Computer:
 
     def send(self, channel, data=None):
         return _call("computer", "send", [str(channel), data])
+
+
+class _Signals:
+    def read(self):
+        return _call("signals", "read")
+
+    def send(self, values=None):
+        return _call("signals", "send", [values or {}])
 
 
 class _Energy:
@@ -468,7 +479,7 @@ def main():
 
     info = _call("computer", "info")
     g = {"__name__": "__main__", "__builtins__": safe_builtins,
-         "log": _log, "sleep": _sleep, "computer": _Computer(info), "machines": _Machines(), "energy": _Energy(), "world": _World(), "hud": _Hud()}
+         "log": _log, "sleep": _sleep, "computer": _Computer(info), "machines": _Machines(), "energy": _Energy(), "signals": _Signals(), "world": _World(), "hud": _Hud()}
     for t in ("drill", "furnace", "generator", "chest", "conveyor", "inserter", "greenhouse", "assembler", "lab", "turret"):
         i = _call("machines", "find", [t])
         g[t] = Machine(i) if i else None

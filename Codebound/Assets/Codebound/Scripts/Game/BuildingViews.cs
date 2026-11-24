@@ -76,7 +76,8 @@ namespace Codebound.Game
                     int frames = PixelArtFactory.Frames(b.Def);
                     if (frames > 1)   // working machines move: drills turn, fans spin, belts roll, flames flicker
                     {
-                        int f = a == MachineActivity.Working && !Settings.ReduceEffects ? (tick + b.InstanceId) % frames : 0;
+                        int f = b.State is LampState lamp ? (lamp.Lit ? 1 : 0)
+                            : a == MachineActivity.Working && !Settings.ReduceEffects ? (tick + b.InstanceId) % frames : 0;
                         if (!shownFrame.TryGetValue(b.InstanceId, out var was) || was != f) { body.sprite = PixelArtFactory.Building(b.Def, f); shownFrame[b.InstanceId] = f; }
                     }
                     bool calm = Settings.ReduceEffects;

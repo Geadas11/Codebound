@@ -96,11 +96,13 @@ function cb_call(string $obj, string $fn, array $args = [])
 
 final class Machine
 {
-    const OPS = ['drill' => ['mine'], 'furnace' => ['smelt'], 'conveyor' => ['start', 'stop', 'set_filter'],
-        'inserter' => ['start', 'stop', 'set_filter'], 'greenhouse' => ['plant', 'water', 'harvest', 'plots'],
+    const OPS = ['drill' => ['mine'], 'furnace' => ['smelt'], 'conveyor' => ['start', 'stop', 'set_filter', 'configure', 'signals'],
+        'inserter' => ['start', 'stop', 'set_filter', 'configure', 'signals'], 'greenhouse' => ['plant', 'water', 'harvest', 'plots'],
         'assembler' => ['craft'], 'lab' => ['research', 'techs'], 'turret' => ['targets', 'fire'],
         'launchpad' => ['launch', 'throttle', 'flight', 'planets', 'travel', 'land', 'asteroids', 'mine_asteroid', 'dock', 'answer', 'transmit'], 'server' => ['get', 'set', 'keys', 'delete'], 'storage_hub' => ['totals', 'find'],
-        'pump' => ['start', 'stop'], 'pumpjack' => ['start', 'stop'], 'filler' => ['start', 'stop']];
+        'pump' => ['start', 'stop', 'configure', 'signals'], 'pumpjack' => ['start', 'stop', 'configure', 'signals'], 'filler' => ['start', 'stop', 'configure', 'signals'],
+        'long_inserter' => ['configure', 'signals'], 'belt' => ['configure', 'signals'], 'lamp' => ['configure', 'signals'],
+        'constant_combinator' => ['configure', 'signals'], 'arithmetic_combinator' => ['configure', 'signals'], 'decider_combinator' => ['configure', 'signals']];
     public readonly string $id;
     public readonly string $type;
     public readonly string $name;
@@ -136,6 +138,7 @@ final class Computer
     public function send(string $channel, $data = null) { return cb_call('computer', 'send', [$channel, $data]); }
 }
 
+final class Signals { public function read() { return cb_call('signals', 'read'); } public function send($values = []) { return cb_call('signals', 'send', [(object)$values]); } }
 final class Energy { public function available() { return cb_call('energy', 'available'); } public function stats() { return cb_call('energy', 'stats'); } public function network() { return cb_call('energy', 'network'); } }
 final class World { public function pollution() { return cb_call('world', 'pollution'); } public function weather() { return cb_call('world', 'weather'); } }
 final class Hud
@@ -207,7 +210,7 @@ function cb_snap($v, int $d = 0)
 
 function cb_player_globals(): array
 {
-    static $api = ['computer', 'machines', 'energy', 'world', 'hud', 'drill', 'furnace', 'generator', 'chest', 'conveyor', 'inserter', 'greenhouse',
+    static $api = ['computer', 'machines', 'energy', 'signals', 'world', 'hud', 'drill', 'furnace', 'generator', 'chest', 'conveyor', 'inserter', 'greenhouse',
                    'assembler', 'lab', 'turret', 'launchpad', 'pad', 'code', 'p', 'e', 'GLOBALS', 'argv', 'argc'];
     $out = [];
     foreach ($GLOBALS as $k => $v) if (!str_starts_with($k, 'CB_') && !str_starts_with($k, '_') && !in_array($k, $api, true)) $out[$k] = $v;
@@ -298,6 +301,7 @@ $info = cb_call('computer', 'info');
 $computer = new Computer((string)($info['name'] ?? 'PC'), (int)($info['cps'] ?? 20));
 $machines = new Machines();
 $energy = new Energy();
+$signals = new Signals();
 $world = new World();
 $hud = new Hud();
 foreach (['drill', 'furnace', 'generator', 'chest', 'conveyor', 'inserter', 'greenhouse', 'assembler', 'lab', 'turret', 'launchpad'] as $t) {
