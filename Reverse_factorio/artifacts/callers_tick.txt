@@ -1,0 +1,17 @@
+### TransportLineManager::prepare <- (no direct callers: indirect/virtual only)
+### TransportLineManager::update <- (no direct callers: indirect/virtual only)
+### ElectricNetworkManager::prepare <- (no direct callers: indirect/virtual only)
+### ElectricNetworkManager::update <- (no direct callers: indirect/virtual only)
+### FluidFlowManager::update <- (no direct callers: indirect/virtual only)
+### HeatBufferManager::update <- (no direct callers: indirect/virtual only)
+### CircuitNetworkManager::update <- (no direct callers: indirect/virtual only)
+### ControlBehaviorManager::update <- (no direct callers: indirect/virtual only)
+### TurretTargetManager::update <- (no direct callers: indirect/virtual only)
+### Map::updateEntities <- Game::update
+### Game::update <- Scenario::update
+### Scenario::updateStep <- MainLoop::gameUpdateStep | MainTasks::benchmark | MainTasks::runReplay | MainTasks::runTest | MainTasks::untilTick | SimulationWidget::CurrentSimulation::update
+### MainLoop::gameUpdateStep <- MainLoop::gameUpdateLoop
+### Map::createMultiThreadedUpdateRunner <- Map::createUpdateRunner
+### Map::createSingleThreadedUpdateRunner <- (no direct callers: indirect/virtual only)
+### Chunk::updateActiveEntities <- Chunk::updateEntities
+### TrainManager::update <- Map::updateEntities

@@ -1,0 +1,229 @@
+===== C:\GOG Games\Factorio\bin\x64\factorio.exe 49423312
+--- crc: 31 hits
+   0xb72013: DEFGHIJ@KLMNOPQNRSTUVW...XYZ[\]^____`abcdeffghi...jklmnocpcqcrcsctucvwx.yz.3{|}.~BB....B.>..B..>>>>.>>.>>>>>>>.>.....>>.
+   0x21dbd88: ....multiplayer.mod-version-mismatch........multiplayer.mod-crc-mismatch....multiplayer.missing-mod.multiplayer.extra-mo
+   0x21dbdd9: player.missing-mod.multiplayer.extra-mod...multiplayer.core-crc-mismatch...multiplayer.prototype-crc-mismatch......multi
+   0x21dbdfe: mod...multiplayer.core-crc-mismatch...multiplayer.prototype-crc-mismatch......multiplayer.player-limit-reached........mu
+--- desync: 43 hits
+   0x21e3c9c: -tick: %s, heuristic: %s........heuristic.......Multiplayer desynchronisation: crc test (%s) failed for crcTick(%s) serv
+   0x21e3cf4: (%s) failed for crcTick(%s) serverCRC(%u) localCRC(%u)..Map desynchronisation: tick %s. Replay crc: %u.Current crc:%u...
+   0x21e8cc4: e.......bypass-library-sync.............Disables creating a desync report when this client desyncs. Desyncs won't be fix
+   0x21e8ce3: .........Disables creating a desync report when this client desyncs. Desyncs won't be fixed if you don't report them....
+--- ZSTD: 2 hits
+   0x222b768: o crop # more pixels; path):........   > %3u: #%u, %s.......ZSTD Compress Error %zu: %s.............C:\Users\build\AppDa
+   0x222b818: che.cpp.....result <= std::numeric_limits<uint32_t>::max()..ZSTD Decompress Error %zu: %s...Sprite atlas cache saving fa
+--- curl: 16 hits
+   0x2262088: \Temp\factorio-build-JmH45D\src\Http\CurlManager.cpp........curl_multi_perform failed - ....CURL handle deleted prematur
+   0x2299428: .....hFB.... U.A.... U.A....PT.A....@T.A.....Z|A....p..@....curl_status_code........TLS check success......./spaceage/ap
+   0x23b4eea: ature, protocol or option was not found built-in in this libcurl due to a build-time decision.....FTP: unknown 227 respo
+   0x23b50b5: o error........Failed binding local connection end.....A libcurl function was given a bad argument.....An unknown option
+--- Schannel: 1 hits
+   0x23bf068: iled to retrieve remote cert context........schannel........Schannel........schannel: failed to send close msg: %s (byte
+--- Lua 5.: 2 hits
+   0x230acc6:  = function(t) return next, t end -- avoid using __pairs in Lua 5.2+.  local keyword, globals, G = {}, {}, (_G or _ENV).
+   0x23c2b90: ....pairs...ipairs..rawlen..rawequal........_VERSION........Lua 5.2..........l#B.......B.....;<B....t..B.......B.....;<B
+--- FACO: 0 hits
+--- level.dat: 1 hits
+   0x21db550: ....gui.synchronize.gui-mods.sync-mods-with-server...zip....level.dat.......Invalid save file location......Failed to pa
+--- Box2D: 0 hits
+--- graphics-api: 0 hits
+--- TransportLine: 62 hits
+   0x21f0c71: ers\build\AppData\Local\Temp\factorio-build-JmH45D\src\Belt\TransportLine.cpp..............__cdecl TransportLine::Transp
+   0x21f0c98: uild-JmH45D\src\Belt\TransportLine.cpp..............__cdecl TransportLine::TransportLine(class Map &,class MapDeserialis
+   0x21f0ca7: \Belt\TransportLine.cpp..............__cdecl TransportLine::TransportLine(class Map &,class MapDeserialiser &).......tra
+   0x21f10e4: nt_if(this->inputLines.begin(), this->inputLines.end(), [] (TransportLine* inputLine) { return inputLine->directConnecti
+--- MapPosition: 116 hits
+   0x21d8ef1: ers\build\AppData\Local\Temp\factorio-build-JmH45D\src\Util/MapPosition.hpp........space-age.......expansion.......quali
+   0x224fdb8: ....SpeechBubbleEntity: %s..FromScenarioMessageData : %s....MapPosition: %s.this->target is invalid.........SpeechBubble
+   0x226a186: ......InputAction::isCorrectDataTypeForAction(type, typeid( MapPosition)).............InputAction::isCorrectDataTypeForA
+   0x22a3e60: ctorio-build-JmH45D\src\Noise\NoiseExpressionConstant.cpp...MapPosition.String......MapPositionList.{null}..Parameter '%
+--- Map::update: 0 hits
+===== C:\GOG Games\Factorio\bin\x64\factorio.pdb 461451264
+--- crc: 326 hits
+   0x279abe: >.p.....pchMapping......A.M....a....i.l...h...7.%...>.!.....crc.....A......a........A......a....j.5.7...z...>.p.....new_
+   0x279b22: 7...z...>.p.....new_mapping.....B.@....a....-.......>.p.....crc_end.....A.N....a........>.......optional_comma......A.W.
+   0x279b72: ........>.......optional_comma......A.W....a........>.p.....crc_string......A.V....a........>.p.....crc_string......A.H.
+   0x279b9a: ...a........>.p.....crc_string......A.V....a........>.p.....crc_string......A.H....`........A.H....a........>.......pPre
+--- desync: 60 hits
+   0x3963a8a: ..g%........A.K.........3...A.W...3.........D.......>.#]....desyncReportPath....A.L...0.............A.P.........0...>...
+   0x3966912: ..........gM..O.this..............O.manager...........#]..O.desyncReportPath..............O.client......^.z.............
+   0x7168226: ...F..`......ParallelDesyncReportCreator::doStart...>..F....desyncReportCreator.....A.J...`.....$...A.V.........~.......
+   0x716a0da: .................$LN1454......5......$LN26...."...`....F..O.desyncReportCreator.......h....'..O.lock..........O`..O.temp
+--- ZSTD: 987 hits
+   0xb200e7: ing Compiler...L..G..2...........................c...P......ZSTD_count.....>.r0....pIn.....A.J...P.............>.r0....p
+   0xb20343: ..0..O.pInLimit......>......................................ZSTD_ldm_blockCompress.....>.......rawSeqStore.....A.J......
+   0xb209b7: ...9.................B......................................ZSTD_ldm_generateSequences.....>.......ldmState....A.I......
+   0xb20fab: .#...O.srcSize.......J.......$"......y...&...e..............ZSTD_ldm_generateSequences_internal....>.......ldmState....A
+--- curl: 1374 hits
+   0x865060: ocal\temp\factorio-build-jmh45d\vsbt\vanillafinalreleasex64\curl\lib\http_proxy.obj.:.<..D......,.......,.....Microsoft 
+   0x86e060: ocal\temp\factorio-build-jmh45d\vsbt\vanillafinalreleasex64\curl\lib\warnless.obj...:.<..D......,.......,.....Microsoft 
+   0x88c060: ocal\temp\factorio-build-jmh45d\vsbt\vanillafinalreleasex64\curl\lib\splay.obj..:.<..D......,.......,.....Microsoft (R) 
+   0x88e060: ocal\temp\factorio-build-jmh45d\vsbt\vanillafinalreleasex64\curl\lib\easy.obj...:.<..D......,.......,.....Microsoft (R) 
+--- Schannel: 1 hits
+   0xe365eee: o?5send?5ID_DONGLE_GET_WI@....&.......h.C...??_C@_08NBDILLL@Schannel@.6.......\.....??_ETrackingMapPosition@@WCA@EAAPEAX
+--- Lua 5.: 0 hits
+--- FACO: 10 hits
+   0xe28b70d: Entity@@UEAAPEAVPowerSwitch@@XZ....2.........-...??_C@_0BA@DFACOKD@clicked_overlay@....6.........}...??_EChatIconSelectL
+   0xe5c1794: ..3...??_R0?AVPipetteData@@@8...F.........)...??_C@_0GP@GOKBFACO@a?5vehicle?5with?5equipment_grid?5s@...6.........>...??
+   0xe7362df: D@std@@V?$allocator@D@2@@std@@XZ.J.........7...??_C@_0BM@IANFACON@Unknown?5shooting?5state?3?5?$CL?5?$CC@....6.........0
+   0xe937469: ignToFrameIndex?4size?$CI?$CJ?5@...6.........B...??_C@_0N@HGFACOOI@HTTP?11?4?$CFd?5?$CFd@..V........L....??$_Uninitializ
+--- level.dat: 0 hits
+--- Box2D: 0 hits
+--- graphics-api: 0 hits
+--- TransportLine: 5423 hits
+   0x13426ab: 0P6AXXZEA@@3P6AXXZEA.J........#....??loaded$initializer$@LuaTransportLine@@0P6AXXZEA@@3P6AXXZEA..V........%....??loaders
+   0x13601a6: .......M...v+....`LuaObjectLoaders::registerLegacyLoader<LuaTransportLine>'::`2'::<lambda_1>::<lambda_invoker_cdecl>....
+   0x1360337: ................``LuaObjectLoaders::registerLegacyLoader<LuaTransportLine>'::`2'::<lambda_1>::<lambda_invoker_cdecl>'::`
+   0x1396468: 9............S..pv+....`LuaObjectLoaders::registerLoader<LuaTransportLine>'::`2'::<lambda_1>::<lambda_invoker_cdecl>....
+--- MapPosition: 9700 hits
+   0x147fd10: 6.......+..............MapDeserialiser::operator>><Optional<MapPosition,OptionalEmptyValue<MapPosition> > >...>.4.....th
+   0x147fd2f: ialiser::operator>><Optional<MapPosition,OptionalEmptyValue<MapPosition> > >...>.4.....this....A.J.............A.M......
+   0x148f9a8: ....$.......;.......0....(.........Deserialiser::operator>><MapPosition>......>..|....this....A.J.............A.M... ...
+   0x149c293: .....L.......A...|0.. ......Serialiser::operator<<<Optional<MapPosition,OptionalEmptyValue<MapPosition> > >....>.......t
+--- Map::update: 54 hits
+   0xa7520d7: .O.playerIndex.......B.........?.........%...........P].....Map::updateBlueprintLinks......>.1.....this....A.J...P].....
+   0xa7529b4: ..9.[_......UR......N.........?.....,.......&........-.....`Map::updateBlueprintLinks'::`1'::dtor$1..... ...............
+   0xa752a27: .....................B.........?.........%............`.....Map::updateBlueprintLinks......>.1.....this....A.J....`.....
+   0xa753440: ..9.ob......UR......N.........?.....,.......&........-.....`Map::updateBlueprintLinks'::`1'::dtor$1..... ...............
+EXPORT DIR rva 0x27b3570 size 3500
+functions 140 names 140
+  EXPORT AmdPowerXpressRequestHighPerformance
+  EXPORT NvOptimusEnablement
+  EXPORT luaL_addlstring
+  EXPORT luaL_addstring
+  EXPORT luaL_addvalue
+  EXPORT luaL_argcounterror
+  EXPORT luaL_argerror
+  EXPORT luaL_buffinit
+  EXPORT luaL_buffinitsize
+  EXPORT luaL_callmeta
+  EXPORT luaL_checkany
+  EXPORT luaL_checkinteger
+  EXPORT luaL_checklstring
+  EXPORT luaL_checknumber
+  EXPORT luaL_checkoption
+  EXPORT luaL_checkstack
+  EXPORT luaL_checktype
+  EXPORT luaL_checkudata
+  EXPORT luaL_checkunsigned
+  EXPORT luaL_checkversion_
+  EXPORT luaL_error
+  EXPORT luaL_execresult
+  EXPORT luaL_fileresult
+  EXPORT luaL_getmetafield
+  EXPORT luaL_getsubtable
+  EXPORT luaL_gsub
+  EXPORT luaL_len
+  EXPORT luaL_loadbufferx
+  EXPORT luaL_loadfilex
+  EXPORT luaL_loadstring
+  EXPORT luaL_newmetatable
+  EXPORT luaL_newstate
+  EXPORT luaL_openlib
+  EXPORT luaL_openlibs
+  EXPORT luaL_optinteger
+  EXPORT luaL_optlstring
+  EXPORT luaL_optnumber
+  EXPORT luaL_optunsigned
+  EXPORT luaL_prepbuffsize
+  EXPORT luaL_pushmodule
+  EXPORT luaL_pushresult
+  EXPORT luaL_pushresultsize
+  EXPORT luaL_ref
+  EXPORT luaL_requiref
+  EXPORT luaL_setfuncs
+  EXPORT luaL_setmetatable
+  EXPORT luaL_testudata
+  EXPORT luaL_tolstring
+  EXPORT luaL_traceback
+  EXPORT luaL_unref
+  EXPORT luaL_where
+  EXPORT lua_absindex
+  EXPORT lua_arith
+  EXPORT lua_atpanic
+  EXPORT lua_callk
+  EXPORT lua_checkstack
+  EXPORT lua_close
+  EXPORT lua_compare
+  EXPORT lua_concat
+  EXPORT lua_copy
+  EXPORT lua_createtable
+  EXPORT lua_dump
+  EXPORT lua_error
+  EXPORT lua_gc
+  EXPORT lua_getallocf
+  EXPORT lua_getctx
+  EXPORT lua_getfield
+  EXPORT lua_getglobal
+  EXPORT lua_gethook
+  EXPORT lua_gethookcount
+  EXPORT lua_gethookmask
+  EXPORT lua_getinfo
+  EXPORT lua_getlocal
+  EXPORT lua_getmetatable
+  EXPORT lua_getstack
+  EXPORT lua_gettable
+  EXPORT lua_gettop
+  EXPORT lua_getupvalue
+  EXPORT lua_getuservalue
+  EXPORT lua_insert
+  EXPORT lua_iscfunction
+  EXPORT lua_isnumberorstringconvertabletonumber
+  EXPORT lua_isstringornumberconvertabletostring
+  EXPORT lua_isuserdata
+  EXPORT lua_len
+  EXPORT lua_load
+  EXPORT lua_newstate
+  EXPORT lua_newthread
+  EXPORT lua_newuserdata
+  EXPORT lua_next
+  EXPORT lua_pcallk
+  EXPORT lua_pushboolean
+  EXPORT lua_pushcclosure
+  EXPORT lua_pushfstring
+  EXPORT lua_pushinteger
+  EXPORT lua_pushlightuserdata
+  EXPORT lua_pushlstring
+  EXPORT lua_pushnil
+  EXPORT lua_pushnumber
+  EXPORT lua_pushstring
+  EXPORT lua_pushthread
+  EXPORT lua_pushunsigned
+  EXPORT lua_pushvalue
+  EXPORT lua_pushvfstring
+  EXPORT lua_rawequal
+  EXPORT lua_rawget
+  EXPORT lua_rawgeti
+  EXPORT lua_rawgetp
+  EXPORT lua_rawlen
+  EXPORT lua_rawset
+  EXPORT lua_rawseti
+  EXPORT lua_rawsetp
+  EXPORT lua_remove
+  EXPORT lua_replace
+  EXPORT lua_setallocf
+  EXPORT lua_setfield
+  EXPORT lua_setglobal
+  EXPORT lua_sethook
+  EXPORT lua_setlocal
+  EXPORT lua_setmetatable
+  EXPORT lua_settable
+  EXPORT lua_settop
+  EXPORT lua_setupvalue
+  EXPORT lua_setuservalue
+  EXPORT lua_status
+  EXPORT lua_toboolean
+  EXPORT lua_tocfunction
+  EXPORT lua_tointegerx
+  EXPORT lua_tolstring
+  EXPORT lua_tonumberx
+  EXPORT lua_topointer
+  EXPORT lua_tothread
+  EXPORT lua_tounsignedx
+  EXPORT lua_touserdata
+  EXPORT lua_type
+  EXPORT lua_typename
+  EXPORT lua_upvalueid
+  EXPORT lua_upvaluejoin
+  EXPORT lua_version
+  EXPORT lua_xmove

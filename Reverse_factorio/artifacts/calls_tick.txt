@@ -1,0 +1,133 @@
+﻿### MainLoop::gameUpdateStep  rva=0x155b10 len=2420
+call +0x003f std::chrono::steady_clock::now
+call +0x0074 GlobalContext::isSavingMap
+call +0x00f8 TimeStatisticsBuffer<UpdateTimeStatistics::Item>::TimeChecker::~TimeChecker
+call +0x0143 TimeStatisticsBuffer<UpdateTimeStatistics::Item>::TimeChecker::~TimeChecker
+call +0x0200 MapSerialiser::MapSerialiser
+call +0x0215 Map::applyStagedChanges
+call +0x022e ScenarioExecutionContext::save
+call +0x024d Map::save
+call +0x0269 LuaContext::save
+call +0x0277 MapSerialiser::~MapSerialiser
+call +0x02fa MapDeserialiser::MapDeserialiser
+call +0x030d operator new
+call +0x0365 InputSource::addListener
+call +0x0411 ScenarioExecutionContext::ScenarioExecutionContext
+call +0x04ea Scenario::loadFactory
+call +0x0501 Scenario::~Scenario
+call +0x050e operator delete
+call +0x051c MapDeserialiser::~MapDeserialiser
+call +0x054d MainLoop::checkHeavyModeCrc
+call +0x056d std::to_string
+call +0x05a5 Logging::log
+call +0x05e6 operator delete
+call +0x05f4 std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Tidy_deallocate
+call +0x0610 std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Tidy_deallocate
+call +0x063a Game::updateInputSource
+call +0x06b1 Game::updateInputSource
+call +0x06ce Game::updateInputSource
+call +0x06e7 MainLoop::checkHeavyModeCrc
+call +0x070f MultiplayerManagerBase::updateMultiplayerInput
+call +0x0732 Scenario::~Scenario
+call +0x073f operator delete
+call +0x0760 TimeStatisticsBuffer<UpdateTimeStatistics::Item>::TimeChecker::~TimeChecker
+call +0x07c1 Scenario::updateStep
+call +0x07cf Scenario::updateStep
+call +0x07e8 MainLoop::checkHeavyModeCrc
+call +0x0803 LatencyInputHandler::update
+call +0x0827 LatencyInputHandler::update
+call +0x0840 MainLoop::checkHeavyModeCrc
+call +0x0854 Map::updateStopLevelFromScenarioMessageDialog
+call +0x087e Scenario::~Scenario
+call +0x088b operator delete
+call +0x08ac TimeStatisticsBuffer<UpdateTimeStatistics::Item>::TimeChecker::~TimeChecker
+call +0x08c0 Scenario::~Scenario
+call +0x08cd operator delete
+call +0x08ee TimeStatisticsBuffer<UpdateTimeStatistics::Item>::TimeChecker::~TimeChecker
+call +0x0926 std::chrono::steady_clock::now
+call +0x096d _invoke_watson
+### Scenario::update  rva=0xd8c8c0 len=652
+call +0x005a Scenario::getAutosaveState
+call +0x00b4 Scenario::handleFinished
+call +0x00cf Map::applyStagedChanges
+call +0x00d7 Scenario::updateCrcCheck
+call +0x010a std::chrono::steady_clock::now
+call +0x0125 GameEvents::run<LuaEventFilters,`GameEvents::sendOnTick'::`2'::<lambda_1>,GameEvents::NoFilters>
+call +0x012d GameEvents::sendOnNthTicks
+call +0x013b std::chrono::steady_clock::now
+call +0x016c std::chrono::steady_clock::now
+call +0x01cf luaC_forcestep
+call +0x01dc IntrusiveListImplementation<LuaObject,void,0,0>::List::clear_and_delete
+call +0x01f2 std::chrono::steady_clock::now
+call +0x021a Map::applyStagedChanges
+call +0x022b Game::update
+call +0x0238 Scenario::checkReloadScript
+call +0x0240 Scenario::checkReloadMods
+call +0x0267 Logging::logAllStackTraces
+call +0x0286 Logging::logAndAbortOrThrow
+### Scenario::updateStep  rva=0xd8c300 len=172
+call +0x0021 Scenario::update
+call +0x0043 LuaGameScript::postUpdate
+call +0x0058 Map::postUpdate
+call +0x0069 Scenario::disableReplayInternal
+call +0x0075 LuaContext::applyLuaObjectStatistics
+call +0x00a6 ReleaseAssertFailed
+### Map::updateEntities  rva=0xc6a3a0 len=2693
+call +0x007a MapGenerationManager::update
+call +0x0089 Surface::updateBuildEffectSmokes
+call +0x00a8 std::chrono::steady_clock::now
+call +0x00b7 TrainManager::applyStagedChanges
+call +0x00c3 RailChainSignal::updateChainSignals
+call +0x00cd std::chrono::steady_clock::now
+call +0x010b ControllerManager::sendEvents
+call +0x0140 Player::generateFarAwayChunks
+call +0x014a Player::requestToChartNeighbourChunks
+call +0x015f ExtraScriptData::update
+call +0x01ac TargeterBase::operator=
+call +0x01d6 TargeterBase::operator=
+call +0x021d Map::applyStagedChanges
+call +0x0225 Map::updateLocalFlyingTexts
+call +0x023d AlarmQueue::update
+call +0x024d std::chrono::steady_clock::now
+call +0x0293 std::chrono::steady_clock::now
+call +0x02b8 FluidSegmentManager::update
+call +0x0320 Surface::update
+call +0x0330 Map::performPlannedEntityUpdates
+call +0x0355 std::chrono::steady_clock::now
+call +0x039b std::chrono::steady_clock::now
+call +0x03c2 TrainManager::update
+call +0x03e7 ForceData::update
+call +0x040b Player::update
+call +0x0435 std::chrono::steady_clock::now
+call +0x047b std::chrono::steady_clock::now
+call +0x04a4 std::chrono::steady_clock::now
+call +0x050b std::chrono::steady_clock::now
+call +0x0534 std::chrono::steady_clock::now
+call +0x055b Planet::update
+call +0x056d std::chrono::steady_clock::now
+call +0x05e0 FlowStatistics<ID<FluidPrototype,unsigned short>,double,void>::Precision::onNextTick
+call +0x05f8 `FlowStatistics<ID<FluidPrototype,unsigned short>,double,void>::onNextTick'::`2'::<lambda_1>::operator()
+call +0x060b `FlowStatistics<ID<FluidPrototype,unsigned short>,double,void>::onNextTick'::`2'::<lambda_1>::operator()
+call +0x0671 std::vector<TargetDeserialiser::SimpleTargeter,std::allocator<TargetDeserialiser::SimpleTargeter> >::_Tidy
+call +0x06d1 HealingManager::getBucket
+call +0x06dd std::vector<Targeter<EntityWithHealth,41,0>,std::allocator<Targeter<EntityWithHealth,41,0> > >::emplace_back<Targeter<EntityWithHealth,41,0> >
+call +0x06f3 std::vector<TargetDeserialiser::SimpleTargeter,std::allocator<TargetDeserialiser::SimpleTargeter> >::_Tidy
+call +0x06ff ExtraScriptData::update
+call +0x0733 ItemSpoilQueue::updateBuckets
+call +0x0750 operator new
+call +0x080f std::_Tree_val<std::_Tree_simple_types<ItemSpoilQueue::MachineToCheck> >::_Erase_tree<std::allocator<std::_Tree_node<ItemSpoilQueue::MachineToCheck,void *> > >
+call +0x081e TargeterBase::~TargeterBase
+call +0x082c operator delete
+call +0x0844 operator delete
+call +0x088e AutoTrasher::execute
+call +0x08a0 std::vector<TargetDeserialiser::SimpleTargeter,std::allocator<TargetDeserialiser::SimpleTargeter> >::_Tidy
+call +0x0917 EvolutionFactors::update
+call +0x099a Map::updateLocalFlyingTexts
+call +0x09ca ScriptRendering::destroyObject
+call +0x0a29 std::_Tree<std::_Tset_traits<unsigned __int64,std::less<unsigned __int64>,std::allocator<unsigned __int64>,0> >::clear
+call +0x0a31 Map::applyStagedChanges
+call +0x0a54 std::_Xbad_function_call
+call +0x0a5a std::_Xbad_function_call
+call +0x0a73 ReleaseAssertFailed
+call +0x0a79 std::_Xbad_function_call
+call +0x0a7f std::_Xbad_function_call

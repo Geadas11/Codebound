@@ -1,0 +1,265 @@
+﻿### PathFinder::update  rva=0x1f0900 len=1867
+call +0x0034 std::chrono::steady_clock::now
+call +0x0047 PathFinder::cleanupSuspendedJobs
+call +0x004f PathFinder::calculateOverloadFactor
+call +0x007a FallbackValue<unsigned int>::getValue
+call +0x00a4 FallbackValue<unsigned int>::getValue
+call +0x00c2 PathCache::decay
+call +0x01ab std::_Tree<std::_Tset_traits<unsigned __int64,std::less<unsigned __int64>,std::allocator<unsigned __int64>,0> >::clear
+call +0x01bb PathFinder::exceededWorkLimit
+call +0x01e7 PathFinder::getClient
+call +0x023c PathFindAlgorithm::update
+call +0x025a PathFindClientCache::remove
+call +0x02af std::vector<re2::RuneRange,std::allocator<re2::RuneRange> >::push_back
+call +0x0328 PathFinder::updatePathCache
+call +0x033c PathFindClient::finished
+call +0x0373 operator new
+call +0x03d0 sqrt
+call +0x047f std::vector<re2::RuneRange,std::allocator<re2::RuneRange> >::push_back
+call +0x04ca std::vector<Path::Waypoint,std::allocator<Path::Waypoint> >::_Emplace_one_at_back<Path::Waypoint>
+call +0x04e3 std::vector<Path::Waypoint,std::allocator<Path::Waypoint> >::_Emplace_one_at_back<Path::Waypoint>
+call +0x04fb PathFinder::updatePathCache
+call +0x0534 PathFindClient::finished
+call +0x0556 PathFinder::releasePath
+call +0x0569 PathFinder::scheduleDependants
+call +0x0585 PathFinder::schedule
+call +0x0598 PathFindClientCache::remove
+call +0x05a0 PathFinder::exceededWorkLimit
+call +0x05b4 `PathFinder::removeUninterestedWaitingClients'::`2'::<lambda_1>::operator()
+call +0x05c0 `PathFinder::removeUninterestedWaitingClients'::`2'::<lambda_1>::operator()
+call +0x05cf PathFinder::scheduleWaitingClients
+call +0x05de PathFinder::scheduleWaitingClients
+call +0x0673 std::chrono::steady_clock::now
+call +0x06c8 ReleaseAssertFailed
+call +0x06e1 ReleaseAssertFailed
+call +0x06fa ReleaseAssertFailed
+call +0x0713 ReleaseAssertFailed
+call +0x072c ReleaseAssertFailed
+call +0x0745 ReleaseAssertFailed
+### PathFindAlgorithm::update  rva=0x1e8ee0 len=1751
+call +0x00ca PathFinder::exceededWorkLimit
+call +0x0168 FallbackValue<unsigned int>::getValue
+call +0x018b FallbackValue<double>::getValue
+call +0x01bd FallbackValue<unsigned int>::getValue
+call +0x0232 PathFindAlgorithm::startAbstractSearch
+call +0x0250 PathFindAlgorithm::startAbstractSearch
+call +0x0260 PathFindAlgorithm::abstractSearch
+call +0x0289 PathFindAlgorithm::startBaseSearch
+call +0x02db PathFindAlgorithm::insertBackwardBaseNodesAtRadius
+call +0x02e9 PathFindAlgorithm::startBaseSearch
+call +0x02fd PathFindAlgorithm::insertBackwardBaseNodesAtRadius
+call +0x030d PathFindAlgorithm::baseSearch
+call +0x0417 PathFindAlgorithm::discontiguousNodeDistance
+call +0x05a6 sqrt
+call +0x05db PathFindAlgorithm::constructPath
+call +0x0628 sqrt
+call +0x065d PathFindAlgorithm::constructPath
+call +0x069f ReleaseAssertFailed
+call +0x06b8 ReleaseAssertFailed
+call +0x06d1 ReleaseAssertFailed
+### PathFindAlgorithm::abstractSearch  rva=0x1e98d0 len=766
+call +0x007e MemoryPool<PathFindAlgorithm::BaseNode,100>::allocate
+call +0x00e5 std::_Tree<std::_Tmap_traits<ChunkComponent,PathFindAlgorithm::AbstractNode *,std::less<ChunkComponent>,std::allocator<std::pair<ChunkComponent const ,PathFindAlgorithm::AbstractNode *> >,0> >::_Find_lower_bound<ChunkComponent>
+call +0x010d std::less<ChunkComponent>::operator()
+call +0x013c operator new
+call +0x0175 std::_Tree_val<std::_Tree_simple_types<re2::RuneRange> >::_Insert_node
+call +0x01c3 IntrusivePairingHeap<PathFindAlgorithm::AbstractNode,PathFindAlgorithm::AbstractNodeHeuristicCompare,void>::pop
+call +0x01d5 PathFindAlgorithm::expandAbstractNode
+call +0x01fe FlatSet<ChunkComponent,std::less<ChunkComponent> >::privateLowerBound
+call +0x027f memcpy
+call +0x02d9 ReleaseAssertFailed
+call +0x02df std::_Throw_tree_length_error
+call +0x02f8 ReleaseAssertFailed
+### PathFindAlgorithm::baseSearch  rva=0x1e96d0 len=499
+call +0x0096 PathFindAlgorithm::requestAbstractDistancesToNeighborNodes
+call +0x00c5 IntrusivePairingHeap<PathFindAlgorithm::BaseNode,PathFindAlgorithm::BaseNodeHeuristicCompare,void>::pop
+call +0x00ce Optional<MapPosition,OptionalEmptyValue<MapPosition> >::operator*
+call +0x011b Optional<MapPosition,OptionalEmptyValue<MapPosition> >::operator*
+call +0x0197 PathFindAlgorithm::expandBaseNode
+call +0x01ed ReleaseAssertFailed
+### ElectricSubNetwork::useProductionAndDemand  rva=0x346730 len=1256
+call +0x00b6 SolarPanelPrototype::effectivePowerOutput
+call +0x00d5 FlatMap<IDWithQuality<ID<EntityPrototype,unsigned short> >,float,std::less<void> >::private_subscript
+call +0x01c4 ElectricSubNetwork::useProduction
+call +0x01de ElectricSubNetwork::useProduction
+call +0x01f8 ElectricSubNetwork::useProduction
+call +0x020e ElectricSubNetwork::useDemand
+call +0x0227 ElectricSubNetwork::useDemand
+call +0x0239 ElectricSubNetwork::useLampsDemand
+call +0x0252 ElectricSubNetwork::useDemand
+call +0x0303 FlatMap<IDWithQuality<ID<EntityPrototype,unsigned short> >,float,std::less<void> >::private_subscript
+call +0x0359 FlatMap<IDWithQuality<ID<EntityPrototype,unsigned short> >,float,std::less<void> >::private_subscript
+call +0x0382 FlatMap<IDWithQuality<ID<EntityPrototype,unsigned short> >,float,std::less<void> >::private_subscript
+call +0x04c3 Logging::logAndAbortOrThrow
+call +0x04e2 Logging::logAndAbortOrThrow
+### ElectricSubNetwork::getProductionAndDemand  rva=0x346210 len=1307
+call +0x0128 ElectricSubNetwork::getAvailableProduction
+call +0x0141 ElectricSubNetwork::getAvailableProduction
+call +0x0157 ElectricSubNetwork::getDemand
+call +0x0170 ElectricSubNetwork::getDemand
+call +0x0182 ElectricSubNetwork::getLampsDemand
+call +0x01a5 ElectricSubNetwork::updateTertiaryInputValues
+call +0x0306 SolarPanelPrototype::effectivePowerOutput
+call +0x04f6 Logging::logAndAbortOrThrow
+call +0x0515 Logging::logAndAbortOrThrow
+### FluidBox::update  rva=0x60b950 len=400
+call +0x003d FluidBox::rebuildConnectionBuffers
+call +0x00aa FluidBuffer::getFlowRate
+call +0x00da FluidBuffer::takeFluid
+call +0x012a FluidBuffer::getFlowRate
+call +0x015a FluidBuffer::takeFluid
+### TransportLine::move  rva=0x203160 len=1188
+call +0x0108 TransportLine::unsquash
+call +0x0156 CompactDeque<ItemOnTransportLine>::reserve
+call +0x019c TransportLine::tryToInsertAtBack
+call +0x01ca CompactDeque<ItemOnTransportLine>::reserve
+call +0x0216 TransportLine::tryToInsertAtBack
+call +0x0238 CompactDeque<ItemOnTransportLine>::clear
+call +0x0266 CompactDeque<ItemOnTransportLine>::pop_front
+call +0x027a TransportLine::advanceGapIndex
+call +0x0297 TransportLine::advanceFirstSquashedIndex
+call +0x02ed CompactDeque<ItemOnTransportLine>::reserve
+call +0x037f TransportLine::tryToInsert
+call +0x039f TransportLineConnector::registerInteraction
+call +0x03ac TransportLine::remove
+call +0x0432 TransportLine::advanceGapIndex
+call +0x0444 TransportLine::unsquash
+### Chunk::updatePollution  rva=0xff8950 len=1130
+call +0x004e FallbackValue<bool>::getValue
+call +0x00a2 FallbackValue<double>::getValue
+call +0x010a FallbackValue<double>::getValue
+call +0x0118 Pollution::getChunkPassivePollutionReductionPerSecond
+call +0x0159 FallbackValue<double>::getValue
+call +0x01d8 InfiniteVector<InfiniteVector<std::optional<TerritoryOverlayCache::ChunkData> > >::operator[]
+call +0x01e2 InfiniteVector<unsigned __int64>::operator[]
+call +0x01f7 operator new
+call +0x0225 Chunk::Chunk
+call +0x0265 MapGenerationManager::request
+call +0x028d FallbackValue<double>::getValue
+call +0x02c6 Chunk::activateChunkForPollution
+call +0x030a FallbackValue<double>::getValue
+call +0x03cd RandomGenerator::uniformDouble
+call +0x0401 FallbackValue<double>::getValue
+call +0x0422 FallbackValue<double>::getValue
+call +0x043d Chunk::damageTrees
+### TrainPathFinder::findPath  rva=0x1058620 len=6834
+call +0x0053 operator new
+call +0x0082 std::_Vb_val<std::allocator<bool> >::_Vb_val<std::allocator<bool> >
+call +0x008e std::vector<bool,std::allocator<bool> >::_Trim
+call +0x00a4 ChunkDecoratives::~ChunkDecoratives
+call +0x00b1 operator delete
+call +0x00c5 operator new
+call +0x00f6 std::vector<Inventory *,std::allocator<Inventory *> >::_Buy_nonzero
+call +0x010e memset
+call +0x012d std::vector<double,std::allocator<double> >::`scalar deleting destructor'
+call +0x015b operator new
+call +0x020b operator new
+call +0x0241 std::_Tree_val<std::_Tree_simple_types<re2::RuneRange> >::_Insert_node
+call +0x02e7 std::vector<TilePosition,std::allocator<TilePosition> >::reserve
+call +0x034a std::vector<unsigned __int64,std::allocator<unsigned __int64> >::_Emplace_one_at_back<unsigned __int64>
+call +0x035d operator new
+call +0x0374 SimpleMemoryPool<TrainPathFinderNode>::Bucket::Bucket
+call +0x0398 std::vector<MinHeap<TrainPathFinderNode,double>::ItemBase *,std::allocator<MinHeap<TrainPathFinderNode,double>::ItemBase *> >::resize
+call +0x0493 Rail::getRailIfOne
+call +0x04cc SimpleMemoryPool<TrainPathFinderNode>::getNotFullBucket
+call +0x05a5 sqrt
+call +0x0633 std::_Allocate<16,std::_Default_allocate_traits>
+call +0x065c memcpy
+call +0x0674 memcpy
+call +0x068f std::allocator<std::pair<int,int> >::deallocate
+call +0x06dc MinHeap<TrainPathFinderNode,double>::heapUp
+call +0x0760 MinHeap<TrainPathFinderNode,double>::heapDown
+call +0x086a Rail::getRailIfOne
+call +0x08c8 TrainPathFinder::constructPath
+call +0x0903 ssprintf
+call +0x091b TrainPathFinderNoPathReporter::reportInternal
+call +0x0925 std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Tidy_deallocate
+call +0x093c MinHeap<TrainPathFinderNode,double>::clear
+call +0x095b std::allocator<std::pair<int,int> >::deallocate
+call +0x099d TrainPathFinder::constructPath
+call +0x0a5f Rail::getRailIfOne
+call +0x0ac5 TrainPathFinder::constructPath
+call +0x0b00 ssprintf
+call +0x0b18 TrainPathFinderNoPathReporter::reportInternal
+call +0x0b54 operator delete
+call +0x0b6b MinHeap<TrainPathFinderNode,double>::clear
+call +0x0b8a std::allocator<std::pair<int,int> >::deallocate
+call +0x0bc9 TrainPathFinder::constructPath
+call +0x0c46 RailSignalBase::getOutgoingBlock
+call +0x0c95 RailSignalBase::getOutgoingBlock
+call +0x0d75 RailSignalBase::getOutgoingBlock
+call +0x0dc4 RailSignalBase::getOutgoingBlock
+call +0x106f MinHeap<TrainPathFinderNode,double>::heapUp
+call +0x10d8 operator new
+call +0x10f2 SimpleMemoryPool<TrainPathFinderNode>::Bucket::Bucket
+call +0x11e9 sqrt
+call +0x1274 std::_Allocate<16,std::_Default_allocate_traits>
+call +0x129d memcpy
+call +0x12b5 memcpy
+call +0x12c8 std::vector<re2::Prog::Inst,std::allocator<re2::Prog::Inst> >::_Change_array
+call +0x12fd MinHeap<TrainPathFinderNode,double>::heapUp
+call +0x1367 TrainPathFinder::constructPath
+call +0x13a3 ssprintf
+call +0x13bb TrainPathFinderNoPathReporter::reportInternal
+call +0x13f7 operator delete
+call +0x140e MinHeap<TrainPathFinderNode,double>::clear
+call +0x1429 std::allocator<std::pair<int,int> >::deallocate
+call +0x1487 MinHeap<TrainPathFinderNode,double>::ItemBase::~ItemBase
+call +0x14b9 TrainPathFinder::constructPath
+call +0x1577 MinHeap<TrainPathFinderNode,double>::ItemBase::~ItemBase
+call +0x15c5 SimpleMemoryPool<TrainPathFinderNode>::Bucket::sweep
+call +0x15cd free
+call +0x15db operator delete
+call +0x15fc std::allocator<std::pair<int,int> >::deallocate
+call +0x16a7 MinHeap<TrainPathFinderNode,double>::ItemBase::~ItemBase
+call +0x16f5 SimpleMemoryPool<TrainPathFinderNode>::Bucket::sweep
+call +0x16fd free
+call +0x170b operator delete
+call +0x172c std::allocator<std::pair<int,int> >::deallocate
+call +0x178e std::_Tree_val<std::_Tree_simple_types<IDWithQuality<ID<ItemPrototype,unsigned short> > > >::_Erase_tree_and_orphan<std::allocator<std::_Tree_node<IDWithQuality<ID<ItemPrototype,unsigned short> >,void *> > >
+call +0x179e operator delete
+call +0x17b4 operator delete
+call +0x17e5 SimpleMemoryPool<TrainPathFinderNode>::Bucket::sweep
+call +0x17ed free
+call +0x17fb operator delete
+call +0x181c std::allocator<std::pair<int,int> >::deallocate
+call +0x187e std::_Tree_val<std::_Tree_simple_types<IDWithQuality<ID<ItemPrototype,unsigned short> > > >::_Erase_tree_and_orphan<std::allocator<std::_Tree_node<IDWithQuality<ID<ItemPrototype,unsigned short> >,void *> > >
+call +0x188e operator delete
+call +0x18a4 operator delete
+call +0x18c4 TrainPathFinderNoPathReporter::reportInternal
+call +0x18db MinHeap<TrainPathFinderNode,double>::clear
+call +0x18f6 std::allocator<std::pair<int,int> >::deallocate
+call +0x1957 MinHeap<TrainPathFinderNode,double>::ItemBase::~ItemBase
+call +0x19a5 SimpleMemoryPool<TrainPathFinderNode>::Bucket::sweep
+call +0x19ad free
+call +0x19bb operator delete
+call +0x19dc std::allocator<std::pair<int,int> >::deallocate
+call +0x1a25 std::_Tree<std::_Tset_traits<enum TrainPriority,std::greater<void>,std::allocator<enum TrainPriority>,0> >::~_Tree<std::_Tset_traits<enum TrainPriority,std::greater<void>,std::allocator<enum TrainPriority>,0> >
+call +0x1a6e ReleaseAssertFailed
+call +0x1a74 std::_Throw_tree_length_error
+call +0x1a8b _invoke_watson
+call +0x1aa0 _invoke_watson
+call +0x1aa6 std::_Throw_bad_array_new_length
+call +0x1aac std::vector<re2::Prog::Inst,std::allocator<re2::Prog::Inst> >::_Xlength
+### LogisticNetwork::update  rva=0xc15db0 len=1035
+call +0x0095 std::_Tree_val<std::_Tree_simple_types<re2::RuneRange> >::_Extract
+call +0x00a1 IntrusiveSetImplementation<BusyRobotLink<LogisticRobot>,void,std::less<void> >::Root::clear
+call +0x00af operator delete
+call +0x01ab LogisticNetwork::requestFirstAvailableItem
+call +0x01d4 std::allocator<enum NoiseRegisterIndex>::deallocate
+call +0x020b LogisticNetwork::dispatchPendingSubset
+call +0x0275 std::_Tree_val<std::_Tree_simple_types<re2::RuneRange> >::_Extract
+call +0x0281 IntrusiveSetImplementation<BusyRobotLink<LogisticRobot>,void,std::less<void> >::Root::clear
+call +0x028f operator delete
+call +0x0374 LogisticNetwork::fillRequesters
+call +0x03aa LogisticNetwork::solveProviders
+call +0x03e5 std::allocator<std::pair<int,int> >::deallocate
+### Commander::update  rva=0x1d3220 len=514
+call +0x0026 std::chrono::steady_clock::now
+call +0x0050 UnitGroup::update
+call +0x0093 Commander::pruneUnitGroups
+call +0x0129 std::_Tree_val<std::_Tree_simple_types<re2::RuneRange> >::_Extract
+call +0x0137 operator delete
+call +0x01a2 ExpansionPlanner::shouldExpandNow
+call +0x01b3 Commander::tryBuildNewBase
+call +0x01ca std::chrono::steady_clock::now

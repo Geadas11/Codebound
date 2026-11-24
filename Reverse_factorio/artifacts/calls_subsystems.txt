@@ -1,0 +1,298 @@
+﻿### Game::update  rva=0xd61f0 len=491
+call +0x0026 std::chrono::steady_clock::now
+call +0x003a Map::dispatchInitialGeneratedChunkEvents
+call +0x0042 Map::updateEntities
+call +0x004e MapSavedSpecialItems::update
+call +0x005d ConsistencyScraper::step
+call +0x0104 Chart::updateGameState
+call +0x01a3 Player::postUpdate
+call +0x01b6 std::chrono::steady_clock::now
+### Surface::update  rva=0x1012700 len=2348
+call +0x0045 FallbackValue<bool>::getValue
+call +0x00c2 std::chrono::steady_clock::now
+call +0x00d3 LightningAttractorCache::updateAttractorData
+call +0x00db LightningGenerator::updateEndangermentStatus
+call +0x00e3 LightningGenerator::generateLightnings
+call +0x00f1 std::chrono::steady_clock::now
+call +0x014a PathFinder::update
+call +0x0199 Commander::update
+call +0x01c5 MapGenerationManager::update
+call +0x01db Surface::updateBuildEffectSmokes
+call +0x0235 std::chrono::steady_clock::now
+call +0x02fc Chunk::updatePollution
+call +0x0338 LazyCreatedStatistics<FlowStatistics<IDWithQuality<ID<ItemPrototype,unsigned short> >,unsigned __int64,void> >::operator*
+call +0x0350 FlowStatistics<ID<FluidPrototype,unsigned short>,double,void>::onFlow
+call +0x0373 LazyCreatedStatistics<FlowStatistics<IDWithQuality<ID<ItemPrototype,unsigned short> >,unsigned __int64,void> >::operator*
+call +0x0388 FlowStatistics<ID<FluidPrototype,unsigned short>,double,void>::onFlow
+call +0x0396 std::chrono::steady_clock::now
+call +0x03d4 std::chrono::steady_clock::now
+call +0x0423 EntityOrderHelpers::EntityOrderList<LogisticRobot,ConstructionRobot,Inserter,Roboport,Loader,AssemblingMachine,AgriculturalTower,OldAgriculturalTower,Furnace,MiningDrill,FluidWagon,ArtilleryWagon,InfinityCargoWagon,CargoWagon,Locomotive,Character,Boiler,Generator,BurnerGenerator,Reactor,Lab,LandMine,ArtilleryFlare,ArtilleryProjectile,ArtilleryTurret,Beam,Car,SpiderVehicle,TemporaryContainer,CharacterCorpse,CombatRobot,CaptureRobot,Corpse,ElectricEnergyInterface,EnemySpawner,Explosion,FlameThrowerExplosion,FluidStream,FluidTurret,FlyingTextEntity,FusionGenerator,FusionReactor,Gate,HeatInterface,HighlightBoxEntity,InfinityContainer,InfinityPipe,ItemRequestProxy,OffshorePump,ParticleSource,PowerSwitch,Projectile,Pump,Valve,Radar,ProgrammableSpeaker,RocketSilo,RocketSiloRocket,CargoPod,SmokeWithTrigger,SpeechBubble,Sticker,Turret,AsteroidCollector,Asteroid,Thruster,SpiderUnit,Unit>::update
+call +0x044c Chunk::shouldBeActive
+call +0x0498 Chunk::updateEntities
+call +0x0506 LazyCreatedStatistics<FlowStatistics<IDWithQuality<ID<ItemPrototype,unsigned short> >,unsigned __int64,void> >::operator*
+call +0x0514 FlowStatistics<ID<FluidPrototype,unsigned short>,double,void>::onFlow
+call +0x052a LazyCreatedStatistics<FlowStatistics<IDWithQuality<ID<ItemPrototype,unsigned short> >,unsigned __int64,void> >::operator*
+call +0x0538 FlowStatistics<ID<FluidPrototype,unsigned short>,double,void>::onFlow
+call +0x0596 FallbackValue<bool>::getValue
+call +0x05ff EvolutionFactorData::increaseEvolutionFactorByPollution
+call +0x0642 UpdateTimeValue::updateStarted
+call +0x065f std::chrono::steady_clock::now
+call +0x0697 SegmentedUnitController::update
+call +0x06b7 std::chrono::steady_clock::now
+call +0x071e std::chrono::steady_clock::now
+call +0x0749 ParticleSurface::update
+call +0x075b ParticleSurface::update
+call +0x07ec GameEvents::run<LuaEventFilters,`GameEvents::sendOnNextDayStarted'::`2'::<lambda_1>,GameEvents::NoFilters>
+call +0x0806 Wind::update
+call +0x0839 PathFinder::pollScriptPathfindClients
+call +0x0867 FreezingLogic::update
+call +0x0926 ReleaseAssertFailed
+### Map::performPlannedEntityUpdates  rva=0xc71970 len=464
+call +0x0022 std::chrono::steady_clock::now
+call +0x00e8 Map::updateInNTicks
+call +0x0180 `eh vector destructor iterator'
+call +0x018e operator delete
+call +0x019f std::chrono::steady_clock::now
+### Chunk::updateEntities  rva=0xff84b0 len=1181
+call +0x00c9 TrivialSmoke::update
+call +0x018e CompactDeque<TrivialSmoke>::grow
+call +0x020d TerritoryManager::activateTerritory
+call +0x0284 CompactDeque<TrivialSmoke>::grow
+call +0x02eb Chunk::updateActiveEntities
+call +0x02fa Chunk::updateActiveEntities
+call +0x0446 Chunk::updateActiveEntities
+### Chunk::updateActiveEntities  rva=0xff8400 len=164
+(no direct calls)
+### MainLoop::mainLoopStep  rva=0x153440 len=1115
+call +0x002f std::chrono::steady_clock::now
+call +0x0042 _Mtx_lock
+call +0x0063 std::chrono::steady_clock::now
+call +0x008e _Cnd_wait
+call +0x00aa std::chrono::steady_clock::now
+call +0x00d2 _Mtx_unlock
+call +0x00e9 std::chrono::steady_clock::now
+call +0x00f5 MainLoop::prePrepare
+call +0x0105 std::chrono::steady_clock::now
+call +0x012a std::chrono::steady_clock::now
+call +0x0150 std::chrono::steady_clock::now
+call +0x0171 MainLoop::getAndLogStopReason
+call +0x0180 std::chrono::steady_clock::now
+call +0x01c7 AppManager::createTutorial
+call +0x01db MainLoop::prepare
+call +0x0208 WorkerThread::run
+call +0x0216 MainLoop::prepareBitmaps
+call +0x021b MainLoop::render
+call +0x022b std::chrono::steady_clock::now
+call +0x0237 GlobalContext::swapRenderBuffers
+call +0x0241 std::chrono::steady_clock::now
+call +0x0270 FrameTimeStatistics::nextFrame
+call +0x0275 PerformanceLogger::endFrame
+call +0x02cd ReloadableSpritesManager::tryReloadSprite
+call +0x0319 ReloadableSpritesManager::tryReloadSprite
+call +0x0354 std::chrono::steady_clock::now
+call +0x036c Util::sleep_for<__int64,std::ratio<1,1000000> >
+call +0x0376 std::chrono::steady_clock::now
+call +0x03b0 std::chrono::steady_clock::now
+call +0x0405 Logging::log
+call +0x0418 LuaEventRegistrations::getLuaContext
+call +0x0425 std::runtime_error::runtime_error
+call +0x0435 _CxxThrowException
+call +0x0440 std::_Throw_Cpp_error
+call +0x0455 std::_Throw_Cpp_error
+### MainLoop::run  rva=0x151ed0 len=4941
+call +0x0064 operator new
+call +0x007a GlobalContext::GlobalContext
+call +0x00c3 GlobalContext::init
+call +0x00dd std::filesystem::exists
+call +0x00fb FileUtil::removeAll
+call +0x013b std::wstring_convert<std::codecvt_utf8<wchar_t,1114111,0>,wchar_t,std::allocator<wchar_t>,std::allocator<char> >::wstring_convert<std::codecvt_utf8<wchar_t,1114111,0>,wchar_t,std::allocator<wchar_t>,std::allocator<char> >
+call +0x0147 __tlregdtor
+call +0x0172 std::wstring_convert<std::codecvt_utf8<wchar_t,1114111,0>,wchar_t,std::allocator<wchar_t>,std::allocator<char> >::from_bytes
+call +0x01aa std::filesystem::operator/
+call +0x020e std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::_Deallocate_for_capacity
+call +0x024d std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::_Deallocate_for_capacity
+call +0x0290 std::wstring_convert<std::codecvt_utf8<wchar_t,1114111,0>,wchar_t,std::allocator<wchar_t>,std::allocator<char> >::wstring_convert<std::codecvt_utf8<wchar_t,1114111,0>,wchar_t,std::allocator<wchar_t>,std::allocator<char> >
+call +0x029c __tlregdtor
+call +0x02c7 std::wstring_convert<std::codecvt_utf8<wchar_t,1114111,0>,wchar_t,std::allocator<wchar_t>,std::allocator<char> >::from_bytes
+call +0x0304 std::filesystem::operator/
+call +0x0368 std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::_Deallocate_for_capacity
+call +0x03a7 std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::_Deallocate_for_capacity
+call +0x03ea std::wstring_convert<std::codecvt_utf8<wchar_t,1114111,0>,wchar_t,std::allocator<wchar_t>,std::allocator<char> >::wstring_convert<std::codecvt_utf8<wchar_t,1114111,0>,wchar_t,std::allocator<wchar_t>,std::allocator<char> >
+call +0x03f6 __tlregdtor
+call +0x0421 std::wstring_convert<std::codecvt_utf8<wchar_t,1114111,0>,wchar_t,std::allocator<wchar_t>,std::allocator<char> >::from_bytes
+call +0x045e std::filesystem::operator/
+call +0x04c2 std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::_Deallocate_for_capacity
+call +0x0501 std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::_Deallocate_for_capacity
+call +0x0522 wstringConvert
+call +0x053d std::wstring_convert<std::codecvt_utf8<wchar_t,1114111,0>,wchar_t,std::allocator<wchar_t>,std::allocator<char> >::from_bytes
+call +0x0577 Filesystem::operator/
+call +0x059b std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::_Deallocate_for_capacity
+call +0x05da std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::_Deallocate_for_capacity
+call +0x0619 std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::_Deallocate_for_capacity
+call +0x0658 std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::_Deallocate_for_capacity
+call +0x0681 std::filesystem::exists
+call +0x0692 FileUtil::remove
+call +0x072a std::basic_string<wchar_t,std::char_traits<wchar_t>,std::allocator<wchar_t> >::_Deallocate_for_capacity
+call +0x07a3 AppManager::displayUpdateFinishedChangelog
+call +0x081c GlobalContext::localise
+call +0x086c GlobalContext::localise
+call +0x0880 MainLoop::deferNotice
+call +0x088e std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Tidy_deallocate
+call +0x089c std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Tidy_deallocate
+call +0x090b GlobalContext::localise
+call +0x095b GlobalContext::localise
+call +0x096f MainLoop::deferNotice
+call +0x097d std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Tidy_deallocate
+call +0x098b std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Tidy_deallocate
+call +0x09fc GlobalContext::localise
+call +0x0a4c GlobalContext::localise
+call +0x0a60 MainLoop::deferNotice
+call +0x0a6e std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Tidy_deallocate
+call +0x0a7c std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Tidy_deallocate
+call +0x0b3c GlobalContext::localise
+call +0x0b87 std::deque<MainLoop::NoticeOrConfirm,std::allocator<MainLoop::NoticeOrConfirm> >::_Emplace_back_internal<enum MainLoop::NoticeOrConfirm::Type,std::basic_string<char,std::char_traits<char>,std::allocator<char> > const &,char const (&)[1],std::function<void __cdecl(void)> &,std::function<void __cdecl(void)> &,agui::ButtonStyle const * &>
+call +0x0be7 std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Tidy_deallocate
+call +0x0c44 GlobalContext::orderToSaveConfig
+call +0x0cc7 GlobalContext::localise
+call +0x0cdd MainLoop::deferNotice
+call +0x0ceb std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Tidy_deallocate
+call +0x0d09 std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Deallocate_for_capacity
+call +0x0d0e MainLoop::processMessage
+call +0x0d1e MainLoop::processEvents
+call +0x0d29 processResultToString
+call +0x0d4c Logging::log
+call +0x0e35 operator new
+call +0x0e77 _beginthreadex
+call +0x0ef0 std::chrono::steady_clock::now
+call +0x0efd MainLoop::prePrepare
+call +0x0f10 std::chrono::steady_clock::now
+call +0x0f1a MainLoop::getAndLogStopReason
+call +0x0f2d std::chrono::steady_clock::now
+call +0x0f8b std::chrono::steady_clock::now
+call +0x0f92 MainLoop::prepare
+call +0x0fa2 MainLoop::gameUpdateLoop
+call +0x0fe1 std::chrono::steady_clock::now
+call +0x1019 MainLoop::mainLoopStep
+call +0x1043 PerformanceLogger::saveToFile
+call +0x1052 GlobalContext::cancelOrWaitForLoadingMap
+call +0x105e GlobalContext::cancelOrWaitForSavingToFinish
+call +0x1070 processResultToString
+call +0x1093 Logging::log
+call +0x1115 StringUtil::narrow
+call +0x1153 Logging::log
+call +0x1161 std::basic_string<char,std::char_traits<char>,std::allocator<char> >::_Tidy_deallocate
+call +0x1192 Scenario::saveAs
+call +0x11b2 Logging::log
+call +0x11f6 std::chrono::steady_clock::now
+call +0x1236 std::chrono::steady_clock::now
+call +0x12ad WorkerThread::~WorkerThread
+call +0x12d0 GlobalContext::~GlobalContext
+call +0x12dd operator delete
+call +0x1334 std::_Xbad_function_call
+call +0x1346 std::_Throw_Cpp_error
+### Scenario::updateCrcCheck  rva=0xd8cb50 len=878
+call +0x0073 crc32_16bytes
+call +0x009a MapSerialiser::MapSerialiser
+call +0x00ae Map::save
+call +0x00b8 MapSerialiser::~MapSerialiser
+call +0x0103 std::map<MapTick,unsigned int,std::less<MapTick>,std::allocator<std::pair<MapTick const ,unsigned int> > >::operator[]
+call +0x012d std::map<MapTick,unsigned int,std::less<MapTick>,std::allocator<std::pair<MapTick const ,unsigned int> > >::operator[]
+call +0x015a InputAction::noData
+call +0x0170 InputAction::isCorrectDataTypeForAction
+call +0x018f Scenario::tryToSendInputAction
+call +0x019a InputAction::destroyValue
+call +0x01ba Scenario::dumpScenario
+call +0x01cb Scenario::dumpHeuristic
+call +0x01f8 HeuristicCrcGenerator::get
+call +0x0281 InputAction::noData
+call +0x0297 InputAction::isCorrectDataTypeForAction
+call +0x02b2 Scenario::tryToSendInputAction
+call +0x02bd InputAction::destroyValue
+call +0x02d6 std::map<MapTick,unsigned int,std::less<MapTick>,std::allocator<std::pair<MapTick const ,unsigned int> > >::operator[]
+call +0x031d ReleaseAssertFailed
+call +0x0336 ReleaseAssertFailed
+call +0x034f ReleaseAssertFailed
+call +0x0368 ReleaseAssertFailed
+### HeuristicCrcGenerator::get  rva=0xc5fd20 len=222
+call +0x0020 std::chrono::steady_clock::now
+call +0x0048 crc32_16bytes
+call +0x0074 MapSerialiser::MapSerialiser
+call +0x0082 HeuristicCrcGenerator::saveMap
+call +0x008d MapSerialiser::~MapSerialiser
+call +0x00aa std::chrono::steady_clock::now
+### TransportLineManager::update  rva=0x20b7b0 len=400
+call +0x0111 TransportLine::update
+call +0x012c MultithreadingOutput::finish
+call +0x018a ReleaseAssertFailed
+### TransportLineGroup::update: not found
+### ElectricNetworkManager::update  rva=0x33dca0 len=873
+call +0x003c std::chrono::steady_clock::now
+call +0x02b0 ElectricNetwork::update
+call +0x02e0 ElectricNetworkManager::mergeAccumulatorGroups
+call +0x0333 std::chrono::steady_clock::now
+### ElectricNetwork::update  rva=0x33aff0 len=644
+call +0x0160 ElectricSubNetwork::getProductionAndDemand
+call +0x01a9 ElectricNetworkInputValues::computeUsage
+call +0x0237 ElectricSubNetwork::useProductionAndDemand
+call +0x0263 ElectricNetworkStatisticsBuffer::apply
+### FluidSegmentManager::update  rva=0x61ab00 len=628
+call +0x00c1 floor
+call +0x010f FluidSegment::rebuildAlertingFluidBoxes
+call +0x0188 ForceData::addAlert
+call +0x01da Util::removeIf<std::vector<MixingConnectionData,std::allocator<MixingConnectionData> >,`FluidSegmentManager::reconcileMixingConnections'::`2'::<lambda_1> >
+call +0x025c ForceData::addAlert
+### FluidFlowManager::update  rva=0x616a50 len=236
+call +0x0028 std::chrono::steady_clock::now
+call +0x00a5 FluidBox::update
+call +0x00bb std::chrono::steady_clock::now
+### Inserter::update  rva=0x492ac0 len=1230
+call +0x005e UpdatableEntity::detachInternal
+call +0x00cf ItemStackOrID::ItemStackOrID
+call +0x00e7 Burner::canInsert
+call +0x00fe TargeterBase::operator=
+call +0x012f sqrt
+call +0x0144 Vector::getOrientation
+call +0x0151 Inserter::moveHandTo
+call +0x0162 Inserter::dropHeldItem
+call +0x0184 Burner::update
+call +0x0200 DropTarget::tryFindTarget
+call +0x02bc Inserter::moveHandTo
+call +0x02ee Inserter::goToSleep
+call +0x034e Inserter::findPickupTarget
+call +0x038e UpdatableEntity::detachInternal
+call +0x03b1 Inserter::getPickupTarget
+call +0x03d2 Inserter::moveHandTo
+call +0x0435 Inserter::tryToGetToSleep
+call +0x046b Inserter::moveHandTo
+call +0x047e Inserter::dropHeldItem
+### TransportLine::update  rva=0x202ef0 len=618
+call +0x0107 SplitterLogic::resolveSplitting
+call +0x013f SplitterLogic::resolveSplitting
+call +0x0160 TransportLine::activateDirectInputs
+call +0x0168 TransportLine::hasSideInsertionPosition
+call +0x0174 TransportLine::activateSideInputs
+call +0x018f TransportLine::activateDirectInputs
+call +0x0197 TransportLine::hasSideInsertionPosition
+call +0x01a7 TransportLine::activateSideInputs
+call +0x0203 TransportLine::move
+call +0x0215 TransportLine::activateDirectInputs
+call +0x021d TransportLine::hasSideInsertionPosition
+call +0x0229 TransportLine::activateSideInputs
+call +0x024b TransportLine::deactivate
+### LuaState::loadLibs: not found
+### Map::createMultiThreadedUpdateRunner  rva=0xc62fc0 len=160
+call +0x0025 operator new
+call +0x0066 ThreadPool::ThreadPool
+### ThreadPool::run  rva=0x1127e10 len=369
+call +0x002b _Mtx_lock
+call +0x007a _Cnd_wait
+call +0x00ac std::vector<re2::RuneRange,std::allocator<re2::RuneRange> >::push_back
+call +0x00c3 std::_Func_class<void,agui::TableIndex,bool>::_Reset_move
+call +0x00d0 WorkerThread::run
+call +0x00d9 _Mtx_unlock
+call +0x011a RuntimeError::RuntimeError
+call +0x012b _CxxThrowException
+call +0x0136 std::_Throw_Cpp_error
+call +0x0148 std::_Throw_Cpp_error
+call +0x015a RuntimeError::RuntimeError
+call +0x016b _CxxThrowException
