@@ -248,3 +248,11 @@
 - `Core/Music.cs`: partitura em notas + instrumentos sintetizados, caudas das notas dão a volta ao loop; `Synth.Render` delega as camadas `mus_*`; `AudioDirector` compõe com `Task.Run` e arranca as 4 camadas juntas; dia/noite por `Clock.Daylight`.
 - Nota de teste: depois de `NewGame` por script, além de `Time.timeScale = 1`, é preciso `TitleMenu.IsOpen = false` (o jogo real fecha o ecrã inicial antes).
 - Testes: 135/135 EditMode; build + self-test PASS.
+
+## Sessão 5 (2026-11-24): simulação industrial — Etapas 0 e 1
+- Auditoria (`INDUSTRY_PLAN.md`): o relógio e os relâmpagos avançavam por frame (P1); ordem de atualização acidental (`Dictionary` com posições reutilizadas, P2); sem contador de ticks (P3); 8 varrimentos de todos os edifícios por tick (P5); texto de estado criado em cada tick (P6). `TECHNICAL_ARCHITECTURE.md` estava desatualizado (só JS/Python).
+- `Core/Simulation.cs` (`SimSystem` com prepare/update/finish, `Simulation.Run`, `StateHash`), `GameState.Step/Tick/PendingPlayerDamage`, `Factory.Systems()`, listas por tipo, `BuildGrid.Buildings` por id, sleep/wake por célula (`sleepersAt`, `MachineState.Asleep/Touched`; filtros e liga/desliga de correias e braços passaram a propriedades que avisam).
+- Bug apanhado pela medição: uma correia adormecida a quem um braço tirava o item e que depois recebia outro ficava a dormir. Corrigido (mudar o próprio conteúdo acorda) e com teste.
+- Medições (Editor, mesma corrida, dois mundos iguais alternados): 8000 edifícios, sleep desligado vs ligado: tick 5,4 → 4,2 ms; correias 0,84 → 0,14; braços 0,24 → 0,13. 2000 edifícios: ~0,5 ms/tick (antes da etapa ~1,0). As medições no Editor variam até 2× entre corridas (máquina ocupada): por isso comparo sempre dentro da mesma corrida.
+- `GC.GetAllocatedBytesForCurrentThread` devolve 0 neste Mono: alocações não medidas; só se removeram as fontes óbvias (texto de geradores, baterias, hubs, laboratórios; listas e arrays por tick).
+- Testes: 142/142 EditMode; build + self-test PASS; Play Mode: tick e relógio corretos. Runtimes das linguagens não corridos (não mudaram).

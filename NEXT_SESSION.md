@@ -11,6 +11,11 @@
 - Graphify (MCP) indexa o branch principal do repositório; para indexar este código, o branch principal no GitHub tem de ser `desktop`.
 - `Codebound/Tools/python/` não está no git (ver README para o obter).
 
+## Simulação industrial (missão de 2026-11-24)
+- Plano e auditoria: `INDUSTRY_PLAN.md`. Etapa 1 feita (tick ordenado, determinismo, sleep/wake). **Próximo: Etapa 2 — correias com pistas e sequências e braços com mão**, mantendo `start/stop/setFilter`, saves e programas.
+- Antes de mexer na simulação: `DeterminismTests` e `SleepWakeTests` têm de continuar verdes (comparam hashes de estado).
+- Recuperação: tag local `pre-industry-2026-11-24`.
+
 ## Mapa do código
 - Core: `Codebound/Assets/Codebound/Scripts/Core/` — `GameState.cs` (agregado + `SaveSystem`), `Factory.cs` (energia/ações/logística), `Machines.cs` (estados), `Buildings.cs`, `World.cs`, `Inventory.cs`, `Items.cs`, `Json.cs`.
 - Game: `.../Scripts/Game/` — `GameBootstrap.cs` (arranque, tick 20 Hz, F5/F9), `ProgramManager.cs` (ponte runtime + API), `MachinePanel.cs` (painel E + editor de código), `BuildController.cs`, `MiningController.cs`, `ChunkRenderer.cs`, `DebugHud.cs`.

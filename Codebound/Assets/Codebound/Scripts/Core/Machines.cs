@@ -10,6 +10,13 @@ namespace Codebound.Core
         public float PowerSatisfaction = 1f;
         public string Status = "idle";
 
+        /// <summary>Sleeping: nothing to do until something it depends on changes (Factory wakes it). Not saved: a loaded
+        /// world starts awake and machines go back to sleep on their first idle tick.</summary>
+        public bool Asleep { get; internal set; }
+        /// <summary>Raised when a setting that decides what this machine accepts or does changes (filter, start/stop).</summary>
+        public event System.Action Touched;
+        protected void Touch() => Touched?.Invoke();
+
         /// <summary>Insert from a conveyor/drill/player. All-or-nothing.</summary>
         public virtual bool TryInsert(string itemId, int count) => false;
 
@@ -76,8 +83,12 @@ namespace Codebound.Core
         public const float BeltSpeed = 1.875f; // cells per second
         public readonly Inventory Slot = new Inventory(1);
         public float Progress;     // 0 = just entered, 1 = at the front edge
-        public bool Running;       // belts: always; programmable conveyors: start()/stop()
-        public string Filter;      // programmable conveyors only accept this item when set
+        internal Cell LastOut;     // where the last item went (splitters alternate from it)
+        bool running; string filter;
+        /// <summary>Belts: always; programmable conveyors: start()/stop().</summary>
+        public bool Running { get => running; set { if (running != value) { running = value; Touch(); } } }
+        /// <summary>Programmable conveyors only accept this item when set (sorters: the item that goes straight).</summary>
+        public string Filter { get => filter; set { if (filter != value) { filter = value; Touch(); } } }
         public bool ArrivedThisTick;
         public int Turn;           // splitter: which output goes next
         public bool Sorts;         // sorter: the filter picks the exit instead of refusing items
@@ -110,8 +121,9 @@ namespace Codebound.Core
     {
         public const float SwingSeconds = 0.8f;
         public float Progress;     // seconds since the last swing
-        public bool Running = true;
-        public string Filter;
+        bool running = true; string filter;
+        public bool Running { get => running; set { if (running != value) { running = value; Touch(); } } }
+        public string Filter { get => filter; set { if (filter != value) { filter = value; Touch(); } } }
         public int Moved;          // total items moved (for programs and UI)
 
         public override void SaveExtra(IDictionary<string, string> d)
@@ -240,6 +252,7 @@ namespace Codebound.Core
     {
         public const float CapacityKJ = 5000f, MaxKW = 100f;
         public float StoredKJ;
+        internal int ShownPct = int.MinValue, ShownRate = int.MinValue;   // what Status shows
         public override void SaveExtra(IDictionary<string, string> d) => d["kj"] = F(StoredKJ);
         public override void LoadExtra(string k, string v) { if (k == "kj") StoredKJ = PF(v); }
     }
@@ -249,6 +262,7 @@ namespace Codebound.Core
         public readonly Inventory Fuel = new Inventory(1);
         public float BurnLeftKJ;
         public float LoadKW; // last tick output, for UI and the scripting API
+        internal int ShownKW = int.MinValue;   // what Status shows, so it is rebuilt only when it changes
 
         public override bool TryInsert(string itemId, int count) =>
             itemId == ItemDatabase.Coal && Fuel.TryAddAll(new[] { new ItemStack(itemId, count) });

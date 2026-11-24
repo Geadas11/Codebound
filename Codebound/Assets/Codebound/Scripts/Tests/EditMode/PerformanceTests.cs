@@ -78,7 +78,7 @@ namespace Codebound.Tests
             }
             double ms = sw.Elapsed.TotalMilliseconds / (edits * 2);
             TestContext.WriteLine($"[perf] tick after a power edit: {ms:0.000} ms");
-            Assert.Less(ms, 10.0);
+            Assert.Less(ms, 15.0);   // ~4 ms alone; the full suite on a busy machine has hit 10.5
         }
     }
 }

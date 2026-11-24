@@ -40,15 +40,87 @@ namespace Codebound.Core
         readonly List<Network> networks = new List<Network>();
         bool powerDirty = true, powerDirtyForHubs = true;
 
+        // Each system walks only its own entities, in build order (ids ascending) — the Codebound analogue of
+        // grouping active entities by type. Appending keeps them sorted because ids only grow.
+        readonly List<PlacedBuilding> consumers = new List<PlacedBuilding>(), nodeList = new List<PlacedBuilding>(),
+            producers = new List<PlacedBuilding>(), belts = new List<PlacedBuilding>(), inserters = new List<PlacedBuilding>(),
+            greenhouses = new List<PlacedBuilding>(), pads = new List<PlacedBuilding>(), hubs = new List<PlacedBuilding>();
+        readonly List<GeneratorState> running = new List<GeneratorState>();
+
+        // Sleep/wake. A belt or arm with nothing to do sleeps and registers on the cells it waits for; any change there
+        // (an inventory of the building on that cell changes, its filter or on/off changes, a building appears or goes)
+        // wakes it. Sleepers stay in their lists, so a machine woken mid-tick still runs in its usual order: results are
+        // exactly those of retrying every tick.
+        readonly Dictionary<Cell, List<PlacedBuilding>> sleepersAt = new Dictionary<Cell, List<PlacedBuilding>>();
+
+        void WakeAt(Cell c)
+        {
+            if (!sleepersAt.TryGetValue(c, out var l)) return;
+            foreach (var s in l) if (s.State != null) s.State.Asleep = false;
+            sleepersAt.Remove(c);
+        }
+
+        void WakeAround(PlacedBuilding b) { foreach (var c in b.Cells()) WakeAt(c); }
+
+        /// <summary>Off = machines retry every tick (the reference behaviour sleep/wake must match exactly; tests compare both).</summary>
+        public bool SleepEnabled = true;
+
+        void SleepOn(PlacedBuilding sleeper, Cell c)
+        {
+            if (!SleepEnabled) return;
+            if (!sleepersAt.TryGetValue(c, out var l)) sleepersAt[c] = l = new List<PlacedBuilding>();
+            l.Add(sleeper);
+            sleeper.State.Asleep = true;
+        }
+
+        /// <summary>Can a machine waiting on this cell sleep? Only if what it accepts depends just on its inventories and
+        /// settings, which raise events. Hubs (power and other chests) and shock traps (charges) are retried every tick.</summary>
+        bool Watchable(Cell c) => !(grid.At(c)?.State is StorageHubState || grid.At(c)?.State is ShockTrapState);
+
+        IEnumerable<List<PlacedBuilding>> ListsOf(PlacedBuilding b)
+        {
+            if (IsConsumer(b)) yield return consumers;
+            if (IsNode(b)) yield return nodeList;
+            var st = b.State;
+            if (st is DrillState || st is FurnaceState || st is AssemblerState || st is GreenhouseState) yield return producers;
+            if (st is ConveyorState) yield return belts;
+            if (st is InserterState) yield return inserters;
+            if (st is GreenhouseState) yield return greenhouses;
+            if (st is LaunchPadState) yield return pads;
+            if (st is StorageHubState) yield return hubs;
+        }
+
+        static void RemoveSorted(List<PlacedBuilding> l, PlacedBuilding b)
+        {
+            int lo = 0, hi = l.Count - 1;
+            while (lo <= hi)
+            {
+                int mid = (lo + hi) >> 1, c = l[mid].InstanceId.CompareTo(b.InstanceId);
+                if (c == 0) { l.RemoveAt(mid); return; }
+                if (c < 0) lo = mid + 1; else hi = mid - 1;
+            }
+        }
+
         /// <summary>A machine finished an action with a product (drives "item_mined"/"item_smelted" program events).</summary>
         public event Action<PlacedBuilding, string> ActionCompleted;
 
         public Factory(WorldState world, BuildGrid grid)
         {
             this.world = world; this.grid = grid;
-            grid.Placed += b => { b.State = CreateState(b.Def); if (b.State is GreenhouseState g) g.NearWater = NearWater(b); powerDirty = powerDirtyForHubs = true; };
+            grid.Placed += b =>
+            {
+                b.State = CreateState(b.Def);
+                if (b.State is GreenhouseState g) g.NearWater = NearWater(b);
+                foreach (var l in ListsOf(b)) l.Add(b);
+                if (b.State != null) foreach (var (_, inv) in b.State.Inventories) inv.Changed += () => { if (b.State != null) b.State.Asleep = false; WakeAround(b); };   // its own contents changed too: a belt whose item an arm took, then got a new one
+                if (b.State != null) b.State.Touched += () => { if (b.State != null) b.State.Asleep = false; WakeAround(b); };
+                WakeAround(b);   // whoever waited for something to appear here
+                powerDirty = powerDirtyForHubs = true;
+            };
             grid.Removed += b =>
             {
+                foreach (var l in ListsOf(b)) RemoveSorted(l, b);
+                WakeAround(b);
                 for (int i = actions.Count - 1; i >= 0; i--)
                     if (actions[i].Machine == b) { var a = actions[i]; actions.RemoveAt(i); a.Done?.Invoke(null); }
                 powerDirty = powerDirtyForHubs = true;
@@ -104,8 +176,7 @@ namespace Codebound.Core
         void RebuildNetworks()
         {
             networks.Clear(); networkOf.Clear();
-            var nodes = new List<PlacedBuilding>();
-            foreach (var b in grid.Buildings) if (IsNode(b)) nodes.Add(b);
+            var nodes = nodeList;
 
             // spatial buckets of PoleReach cells: every link (≤ PoleReach) and supply (≤ PoleSupply + half a building) is in the 3×3 around
             var buckets = new Dictionary<(int, int), List<int>>();
@@ -147,9 +218,8 @@ namespace Codebound.Core
                 }
             }
 
-            foreach (var c in grid.Buildings)
+            foreach (var c in consumers)
             {
-                if (!IsConsumer(c)) continue;
                 var (cw, ch) = c.Size;
                 double pad = Math.Max(cw, ch) / 2.0;
                 Near(c);
@@ -180,14 +250,19 @@ namespace Codebound.Core
 
         static bool GeneratorCanRun(GeneratorState g) => g.BurnLeftKJ > 0 || g.Fuel.Count(ItemDatabase.Coal) > 0;
 
-        void TickPower(float dt)
+        /// <summary>Power, prepare: rebuild the networks if something was built or removed; reset what is computed each tick.</summary>
+        void PreparePower()
         {
             if (powerDirty) RebuildNetworks();
-            foreach (var b in grid.Buildings) if (IsConsumer(b)) b.State.PowerSatisfaction = 0f;
+            foreach (var b in consumers) b.State.PowerSatisfaction = 0f;
+        }
 
+        /// <summary>Power, update: balance each network (solar, then coal, then batteries).</summary>
+        void UpdatePower(float dt)
+        {
             foreach (var net in networks)
             {
-                var running = new List<GeneratorState>();
+                running.Clear();
                 foreach (var g in net.Generators) { var gs = (GeneratorState)g.State; gs.LoadKW = 0; if (GeneratorCanRun(gs)) running.Add(gs); }
                 float solarKW = net.Solars.Count * SolarKW * SolarFactor;
                 foreach (var s in net.Solars) ((SolarState)s.State).OutputKW = SolarKW * SolarFactor;
@@ -214,7 +289,12 @@ namespace Codebound.Core
                     useBatt -= take; bs.StoredKJ -= take * dt;
                     float give = Math.Min(spare, Math.Min(BatteryState.MaxKW, (BatteryState.CapacityKJ - bs.StoredKJ) / Math.Max(dt, 1e-4f)));
                     spare -= give; bs.StoredKJ = Math.Max(0, Math.Min(BatteryState.CapacityKJ, bs.StoredKJ + give * dt));
-                    bs.Status = $"{bs.StoredKJ / BatteryState.CapacityKJ * 100:0}% ({(take > 0 ? "-" + take.ToString("0") : give > 0 ? "+" + give.ToString("0") : "0")} kW)";
+                    int pct = (int)Math.Round(bs.StoredKJ / BatteryState.CapacityKJ * 100), rate = (int)Math.Round(take > 0 ? -take : give);
+                    if (pct != bs.ShownPct || rate != bs.ShownRate)   // the text only changes when the numbers do: no string per tick
+                    {
+                        bs.ShownPct = pct; bs.ShownRate = rate;
+                        bs.Status = $"{pct}% ({(rate < 0 ? rate.ToString() : rate > 0 ? "+" + rate : "0")} kW)";
+                    }
                     net.StoredKJ += bs.StoredKJ;
                 }
 
@@ -226,7 +306,8 @@ namespace Codebound.Core
                     gs.BurnLeftKJ -= share * dt;
                     while (gs.BurnLeftKJ <= 0 && share > 0 && gs.Fuel.TryRemove(ItemDatabase.Coal, 1)) gs.BurnLeftKJ += CoalEnergyKJ;
                     if (gs.BurnLeftKJ < 0) gs.BurnLeftKJ = 0;
-                    gs.Status = gs.BurnLeftKJ > 0 || gs.Fuel.Count(ItemDatabase.Coal) > 0 ? $"{share:0} kW" : "no fuel";
+                    int kw = gs.BurnLeftKJ > 0 || gs.Fuel.Count(ItemDatabase.Coal) > 0 ? (int)Math.Round(share) : -1;
+                    if (kw != gs.ShownKW) { gs.ShownKW = kw; gs.Status = kw < 0 ? "no fuel" : kw + " kW"; }
                 }
                 foreach (var c in net.Consumers) c.State.PowerSatisfaction = net.Satisfaction;
             }
@@ -378,7 +459,8 @@ namespace Codebound.Core
                 if (actions[i].Machine == b) { var a = actions[i]; actions.RemoveAt(i); a.Machine.State.Status = "idle"; a.Done?.Invoke(null); }
         }
 
-        void TickActions(float dt)
+        /// <summary>Machine actions, update: progress with power or fuel.</summary>
+        void ProgressActions(float dt)
         {
             for (int i = 0; i < actions.Count; i++)
             {
@@ -395,11 +477,18 @@ namespace Codebound.Core
                 else
                 {
                     rate = a.Machine.State.PowerSatisfaction;
-                    a.Machine.State.Status = rate > 0 ? (a.Machine.Def.Kind == BuildingKind.Drill ? "mining" : a.Machine.State is LabState ls ? "researching " + ls.Current : "crafting") : "no power";
+                    var st = a.Machine.State;
+                    if (rate <= 0) st.Status = "no power";
+                    else if (st is LabState ls) { if (st.Status == null || !st.Status.StartsWith("researching")) st.Status = "researching " + ls.Current; }
+                    else st.Status = a.Machine.Def.Kind == BuildingKind.Drill ? "mining" : "crafting";
                 }
                 a.Remaining -= rate * dt;
             }
+        }
 
+        /// <summary>Machine actions, finish: complete the finished ones in the order they were started (callbacks and events).</summary>
+        void CompleteActions()
+        {
             for (int i = 0; i < actions.Count; i++)
             {
                 var a = actions[i];
@@ -415,7 +504,7 @@ namespace Codebound.Core
         // ------------------------------------------------------------ logistics
         void PushOutputs()
         {
-            foreach (var b in grid.Buildings)
+            foreach (var b in producers)
             {
                 Inventory output = b.State is DrillState d ? d.Output : b.State is FurnaceState f ? f.Output
                     : b.State is AssemblerState asm ? asm.Output : b.State is GreenhouseState gr ? gr.Output : null;
@@ -432,10 +521,11 @@ namespace Codebound.Core
 
         void TickConveyors(float dt)
         {
-            foreach (var b in grid.Buildings) if (b.State is ConveyorState c) c.ArrivedThisTick = false;
-            foreach (var b in grid.Buildings)
+            foreach (var b in belts) ((ConveyorState)b.State).ArrivedThisTick = false;
+            foreach (var b in belts)
             {
-                if (!(b.State is ConveyorState c) || c.Item == null || c.ArrivedThisTick) continue;
+                var c = (ConveyorState)b.State;
+                if (c.Asleep || c.Item == null || c.ArrivedThisTick) continue;
                 if (!c.Running) { c.Status = "stopped"; continue; }
                 c.Progress = Math.Min(1f, c.Progress + ConveyorState.BeltSpeed * dt);
                 c.Status = "moving";
@@ -443,27 +533,36 @@ namespace Codebound.Core
                 string item = c.Item;
                 var front = b.Origin.Move(b.Rotation);
                 var right = b.Origin.Move(b.Rotation.Next());
-                Cell[] outs = b.Def.Id == "sorter" ? new[] { c.Filter == null || c.Filter == item ? front : right }   // sorting: the chosen item goes straight
-                            : b.Def.Id == "splitter" ? (c.Turn == 0 ? new[] { front, right } : new[] { right, front })  // alternate, fall back to the other side
-                            : new[] { front };
-                bool moved = false;
-                foreach (var cell in outs)
+                // sorter: the chosen item goes straight, others turn right; splitter: alternate, falling back to the other side
+                bool splitter = b.Def.Id == "splitter";
+                Cell first = b.Def.Id == "sorter" ? (c.Filter == null || c.Filter == item ? front : right) : splitter && c.Turn != 0 ? right : front;
+                Cell second = first.Equals(front) ? right : front;
+                bool moved = TryPass(b, c, item, first) || (splitter && TryPass(b, c, item, second));
+                if (moved && splitter) c.Turn = c.LastOut.Equals(front) ? 1 : 0;
+                if (moved) continue;
+                c.Status = "blocked";
+                if (Watchable(first) && (!splitter || Watchable(second)))   // wait for the way ahead to change
                 {
-                    var target = grid.At(cell);
-                    if (target == null || target == b || target.State == null || !target.State.TryInsert(item, 1)) continue;
-                    c.Slot.TryRemove(item, 1); c.Progress = 0; moved = true;
-                    if (b.Def.Id == "splitter") c.Turn = cell.Equals(front) ? 1 : 0;
-                    break;
+                    SleepOn(b, first);
+                    if (splitter) SleepOn(b, second);
                 }
-                if (!moved) c.Status = "blocked";
             }
+        }
+
+        bool TryPass(PlacedBuilding b, ConveyorState c, string item, Cell cell)
+        {
+            var target = grid.At(cell);
+            if (target == null || target == b || target.State == null || !target.State.TryInsert(item, 1)) return false;
+            c.Slot.TryRemove(item, 1); c.Progress = 0; c.LastOut = cell;
+            return true;
         }
 
         void TickInserters(float dt)
         {
-            foreach (var b in grid.Buildings)
+            foreach (var b in inserters)
             {
-                if (!(b.State is InserterState ins)) continue;
+                var ins = (InserterState)b.State;
+                if (ins.Asleep) continue;
                 if (!ins.Running) { ins.Status = "stopped"; continue; }
                 bool longArm = b.Def.Id == "long_inserter";
                 float swing = longArm ? InserterState.SwingSeconds * 1.5f : InserterState.SwingSeconds;
@@ -475,6 +574,7 @@ namespace Codebound.Core
                 var from = src?.State?.Extractable;
                 if (from == null || dst?.State == null) { ins.Status = "no source/target"; continue; }
                 ins.Status = "waiting";
+                bool moved = false;
                 for (int i = 0; i < from.SlotCount; i++)
                 {
                     var s = from[i];
@@ -482,15 +582,34 @@ namespace Codebound.Core
                     if (!dst.State.TryInsert(s.ItemId, 1)) { ins.Status = "target full"; continue; }
                     from.TryRemove(s.ItemId, 1);
                     ins.Progress = 0; ins.Moved++; ins.Status = "moving";
+                    moved = true;
                     break;
                 }
+                var srcCell = b.Origin.Move(b.Rotation, -reach); var dstCell = b.Origin.Move(b.Rotation, reach);
+                if (!moved && Watchable(dstCell)) { SleepOn(b, srcCell); SleepOn(b, dstCell); }   // nothing to take, or nowhere to put it
             }
+        }
+
+        /// <summary>The factory's systems in tick order (used by Simulation; Tick(dt) runs the same steps).</summary>
+        public IEnumerable<SimSystem> Systems()
+        {
+            float dt = Simulation.TickSeconds;
+            yield return new SimSystem("power", () => UpdatePower(dt), PreparePower);
+            yield return new SimSystem("machine actions", () => ProgressActions(dt), null, CompleteActions);
+            yield return new SimSystem("outputs", PushOutputs);
+            yield return new SimSystem("belts", () => TickConveyors(dt));
+            yield return new SimSystem("inserters", () => TickInserters(dt));
+            yield return new SimSystem("greenhouses", () => TickGreenhouses(dt));
+            yield return new SimSystem("launch pads", () => TickLaunchPads(dt));
+            yield return new SimSystem("storage hubs", LinkStorageHubs);
         }
 
         public void Tick(float dt)
         {
-            TickPower(dt);
-            TickActions(dt);
+            PreparePower();
+            UpdatePower(dt);
+            ProgressActions(dt);
+            CompleteActions();
             PushOutputs();
             TickConveyors(dt);
             TickInserters(dt);
@@ -509,9 +628,9 @@ namespace Codebound.Core
             bool relink = powerDirtyForHubs || ++hubRelink >= 20;
             if (relink) { powerDirtyForHubs = false; hubRelink = 0; }
             int r = (int)Math.Ceiling(StorageHubState.Radius) + 2;
-            foreach (var b in grid.Buildings)
+            foreach (var b in hubs)
             {
-                if (!(b.State is StorageHubState hub)) continue;
+                var hub = (StorageHubState)b.State;
                 if (relink)
                 {
                     found.Clear();
@@ -523,7 +642,8 @@ namespace Codebound.Core
                     hub.Chests.Clear();
                     foreach (var c in found) hub.Chests.Add((StorageState)c.State);
                 }
-                hub.Status = hub.PowerSatisfaction <= 0 ? "no power" : $"{hub.Chests.Count} chests";
+                int shown = hub.PowerSatisfaction <= 0 ? -1 : hub.Chests.Count;   // rebuild the text only when it changes
+                if (shown != hub.ShownChests) { hub.ShownChests = shown; hub.Status = shown < 0 ? "no power" : shown + " chests"; }
             }
         }
 
@@ -532,10 +652,11 @@ namespace Codebound.Core
 
         void TickLaunchPads(float dt)
         {
-            foreach (var b in grid.Buildings)
+            foreach (var b in pads)
             {
-                if (b.State is LaunchPadState pad) pad.Underground = world.Generator.Kind == PlanetKind.Underground;
-                if (!(b.State is LaunchPadState lp) || lp.Phase != "ascent" || lp.Flight == null) continue;
+                var lp = (LaunchPadState)b.State;
+                lp.Underground = world.Generator.Kind == PlanetKind.Underground;
+                if (lp.Phase != "ascent" || lp.Flight == null) continue;
                 lp.Flight.Step(dt);
                 var f = lp.Flight;
                 lp.Status = $"ascent {f.Altitude:0} km {f.Velocity:0.0} km/s heat {f.Heat:0}% fuel {f.Fuel:0}";
@@ -563,9 +684,9 @@ namespace Codebound.Core
 
         void TickGreenhouses(float dt)
         {
-            foreach (var b in grid.Buildings)
+            foreach (var b in greenhouses)
             {
-                if (!(b.State is GreenhouseState g)) continue;
+                var g = (GreenhouseState)b.State;
                 bool hydro = b.Def.Id == "hydroponics";   // indoor bay: lamps only, recycles its water, faster
                 if (g.NearWater) g.Tank = Math.Min(100f, g.Tank + GreenhouseState.TankRefill * dt);
                 if (hydro && g.PowerSatisfaction > 0) g.Tank = Math.Min(100f, g.Tank + 0.5f * dt);
@@ -705,9 +826,12 @@ namespace Codebound.Core
         public List<PlacedBuilding> MachinesNear(PlacedBuilding computer)
         {
             var list = new List<PlacedBuilding>();
-            foreach (var b in grid.Buildings)
-                if (b != computer && b.State != null && b.DistanceTo(computer) <= ComputerRange) list.Add(b);
-            list.Sort((x, y) => x.DistanceTo(computer).CompareTo(y.DistanceTo(computer)));
+            int r = (int)Math.Ceiling(ComputerRange) + 2, cx = (int)Math.Floor(computer.CenterX), cy = (int)Math.Floor(computer.CenterY);
+            for (int dx = -r; dx <= r; dx++)
+                for (int dy = -r; dy <= r; dy++)
+                    if (grid.At(new Cell(cx + dx, cy + dy)) is PlacedBuilding b && b != computer && b.State != null && b.DistanceTo(computer) <= ComputerRange && !list.Contains(b))
+                        list.Add(b);
+            list.Sort((x, y) => { int c = x.DistanceTo(computer).CompareTo(y.DistanceTo(computer)); return c != 0 ? c : x.InstanceId.CompareTo(y.InstanceId); });
             return list;
         }
     }

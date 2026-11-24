@@ -133,6 +133,12 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ HUD traduzido: caixa de estado (tempo, estações, biomas, terrenos, recursos, avisos dos vitais) e a caixa "Estado" inicial do HUD programável
 - ⬜ Builds macOS/Linux (precisam de módulos do Unity e do Node/Python de cada plataforma — downloads)
 
+## Simulação industrial (missão 2026-11-24) — ver `INDUSTRY_PLAN.md`
+- ✅ Etapa 0 — Auditoria: branch/estado confirmados, tag `pre-industry-2026-11-24`, 135/135 de base, problemas P1–P12 registados
+- ✅ Etapa 1 — Fundação: `GameState.Step` + `Simulation` com 12 sistemas por ordem (prepare/update/finish, perfil por sistema); relógio e relâmpagos por tick (antes por frame); contador de ticks no save; edifícios por ordem de construção; listas por tipo; sleep/wake de correias e braços com resultado idêntico; menos texto criado por tick; `MachinesNear` espacial com desempate por id; hash de estado — 7 testes novos (142/142), build + self-test PASS, Play Mode: 171 ticks = 8,55 s de relógio
+- ⬜ Etapa 2 — Correias com pistas e sequências, braços com mão/posição
+- ⬜ Etapa 3 — Fluidos · ⬜ 4 — Energia com prioridades · ⬜ 5 — Sinais · ⬜ 6 — Robôs · ⬜ 7 — Comboios · ⬜ 8 — Integração
+
 ## Linguagens
 - ✅ PHP 8.5: um processo por programa, sem php.ini nem extensões, `open_basedir` numa pasta inexistente (nenhum ficheiro acessível), funções de processos/rede/ficheiros/ambiente/configuração removidas, `memory_limit` = RAM + Job Object (memória, sem processos filhos), vigia de CPU no Unity; API `$machines`, `$drill`, `$energy`, `$hud`, `$world`, `$computer->on()`, `sleep()` em tempo de jogo, `echo` → log — 24 testes de runtime
 - ✅ C# 12: Roslyn num processo .NET 8 separado; o programa (instruções de topo, classes, LINQ, `JsonNode`) só pode usar uma lista branca de namespaces verificada símbolo a símbolo (sem ficheiros, reflexão, `GetType`/`typeof`, ambiente, consola, threads, `dynamic`, `unsafe`, `extern`, árvores de expressão); Job Object + limite de heap do GC + vigia de CPU; API `Drill.Mine()`, `Machines.Find()`, `Computer.On()`, `Sleep()`, `Log()` — 29 testes de runtime

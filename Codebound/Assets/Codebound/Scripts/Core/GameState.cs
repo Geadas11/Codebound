@@ -22,6 +22,13 @@ namespace Codebound.Core
         public readonly Skills Skills = new Skills();
         public readonly Story Story = new Story();
         public readonly Tutorial Tutorial = new Tutorial();
+
+        /// <summary>Simulation ticks since the world began (20 per second; saved).</summary>
+        public long Tick;
+        /// <summary>The fixed-step simulation: every system in its documented order (see BuildSimulation).</summary>
+        public readonly Simulation Simulation = new Simulation();
+        /// <summary>Damage lightning did to the player since the game last read it (the player's vitals tick per frame).</summary>
+        public float PendingPlayerDamage;
         public Research Research => Factory.Research;
         public double PlayerX, PlayerY;
         /// <summary>Multiplayer guests' inventories, kept by the host and saved with the world.</summary>
@@ -48,6 +55,35 @@ namespace Codebound.Core
             Lightning = new Lightning(this, seed);
             Factory.Ecology = Ecology;
             Factory.ActionCompleted += (b, product) => { if (b.Def.Kind == BuildingKind.Drill && product != null) Tutorial.AutoMined = true; };
+            BuildSimulation();
+        }
+
+        /// <summary>
+        /// The tick order. Environment first (time of day and weather drive solar power and plant light), then the
+        /// factory (power before the machines that use it, machines before the belts and arms that move their output),
+        /// then the living world, which reacts to the factory's noise and smoke, then lightning.
+        /// </summary>
+        void BuildSimulation()
+        {
+            float dt = Simulation.TickSeconds;
+            Simulation.Add(new SimSystem("clock & weather", () =>
+            {
+                Clock.Seconds += dt;   // simulation time: advances per tick, not per frame
+                var here = World.Generator.BiomeAt(new Cell((int)Math.Floor(PlayerX), (int)Math.Floor(PlayerY)));
+                Factory.Daylight = Clock.Daylight;
+                Factory.SolarFactor = Clock.SolarFactor(Clock.WeatherAt(here));
+            }));
+            foreach (var sys in Factory.Systems()) Simulation.Add(sys);
+            Simulation.Add(new SimSystem("creatures", () => Creatures.Tick(dt, PlayerX, PlayerY)));
+            Simulation.Add(new SimSystem("ecology", () => Ecology.Tick(dt)));
+            Simulation.Add(new SimSystem("lightning", () => PendingPlayerDamage += Lightning.Tick(dt, PlayerX, PlayerY)));
+        }
+
+        /// <summary>One fixed simulation step (1/20 s). Only the host (or a single-player game) calls this.</summary>
+        public void Step()
+        {
+            Tick++;
+            Simulation.Run();
         }
 
         public int Seed => World.Generator.Seed;
@@ -119,6 +155,7 @@ namespace Codebound.Core
             if (g.PlanetId != "home" || g.HomeSeed != g.Seed) w.WriteLine($"planet {g.PlanetId} {(int)g.PlanetKind} {g.HomeSeed}");
             w.WriteLine($"seed {g.Seed}");
             w.WriteLine($"player {g.PlayerX.ToString("R", Inv)} {g.PlayerY.ToString("R", Inv)}");
+            w.WriteLine($"tick {g.Tick.ToString(Inv)}");
             WriteInv(w, "inv", g.Inventory);
             foreach (var kv in g.Guests) WriteInv(w, "ginv " + kv.Key, kv.Value);
             foreach (var kv in g.GuestBodies)
@@ -182,6 +219,7 @@ namespace Codebound.Core
                             if (planet != null) { g.PlanetId = planet.Value.id; g.HomeSeed = planet.Value.home; }
                             break;
                         case "player": Need(g).PlayerX = double.Parse(p[1], Inv); g.PlayerY = double.Parse(p[2], Inv); break;
+                        case "tick": Need(g).Tick = long.Parse(p[1], Inv); break;   // saves from before it start at 0
                         case "inv": Need(g).Inventory.Add(p[1], int.Parse(p[2], Inv)); break;
                         case "ginv": Need(g).GuestInventory(p[1]).Add(p[2], int.Parse(p[3], Inv)); break;
                         case "mined": Need(g).World.SetMined(new Cell(int.Parse(p[1], Inv), int.Parse(p[2], Inv)), int.Parse(p[3], Inv)); break;

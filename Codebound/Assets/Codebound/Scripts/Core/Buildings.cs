@@ -165,6 +165,8 @@ namespace Codebound.Core
     {
         readonly Dictionary<Cell, PlacedBuilding> occupancy = new Dictionary<Cell, PlacedBuilding>();
         readonly Dictionary<int, PlacedBuilding> byId = new Dictionary<int, PlacedBuilding>();
+        // the simulation's update order: by id = build order (a Dictionary's order changes after removals)
+        readonly List<PlacedBuilding> ordered = new List<PlacedBuilding>();
         readonly Func<BuildingDef, Cell, bool> isBuildableTerrain;
         int nextId = 1;
 
@@ -173,7 +175,8 @@ namespace Codebound.Core
 
         public BuildGrid(Func<BuildingDef, Cell, bool> isBuildableTerrain) { this.isBuildableTerrain = isBuildableTerrain; }
 
-        public IEnumerable<PlacedBuilding> Buildings => byId.Values;
+        /// <summary>Every building, oldest first. This order is part of the simulation's determinism.</summary>
+        public IReadOnlyList<PlacedBuilding> Buildings => ordered;
         public int Count => byId.Count;
         public bool IsOccupied(Cell c) => occupancy.ContainsKey(c);
         public PlacedBuilding At(Cell c) => occupancy.TryGetValue(c, out var b) ? b : null;
@@ -198,6 +201,7 @@ namespace Codebound.Core
             var b = new PlacedBuilding(nextId++, def, origin, rot);
             foreach (var c in b.Cells()) occupancy[c] = b;
             byId[b.InstanceId] = b;
+            ordered.Add(b);   // ids only grow, so appending keeps the list sorted
             Placed?.Invoke(b);
             return b;
         }
@@ -217,9 +221,12 @@ namespace Codebound.Core
             return seen.Count;
         }
 
+        static readonly IComparer<PlacedBuilding> IdOrder = Comparer<PlacedBuilding>.Create((p, q) => p.InstanceId.CompareTo(q.InstanceId));
+
         public bool Remove(PlacedBuilding b)
         {
             if (b == null || !byId.Remove(b.InstanceId)) return false;
+            ordered.RemoveAt(ordered.BinarySearch(b, IdOrder));
             foreach (var c in b.Cells()) occupancy.Remove(c);
             Removed?.Invoke(b);
             return true;

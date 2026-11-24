@@ -161,21 +161,15 @@ namespace Codebound.Game
         void Update()
         {
             // fixed-step simulation, decoupled from frame rate (clamped so a hitch can't spiral)
+            Session.State.PlayerX = Session.Player.position.x;   // the simulation reads it (creatures, weather, lightning)
+            Session.State.PlayerY = Session.Player.position.y;
             tickAccumulator = Mathf.Min(tickAccumulator + Time.deltaTime, 0.5f);
             while (tickAccumulator >= TickSeconds)
             {
-                Session.Factory.Daylight = Session.State.Clock.Daylight;
-                Session.Factory.SolarFactor = Session.State.Clock.SolarFactor(Session.Surroundings.Weather);
-                if (!Net.IsGuest)   // guests mirror the host's simulation instead of running their own
-                {
-                    Session.Factory.Tick(TickSeconds);
-                    Session.State.Creatures.Tick(TickSeconds, Session.Player.position.x, Session.Player.position.y);
-                    Session.State.Ecology.Tick(TickSeconds);
-                }
+                if (!Net.IsGuest) Session.State.Step();   // guests mirror the host's simulation instead of running their own
                 tickAccumulator -= TickSeconds;
             }
-            Session.State.PlayerX = Session.Player.position.x;
-            Session.State.PlayerY = Session.Player.position.y;
+            if (Net.IsGuest) Session.State.Clock.Seconds += Time.deltaTime;   // between snapshots (cosmetic; the host's clock wins)
             TickSurvival();
             // autosave: a crash or power cut costs at most 5 minutes (guests do not own the world; the title screen has not started a game yet)
             if (!Net.IsGuest && !TitleMenu.IsOpen && (autoSaveTimer -= Time.unscaledDeltaTime) <= 0) { autoSaveTimer = AutoSaveSeconds; Save(AutoSavePath, quiet: true); }
@@ -191,11 +185,11 @@ namespace Codebound.Game
         void TickSurvival()
         {
             var vitals = Session.State.Vitals;
-            Session.State.Clock.Seconds += Time.deltaTime;
             var env = Vitals.At(Session.World.Generator, GameSession.CellAt(Session.Player.position), Session.State.Clock);
             if (Session.State.Ecology.IsSmog(GameSession.CellAt(Session.Player.position))) env.Breathable = false;   // smog: suit air only
             env = Equipment.Apply(Session.Inventory, Shelter.Apply(Session.State, GameSession.CellAt(Session.Player.position), env));
-            if (!Net.IsGuest) vitals.Health = Math.Max(0, vitals.Health - Session.State.Lightning.Tick(Time.deltaTime, Session.Player.position.x, Session.Player.position.y));
+            vitals.Health = Math.Max(0, vitals.Health - Session.State.PendingPlayerDamage);   // lightning, from the simulation tick
+            Session.State.PendingPlayerDamage = 0;
             Session.Surroundings = env;
             vitals.Tick(Time.deltaTime, env);
             if (!vitals.Dead) return;

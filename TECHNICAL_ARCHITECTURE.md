@@ -28,9 +28,20 @@ Futuras assemblies (planeadas): `Codebound.Scripting` (API + host de execução)
 - `BuildGrid` (Core): ocupação célula→estrutura, footprints multi-célula com rotação 0/90/180/270 (w/h trocam em 90/270), verificação de obstáculos via predicado de terreno.
 - `BuildController` (Game): pré-visualização verde/vermelha, custos, colocação, remoção com reembolso.
 
-## Simulação de máquinas (Core)
+## Simulação (Core) — tick fixo, ordem explícita (desde a Etapa 1 da simulação industrial, 2026-11-24)
 - `GameState` agrega `WorldState`, `BuildGrid`, `Factory`, inventário e posição do jogador — é a unidade que se guarda.
-- `Factory.Tick(dt)` a 20 Hz fixos (`GameBootstrap`): redes elétricas → ações de máquinas → empurrar saídas.
+- **Um passo = `GameState.Step()`**, 20 por segundo (`Simulation.TickSeconds` = 0,05 s), chamado por `GameBootstrap` só no anfitrião / jogo a solo. `GameState.Tick` conta os passos e vai no save (`tick N`; saves antigos começam em 0).
+- `Simulation` corre **sistemas com nome por esta ordem** (testado em `DeterminismTests.TickOrder_IsExplicit`):
+  1. `clock & weather` — o relógio avança 0,05 s **por tick** (antes avançava por frame: solar, meteorologia e relâmpagos dependiam do frame rate); luz do dia e fator solar para a fábrica;
+  2. `power` — prepare: reconstrói as redes se algo mudou e zera a satisfação; update: balanço de cada rede (solar → carvão → baterias);
+  3. `machine actions` — update: progresso com energia/combustível; **finish**: conclusão pela ordem em que começaram (callbacks e eventos dos programas);
+  4. `outputs`, 5. `belts`, 6. `inserters`, 7. `greenhouses`, 8. `launch pads`, 9. `storage hubs`;
+  10. `creatures`, 11. `ecology`, 12. `lightning` (dano ao jogador acumulado em `PendingPlayerDamage`, aplicado pelos vitais por frame).
+- Cada sistema tem **prepare → update → finish**. Só o finish aplica resultados adiados por ordem fixa, o que permitiria correr o update de um sistema em várias threads sem mudar resultados. **Não está ativado**: medido, 2000 edifícios custam ~0,5 ms do tick de 50 ms (8000 ≈ 2–4 ms). `Simulation.Profile = true` mede cada sistema (`LastMs`, `AverageMs`).
+- **Ordem das entidades**: `BuildGrid.Buildings` está sempre por id (= ordem de construção; antes era a ordem de um `Dictionary`, que muda depois de remoções). A `Factory` guarda listas por tipo (consumidores, nós elétricos, produtores, correias, braços, estufas, plataformas, hubs), também por id: cada sistema percorre só as suas entidades.
+- **Sleep/wake**: uma correia bloqueada ou um braço sem nada para fazer dorme e regista-se nas células de que depende. Acorda quando um inventário do edifício nessas células muda, quando o filtro ou o liga/desliga muda (`MachineState.Touched`), quando um edifício aparece/desaparece lá, ou quando o seu próprio conteúdo muda. Quem dorme continua na lista, por isso acordar a meio do tick corre na ordem habitual: **resultado idêntico a tentar em cada tick** (`SleepWakeTests` compara os dois modos com `Factory.SleepEnabled`). Hubs e armadilhas não são "observáveis" (dependem de energia/cargas): quem espera por eles tenta em cada tick. Ganho medido com 8000 edifícios: correias 0,84 → 0,14 ms, braços 0,24 → 0,13 ms, tick −22 %.
+- **Determinismo**: mesmas entradas por tick ⇒ mesmo estado. `Simulation.StateHash` (FNV-1a do save canónico) compara mundos; testado entre execuções e entre "guardar e carregar a meio" e "não guardar". As chamadas dos programas (processos externos) são entradas aplicadas no tick em que chegam; o multiplayer não é lockstep: o anfitrião é a fonte de verdade.
+- `Factory.Tick(dt)` continua a existir (testes), com os mesmos passos.
 - Energia: nós = geradores e postes (ligam-se a ≤ 9 células); consumidores ligam-se a um nó (poste 4,5 / gerador 3 células + metade do tamanho). Satisfação = capacidade/procura. Gerador a carvão 150 kW, 1 carvão = 4000 kJ.
 - Ações temporizadas pedidas por programas: `StartMine` (1 s, 90 kW), `StartSmelt` (3,2 s, queima carvão). Devolvem código de erro imediato (`no_power`, `no_fuel`, `no_input`, `output_full`, `depleted`, `busy`) ou terminam com callback.
 - Saída: perfuradora/fornalha empurram 1 item/tick para o edifício na **frente** (R0 = cima, rotação horária).

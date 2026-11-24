@@ -49,6 +49,7 @@ namespace Codebound.Core
     {
         public const double Radius = 6;
         public List<StorageState> Chests = new List<StorageState>();
+        internal int ShownChests = int.MinValue;
 
         public StorageHubState() { Status = "no chests"; }
 
