@@ -1,0 +1,70 @@
+{
+ "block_size": 4096,
+ "num_blocks": 112659,
+ "num_streams": 1095,
+ "pdb_info": {
+  "version": 20000404,
+  "signature_time": 1793108957,
+  "age": 1,
+  "guid": "178e8df5e1bca04f9d3eb184b8bfabae"
+ },
+ "dbi": {
+  "version": 19990903,
+  "age": 1,
+  "toolchain_major": 14,
+  "toolchain_minor": 44,
+  "pdb_dll_version": 35219,
+  "flags": 0,
+  "machine": "0x8664",
+  "globals_stream": 1088,
+  "publics_stream": 1089,
+  "symrec_stream": 1090
+ },
+ "module_count": 1079,
+ "unique_source_files": 10712,
+ "symrec_kinds": {
+  "0x110e": 205808,
+  "0x1127": 156366,
+  "0x1125": 110542,
+  "0x1107": 29421,
+  "0x1108": 12987,
+  "0x110d": 9048,
+  "0x110c": 6783,
+  "0x1112": 11,
+  "0x1113": 7
+ },
+ "procedures": 249292,
+ "publics": 205808,
+ "global_data": 14408,
+ "tpi": {
+  "begin": "0x1000",
+  "end": "0x1f9f35",
+  "records": 2068277
+ },
+ "udt_definitions": 110798,
+ "layouts_written": 19244,
+ "ipi_udt_src_lines": 99485,
+ "buildinfo_samples": [
+  [
+   "",
+   "",
+   "",
+   "",
+   " -Os -GL -Z7 -Zc:alignedNew- -Zc:noexceptTypes- -w15043 -Zc:rvalueCast -ZH:SHA_256 -wd4986 -wd4987 -wd4471 -wd4369 -wd4309 -wd4754 -wd4427 -Gw -wd4316 -wd4973 -Brepro -Zc:sizedDealloc- -Wv:19.11 -Qspectre -guard:cf -TP -X"
+  ],
+  [
+   "",
+   "",
+   "",
+   "",
+   " -wd5054 -FC -Zl -Zp8 -GF -Gy -w15038 -Zc:threadSafeInit- -w34640 -Zc:char8_t -w14265 -guard:cf -Zc:preprocessor -diagnostics:caret -ZH:SHA_256 -experimental:deterministic -wd5049 -X"
+  ],
+  [
+   "",
+   "",
+   "",
+   "",
+   " -wd5054 -FC -Zl -Zp8 -GF -Gy -w15038 -Zc:threadSafeInit- -w34640 -Zc:char8_t -w14265 -guard:cf -Zc:preprocessor -diagnostics:caret -ZH:SHA_256 -experimental:deterministic -wd5049 -X"
+  ]
+ ]
+}

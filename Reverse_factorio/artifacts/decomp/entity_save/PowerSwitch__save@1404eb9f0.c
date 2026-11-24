@@ -1,0 +1,32 @@
+// PowerSwitch::save @ 1404eb9f0 (function PowerSwitch::save)
+
+void PowerSwitch__save(longlong param_1,longlong param_2)
+
+{
+  longlong *plVar1;
+  undefined1 local_res8 [8];
+  
+  EntityWithOwner__save();
+  UpdatableEntity__save(param_1 + 0xa8,param_2);
+  local_res8[0] = *(undefined1 *)(param_1 + 0xd0);
+  (**(code **)(**(longlong **)(param_2 + 0x50) + 8))(*(longlong **)(param_2 + 0x50),local_res8,1);
+  *(longlong *)(param_2 + 0x10) = *(longlong *)(param_2 + 0x10) + 1;
+  CyclicFramePosition__save(param_1 + 0xd4,param_2);
+  (**(code **)(**(longlong **)(param_2 + 0x50) + 8))
+            (*(longlong **)(param_2 + 0x50),param_1 + 0xd8,4);
+  *(longlong *)(param_2 + 0x10) = *(longlong *)(param_2 + 0x10) + 4;
+  (**(code **)(**(longlong **)(param_2 + 0x50) + 8))
+            (*(longlong **)(param_2 + 0x50),param_1 + 0xdc,4);
+  *(longlong *)(param_2 + 0x10) = *(longlong *)(param_2 + 0x10) + 4;
+  MapSerialiser__operator<<<CopperWireConnector>(param_2,param_1 + 0xe0);
+  MapSerialiser__operator<<<CopperWireConnector>(param_2,param_1 + 0x168);
+  local_res8[0] = *(longlong *)(param_1 + 0x1f0) != 0;
+  (**(code **)(**(longlong **)(param_2 + 0x50) + 8))(*(longlong **)(param_2 + 0x50),local_res8,1);
+  *(longlong *)(param_2 + 0x10) = *(longlong *)(param_2 + 0x10) + 1;
+  plVar1 = *(longlong **)(param_1 + 0x1f0);
+  if (plVar1 != (longlong *)0x0) {
+    (**(code **)(*plVar1 + 0x118))(plVar1,param_2);
+  }
+  return;
+}
+
