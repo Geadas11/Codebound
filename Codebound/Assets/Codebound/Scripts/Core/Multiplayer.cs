@@ -97,6 +97,9 @@ namespace Codebound.Core
             }
 
             t.Factory.Robots.Clear(); t.Factory.Robots.AddRange(s.Factory.Robots);   // robots in flight (drawn by the guest)
+            t.Factory.Builders.Clear(); t.Factory.Builders.AddRange(s.Factory.Builders);
+            t.Factory.Ghosts.Clear(); t.Factory.Ghosts.AddRange(s.Factory.Ghosts);
+            t.Factory.Demolish.Clear(); t.Factory.Demolish.AddRange(s.Factory.Demolish);
             t.Clock.Seconds = s.Clock.Seconds;
             if (s.Research.SaveLine() is string rl) t.Research.Load(rl.Split(' '));
             foreach (var line in s.Exploration.SaveLines()) t.Exploration.Load(line.Split(' '));
@@ -212,6 +215,22 @@ namespace Codebound.Core
                         return "nothing to take";
                     }
                     case "repair": return g.Repair(g.Grid.At(c), inv);
+                    case "ghost":   // plan a building for the construction robots
+                    {
+                        if (!g.Research.IsDone("construction_robots")) return "research construction robots first";
+                        var gd = BuildingDatabase.TryGet(Str(a, "def"));
+                        if (gd == null || !g.Research.IsUnlocked(gd)) return "cannot plan that";
+                        return g.Factory.PlaceGhost(gd, c, (Rotation)((int)Num(a, "rot") & 3));
+                    }
+                    case "unghost": return g.Factory.CancelGhost(c) ? null : "no plan there";
+                    case "demolish":
+                    {
+                        if (!g.Research.IsDone("construction_robots")) return "research construction robots first";
+                        var db = g.Grid.At(c);
+                        if (db == null) return "nothing there";
+                        g.Factory.ToggleDemolish(db);
+                        return null;
+                    }
                     case "cfg":   // signal settings from a guest's machine panel (validated like any program's)
                     {
                         string text = a.TryGetValue("text", out var tv) ? tv as string : null;

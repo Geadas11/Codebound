@@ -29,6 +29,7 @@ namespace Codebound.Game
             var r = pool[used++];
             r.enabled = true;
             r.sprite = sprite ?? PixelArtFactory.ItemIcon(item);
+            r.color = Color.white;
             r.sortingOrder = order;
             r.transform.position = at;
             r.transform.localScale = Vector3.one * scale;
@@ -68,6 +69,20 @@ namespace Codebound.Game
                     float ang = dir.sqrMagnitude < 1e-4f ? 0f : Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg - 90f;
                     Draw(null, Vector2.Lerp(a, b, p), 1.05f, PixelArtFactory.TrainUnit(i == 0), 5, ang);
                 }
+            }
+            foreach (var gh in session.Factory.Ghosts)   // planned buildings: see-through, blue
+            {
+                Draw(null, Vector2.zero, 1f, PixelArtFactory.Building(gh.Def), 2);
+                var sr = pool[used - 1];
+                BuildingViews.Pose(gh.Def, gh.Origin, gh.Rot, sr.transform);
+                sr.color = new Color(0.55f, 0.75f, 1f, 0.45f);
+            }
+            foreach (var cr in session.Factory.Builders)   // construction robots: orange
+            {
+                var at = new Vector2((float)cr.X, (float)cr.Y + 0.35f);
+                Draw(null, at, 1.1f, PixelArtFactory.Robot(), 6);
+                pool[used - 1].color = new Color(1f, 0.7f, 0.35f, 1f);
+                if (cr.Cargo.Count > 0) Draw(cr.Cargo[0].ItemId, at + new Vector2(0, -0.3f), 0.45f, null, 7);
             }
             foreach (var r in session.Factory.Robots)   // logistic robots in flight, with what they carry
             {

@@ -82,6 +82,32 @@ namespace Codebound.Game
             preview.color = ok && afford ? new Color(0.5f, 1f, 0.5f, 0.65f) : new Color(1f, 0.35f, 0.35f, 0.55f);
 
             if (session.PanelOpen || session.PointerBlocked) return;
+            bool plan = kb.shiftKey.isPressed;   // Shift: plan for the construction robots instead of building by hand
+            if (plan && (mouse.leftButton.wasPressedThisFrame || mouse.rightButton.wasPressedThisFrame))
+            {
+                if (!session.State.Research.IsDone("construction_robots")) { Say("Research Construction Robots to plan buildings (T)"); return; }
+                if (mouse.leftButton.wasPressedThisFrame)
+                {
+                    if (!unlocked) { Say($"Requires research: {Research.UnlockerOf(def.Id).Name}"); return; }
+                    if (Net.IsGuest) { Net.SendAct(new System.Collections.Generic.Dictionary<string, object> { { "a", "ghost" }, { "def", def.Id }, { "x", (double)origin.X }, { "y", (double)origin.Y }, { "rot", (double)(int)Rotation } }); return; }
+                    string err = session.Factory.PlaceGhost(def, origin, Rotation);
+                    Say(err == null ? $"{def.DisplayName} planned: construction robots will build it" : "Cannot plan here: " + err);
+                }
+                else
+                {
+                    var tb = session.Grid.At(mc);
+                    if (tb == null) return;
+                    if (Net.IsGuest) { Net.SendAct(new System.Collections.Generic.Dictionary<string, object> { { "a", "demolish" }, { "x", (double)mc.X }, { "y", (double)mc.Y } }); return; }
+                    Say(session.Factory.ToggleDemolish(tb) ? $"{tb.Def.DisplayName} marked: construction robots will take it down" : $"{tb.Def.DisplayName}: demolition cancelled");
+                }
+                return;
+            }
+            if (mouse.rightButton.wasPressedThisFrame && session.Grid.At(mc) == null && session.Factory.GhostAt(mc) != null)   // cancel a plan
+            {
+                if (Net.IsGuest) Net.SendAct(new System.Collections.Generic.Dictionary<string, object> { { "a", "unghost" }, { "x", (double)mc.X }, { "y", (double)mc.Y } });
+                else { session.Factory.CancelGhost(mc); Say("Plan cancelled"); }
+                return;
+            }
             if (mouse.leftButton.wasPressedThisFrame)
             {
                 if (!unlocked) Say($"Requires research: {Research.UnlockerOf(def.Id).Name} (T to see the tech tree)");

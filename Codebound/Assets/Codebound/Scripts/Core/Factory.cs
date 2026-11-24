@@ -113,6 +113,7 @@ namespace Codebound.Core
                 if (b.State != null && b.Def.ModuleSlots > 0) b.State.Modules = new Inventory(b.Def.ModuleSlots);
                 if (b.State is GreenhouseState g) g.NearWater = NearWater(b);
                 if (b.Def.Id == "underground_belt") PairUnderground(b);
+                if (Ghosts.Count > 0) foreach (var c in b.Cells()) { var gh = GhostAt(c); if (gh != null) Ghosts.Remove(gh); }   // built over a plan: the plan is done or obsolete
                 foreach (var l in ListsOf(b)) l.Add(b);
                 if (b.State != null) foreach (var (_, inv) in b.State.Inventories) inv.Changed += () => { if (b.State != null) b.State.Asleep = false; WakeAround(b); };   // its own contents changed too: a belt whose item an arm took, then got a new one
                 if (b.State != null) b.State.Touched += () => { if (b.State != null) b.State.Asleep = false; WakeAround(b); };

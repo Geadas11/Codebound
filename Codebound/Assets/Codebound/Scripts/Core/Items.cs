@@ -27,7 +27,8 @@ namespace Codebound.Core
             Glowcap = "glowcap", Fiber = "fiber", Ration = "ration", LaserTool = "laser_tool", ArmorPlating = "armor_plating", ThermalSuit = "thermal_suit",
             Robot = "logistic_robot", Locomotive = "locomotive", CargoWagon = "cargo_wagon",
             SpeedModule = "speed_module", EfficiencyModule = "efficiency_module", ProductivityModule = "productivity_module",
-            Plastic = "plastic_bar", Sulfur = "sulfur", AdvancedCircuit = "advanced_circuit", BatteryCell = "battery_cell";
+            Plastic = "plastic_bar", Sulfur = "sulfur", AdvancedCircuit = "advanced_circuit", BatteryCell = "battery_cell",
+            ConstructionRobot = "construction_robot";
 
         static ItemDatabase()
         {
@@ -64,6 +65,7 @@ namespace Codebound.Core
             Add(Sulfur, "Sulfur", 100);
             Add(AdvancedCircuit, "Advanced Circuit", 100);
             Add(BatteryCell, "Battery Cell", 100);
+            Add(ConstructionRobot, "Construction Robot", 50);
         }
 
         static void Add(string id, string name, int stack) => items[id] = new ItemDef(id, name, stack);

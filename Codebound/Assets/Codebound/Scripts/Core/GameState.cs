@@ -52,6 +52,7 @@ namespace Codebound.Core
             Creatures = new CreatureSystem(this);
             Exploration = new Exploration(World.Generator);
             Ecology = new Ecology(this);
+            Factory.CanBuild = (d, c, r) => CanPlace(d, c, r);   // construction robots check the same rules as the player
             Lightning = new Lightning(this, seed);
             Factory.Ecology = Ecology;
             Factory.ActionCompleted += (b, product) => { if (b.Def.Kind == BuildingKind.Drill && product != null) Tutorial.AutoMined = true; };
@@ -190,6 +191,7 @@ namespace Codebound.Core
             }
             foreach (var line in g.Factory.RobotSaveLines()) w.WriteLine(line);
             foreach (var line in g.Factory.ActionSaveLines()) w.WriteLine(line);
+            foreach (var line in g.Factory.ConstructionSaveLines()) w.WriteLine(line);
             w.WriteLine(g.Vitals.SaveLine());
             w.WriteLine(g.Clock.SaveLine());
             if (g.Research.SaveLine() is string rl) w.WriteLine(rl);
@@ -261,6 +263,7 @@ namespace Codebound.Core
                         case "hud": Need(g).Hud.LoadLine(p); break;
                         case "lrobot": Need(g).Factory.LoadRobot(p); break;
                         case "act": Need(g).Factory.LoadAction(p); break;
+                        case "ghost": case "demolish": case "crobot": Need(g).Factory.LoadConstruction(p); break;
                         case "vitals": Need(g).Vitals.Load(p); break;
                         case "gbody":
                             if (!Multiplayer.ValidName(p[1])) break;

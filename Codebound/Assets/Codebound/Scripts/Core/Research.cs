@@ -120,6 +120,12 @@ namespace Codebound.Core
                 Cost = new[] { new ItemStack(ItemDatabase.Circuit, 20), new ItemStack(ItemDatabase.IronGear, 20), new ItemStack(ItemDatabase.StoneBrick, 20) },
                 Prereqs = new[] { "manufacturing", "energy" }, Unlocks = new[] { "drill2", "assembler2", "assembler3", "electric_furnace" } },
 
+            // ---- construction robots (Etapa 13)
+            new Tech { Id = "construction_robots", Name = "Construction Robots", Area = "Industry", Seconds = 50,
+                Description = "Construction robots (assembler: 2 circuits, 2 gears, 1 battery cell) live in roboports. In build mode, Shift+click plans a building (a ghost): robots fetch its materials from the network's chests and build it. Shift+right click marks a building for demolition: robots take it down and store the refund. Right click a plan to cancel it.",
+                Cost = new[] { new ItemStack(ItemDatabase.AdvancedCircuit, 10), new ItemStack(ItemDatabase.BatteryCell, 10), new ItemStack(ItemDatabase.IronGear, 20) },
+                Prereqs = new[] { "logistic_robots", "chemistry" } },
+
             // ---- oil refining and chemistry (Etapa 12)
             new Tech { Id = "chemistry", Name = "Oil Refining & Chemistry", Area = "Industry", Seconds = 50,
                 Description = "Oil refineries turn crude oil into petroleum gas. Chemical plants (configure: plastic, sulfur, sulfuric_acid, battery) make plastic bars, sulfur, sulfuric acid and battery cells. Plastic goes into advanced circuits (assembler), needed for Mk3 assemblers and modules.",

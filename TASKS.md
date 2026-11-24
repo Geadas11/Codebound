@@ -157,4 +157,4 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ Etapa 10 — Perfuradora Mk2, montadoras Mk2/Mk3, fornalha elétrica; mais rápidas e com mais consumo; programas veem o tipo base — 5 testes (199/199), build + self-test PASS
 - ✅ Etapa 11 — Módulos de velocidade/eficiência/produtividade, ranhuras por máquina, beacons a 50 % com energia, bónus de produtividade guardado — 5 testes (204/204), build + self-test PASS
 - ✅ Etapa 12 — Refinaria (petróleo → gás), fábrica química (plástico, enxofre, ácido sulfúrico, células de bateria), circuitos avançados (Mk3 e módulos passam a usá-los) — 5 testes (209/209), runtimes PASS, build + self-test PASS
-- ⬜ 13 — Robôs de construção
+- ✅ Etapa 13 — Robôs de construção: planos com Shift+clique, demolição com Shift+clique direito, recolha de materiais em vários baús, reservas partilhadas, saves exatos — 5 testes (214/214), build + self-test PASS, Play Mode

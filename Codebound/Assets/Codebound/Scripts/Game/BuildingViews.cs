@@ -70,7 +70,8 @@ namespace Codebound.Game
                 {
                     var body = bodies[b.InstanceId];
                     float k = Mathf.Clamp01(b.Health / b.Def.MaxHealth);
-                    body.color = Color.Lerp(new Color(1f, 0.45f, 0.45f), Color.white, k);
+                    body.color = session.Factory.MarkedForDemolition(b) ? new Color(1f, 0.35f, 0.3f, 0.8f)   // marked for the construction robots
+                        : Color.Lerp(new Color(1f, 0.45f, 0.45f), Color.white, k);
                     if (!leds.TryGetValue(b.InstanceId, out var led)) continue;
                     var a = session.Factory.Activity(b);
                     int frames = PixelArtFactory.Frames(b.Def);

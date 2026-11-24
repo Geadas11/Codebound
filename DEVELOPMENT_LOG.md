@@ -329,3 +329,11 @@
 - `Core/Chemistry.cs` (novo): refinaria, fábrica química com 4 receitas; 2 fluidos, 4 itens, receita do circuito avançado; custos da Mk3 e dos módulos com circuitos avançados; tecnologia `chemistry`; arte; 13 textos × 10 línguas; `start/stop/configure` nas 8 linguagens (C# recompilado).
 - Bug apanhado pelo teste de save: as quantidades e o progresso eram lidos antes da receita (ordem alfabética das chaves) e perdiam-se. Corrigido com valores pendentes.
 - Testes: 209/209 EditMode (5 novos em `ChemistryTests`); runtimes das 8 linguagens PASS; build + self-test PASS.
+
+## Sessão 6 (cont.): Etapa 13 — robôs de construção
+- `Core/Construction.cs` (novo): planos, marcas de demolição, robôs de construção com recolha em várias paragens, reservas, regresso, saves; controlos com Shift no `BuildController`; planos e robôs desenhados; edifícios marcados a vermelho; tecnologia `construction_robots`; 2 textos × 10 línguas.
+- Duas regras acrescentadas antes dos testes para evitar ciclos sem fim: construir à mão por cima de um plano apaga-o, e um plano bloqueado não envia robôs.
+- Testes: 214/214 EditMode (5 novos em `ConstructionTests`); build + self-test PASS; Play Mode com as Etapas 9–13 juntas (túnel, Mk3 com módulo e beacon a ×3,15, refinaria e fábrica química, dois baús construídos e um muro demolido por robôs).
+
+## Resumo do pedido "mais Factorio" (Etapas 9–13)
+- Tapetes e tubos subterrâneos, máquinas em várias versões, módulos e beacons, refinaria e química, robôs de construção. 189 → 214 testes, todos a passar; runtimes das 8 linguagens a passar; build + self-test PASS em cada etapa.

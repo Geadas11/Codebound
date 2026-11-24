@@ -27,10 +27,10 @@ namespace Codebound.Core
     public sealed class RoboportState : MachineState
     {
         public const int Radius = 12;
-        public readonly Inventory Robots = new Inventory(1), Cargo = new Inventory(8);
+        public readonly Inventory Robots = new Inventory(2), Cargo = new Inventory(8);   // logistic and construction robots
         public RoboportState() { Status = "no robots"; }
-        public override bool TryInsert(string itemId, int count) => itemId == ItemDatabase.Robot && Robots.TryAddAll(new[] { new ItemStack(itemId, count) });
-        public override bool AcceptsItem(string itemId) => itemId == ItemDatabase.Robot;
+        public override bool TryInsert(string itemId, int count) => AcceptsItem(itemId) && Robots.TryAddAll(new[] { new ItemStack(itemId, count) });
+        public override bool AcceptsItem(string itemId) => itemId == ItemDatabase.Robot || itemId == ItemDatabase.ConstructionRobot;
         public override IEnumerable<(string, Inventory)> Inventories { get { yield return ("robots", Robots); yield return ("cargo", Cargo); } }
         public override Inventory Extractable => Cargo;
     }
@@ -116,17 +116,18 @@ namespace Codebound.Core
         void TickRobots(float dt)
         {
             if (logisticsDirty) RebuildLogistics();
-            if (roboports.Count == 0 && Robots.Count == 0) return;
+            if (roboports.Count == 0 && Robots.Count == 0 && Builders.Count == 0) return;
             for (int i = 0; i < Robots.Count; i++)
                 if (MoveRobot(Robots[i], dt)) { Robots.RemoveAt(i); i--; }
-            if (logisticNets.Count == 0) return;
             reserved.Clear(); incoming.Clear();
             foreach (var r in Robots)
             {
                 if (r.Task == RobotTask.ToPickup) Count(reserved, r.From, r.Item, r.Count);
                 if (r.Task != RobotTask.Return) Count(incoming, r.To, r.Item, r.Count);
             }
+            foreach (var b in Builders) foreach (var (c, item, n) in b.Pickups) Count(reserved, c, item, n);   // materials promised to construction robots
             foreach (var net in logisticNets) Dispatch(net);
+            TickBuilders(dt);
             foreach (var p in roboports)
             {
                 var rs = (RoboportState)p.State;
@@ -278,7 +279,11 @@ namespace Codebound.Core
             foreach (var r in Robots) { var h = grid.At(r.Home); if (h != null && logisticOf.TryGetValue(h.InstanceId, out var hn) && hn == net) flying++; }
             var items = new Dictionary<string, object>();
             foreach (var (k, v) in NetworkItems(net)) items[k] = v;
+            int cReady = 0, cFlying = 0;
+            foreach (var p in net.Roboports) cReady += ((RoboportState)p.State).Robots.Count(ItemDatabase.ConstructionRobot);
+            foreach (var r in Builders) { var h = grid.At(r.Home); if (h != null && logisticOf.TryGetValue(h.InstanceId, out var hn) && hn == net) cFlying++; }
             return new Dictionary<string, object> { { "roboports", net.Roboports.Count }, { "robotsReady", ready }, { "robotsFlying", flying },
+                { "constructionReady", cReady }, { "constructionFlying", cFlying }, { "ghosts", Ghosts.Count }, { "toDemolish", Demolish.Count },
                 { "providers", net.Providers.Count }, { "requesters", net.Requesters.Count }, { "storageChests", net.Storage.Count }, { "items", items } };
         }
 
