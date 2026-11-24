@@ -456,6 +456,7 @@ namespace Codebound.Core
             if (b.State is CombinatorState cb) return cb.Configure(text);
             if (b.State is StorageState ss && ss.Role == LogisticRole.Requester) return ss.SetRequests(text);
             if (b.State is TrainDepotState td) return td.SetSchedule(text);
+            if (b.State is ChemicalPlantState chem) return chem.SetRecipe(text);
             if (b.State is TrainStopState tsp) return tsp.Rename(text);
             if (b.State.TakesCondition) return b.State.SetCondition(text);
             return "this machine has no signal settings";

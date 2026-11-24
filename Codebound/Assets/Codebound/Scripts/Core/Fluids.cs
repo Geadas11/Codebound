@@ -12,8 +12,8 @@ namespace Codebound.Core
     /// </summary>
     public static class Fluids
     {
-        public const string Water = "water", Steam = "steam", CrudeOil = "crude_oil";
-        public static readonly string[] All = { Water, Steam, CrudeOil };
+        public const string Water = "water", Steam = "steam", CrudeOil = "crude_oil", PetroleumGas = "petroleum_gas", SulfuricAcid = "sulfuric_acid";
+        public static readonly string[] All = { Water, Steam, CrudeOil, PetroleumGas, SulfuricAcid };
         public static bool Exists(string id) => Array.IndexOf(All, id) >= 0;
 
         public const float PipeCapacity = 100f, TankCapacity = 2500f, BoxCapacity = 20f;
@@ -191,7 +191,7 @@ namespace Codebound.Core
         bool fluidDirty = true;
 
         static bool IsFluidMachine(MachineState s) => s is PumpState || s is OffshorePumpState || s is PumpjackState
-            || s is BoilerState || s is SteamEngineState || s is FillerState;
+            || s is BoilerState || s is SteamEngineState || s is FillerState || s is RefineryState || s is ChemicalPlantState;
 
         void RebuildSegments()
         {
@@ -377,6 +377,8 @@ namespace Codebound.Core
                         Pull(FirstSegment(b.BackCells(), Fluids.Steam), se.Steam);
                         Pull(FirstSegment(b.FrontCells(), Fluids.Steam), se.Steam);
                         break;
+                    case RefineryState rf: TickRefinery(b, rf, dt); break;
+                    case ChemicalPlantState cp: TickChemicalPlant(b, cp, dt); break;
                     case FillerState fi:
                     {
                         Pull(FirstSegment(b.BackCells(), Fluids.CrudeOil), fi.Crude);

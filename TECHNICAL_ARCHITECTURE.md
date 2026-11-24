@@ -174,3 +174,10 @@ O projeto usa Enter Play Mode sem domain reload: qualquer estado estático tem d
 - `MachineState.Modules` (inventário criado ao construir se `ModuleSlots > 0`), `AllInventories` (inventários + módulos: saves, reembolso, painel, `contents()`, SQL), `PutByHand` (o jogador/convidado põe módulos nas ranhuras, um por ranhura; braços e correias não).
 - `Factory.Effects`: módulos próprios + metade dos módulos de velocidade/eficiência de cada **beacon com energia** a ≤3 células (só afeta máquinas com ranhuras). Velocidade = versão × max(0,2; 1+soma); energia = base × versão × max(0,2; 1+soma).
 - Produtividade: `Produce` junta `ProductivityBonus` a cada produto; cada 1 inteiro dá um produto grátis (fica guardado se a saída estiver cheia). Guardado em `bx prodbonus`.
+
+## Refinaria e química (`Core/Chemistry.cs`, Etapa 12)
+- Fluidos novos: gás de petróleo, ácido sulfúrico. Itens: barra de plástico, enxofre, circuito avançado (montadora: 2 circuitos, 2 plásticos, 4 fios), célula de bateria.
+- **Refinaria** (3×3, 200 kW, 3 ranhuras, start/stop): 20 de petróleo/s → 9 de gás/s (× velocidade × energia; produtividade multiplica o gás).
+- **Fábrica química** (3×3, 150 kW, 3 ranhuras, start/stop; `configure("plastic"|"sulfur"|"sulfuric_acid"|"battery")` escolhe a receita): fluidos dos tubos atrás e dos lados (dois fluidos de dois tubos), itens por braços, fluido produzido para o tubo da frente, itens na saída para braços. Mudar de receita esvazia as caixas de fluido. Por isso, na fábrica química, `configure` escolhe a receita em vez de uma condição de sinais.
+- A Montadora Mk3 e os módulos passaram a precisar de circuitos avançados (como no Factorio); a tecnologia de módulos depende da química.
+- Lição: as chaves `bx` são escritas por ordem alfabética, por isso valores que dependem de outra chave (caixas e progresso antes da receita) ficam pendentes até ela chegar — apanhado pelo teste de guardar/carregar.

@@ -104,7 +104,8 @@ final class Machine
         'long_inserter' => ['configure', 'signals'], 'belt' => ['configure', 'signals'], 'lamp' => ['configure', 'signals'],
         'constant_combinator' => ['configure', 'signals'], 'arithmetic_combinator' => ['configure', 'signals'], 'decider_combinator' => ['configure', 'signals'],
         'requester_chest' => ['configure', 'signals'], 'roboport' => ['network', 'signals'],
-        'train_depot' => ['configure', 'signals', 'train'], 'train_stop' => ['configure', 'signals']];
+        'train_depot' => ['configure', 'signals', 'train'], 'train_stop' => ['configure', 'signals'],
+        'refinery' => ['start', 'stop', 'configure', 'signals'], 'chemical_plant' => ['start', 'stop', 'configure', 'signals']];
     public readonly string $id;
     public readonly string $type;
     public readonly string $name;

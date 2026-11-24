@@ -106,6 +106,7 @@ namespace Codebound
             ["constant_combinator"] = new[] { "configure", "signals" }, ["arithmetic_combinator"] = new[] { "configure", "signals" }, ["decider_combinator"] = new[] { "configure", "signals" },
             ["requester_chest"] = new[] { "configure", "signals" }, ["roboport"] = new[] { "network", "signals" },
             ["train_depot"] = new[] { "configure", "signals", "train" }, ["train_stop"] = new[] { "configure", "signals" },
+            ["refinery"] = new[] { "start", "stop", "configure", "signals" }, ["chemical_plant"] = new[] { "start", "stop", "configure", "signals" },
         };
         public string Id { get; }
         public string Type { get; }

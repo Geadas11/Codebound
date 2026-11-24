@@ -73,7 +73,7 @@ namespace Codebound.Core
             if (IsConsumer(b)) yield return consumers;
             if (IsNode(b)) yield return nodeList;
             var st = b.State;
-            if (st is DrillState || st is FurnaceState || st is AssemblerState || st is GreenhouseState || st is FillerState) yield return producers;
+            if (st is DrillState || st is FurnaceState || st is AssemblerState || st is GreenhouseState || st is FillerState || st is ChemicalPlantState) yield return producers;
             if (st is ConveyorState) yield return belts;
             if (st is InserterState) yield return inserters;
             if (st is GreenhouseState) yield return greenhouses;
@@ -181,6 +181,8 @@ namespace Codebound.Core
                 case BuildingKind.Lamp: return new LampState();
                 case BuildingKind.Roboport: return new RoboportState();
                 case BuildingKind.Beacon: return new BeaconState();
+                case BuildingKind.Refinery: return new RefineryState();
+                case BuildingKind.ChemicalPlant: return new ChemicalPlantState();
                 case BuildingKind.Rail: return new RailState(false);
                 case BuildingKind.RailSignal: return new RailState(true);
                 case BuildingKind.TrainStop: return new TrainStopState();
@@ -202,7 +204,8 @@ namespace Codebound.Core
             || b.Def.Kind == BuildingKind.Greenhouse || b.Def.Kind == BuildingKind.Assembler || b.Def.Kind == BuildingKind.Lab || b.Def.Kind == BuildingKind.Turret
             || b.Def.Kind == BuildingKind.Scrubber || b.Def.Kind == BuildingKind.Server || b.Def.Kind == BuildingKind.StorageHub || b.Def.Kind == BuildingKind.Heater
             || b.Def.Kind == BuildingKind.Pump || b.Def.Kind == BuildingKind.Pumpjack || b.Def.Kind == BuildingKind.Filler || b.Def.Kind == BuildingKind.Lamp
-            || b.Def.Kind == BuildingKind.Roboport || b.Def.Kind == BuildingKind.Beacon;
+            || b.Def.Kind == BuildingKind.Roboport || b.Def.Kind == BuildingKind.Beacon
+            || b.Def.Kind == BuildingKind.Refinery || b.Def.Kind == BuildingKind.ChemicalPlant;
         public const float GrowLampKW = 30f, AssemblerKW = 60f, LabKW = 40f;
         /// <summary>Tech progress of the world (set by GameState).</summary>
         public Research Research = new Research();
@@ -236,6 +239,8 @@ namespace Codebound.Core
             if (c.Def.Kind == BuildingKind.Lamp) return c.State.SignalAllows ? LampKW : 0f;
             if (c.Def.Kind == BuildingKind.Roboport) return RoboportKW;
             if (c.Def.Kind == BuildingKind.Beacon) return BeaconKW;
+            if (c.Def.Kind == BuildingKind.Refinery) return RefineryState.KW;
+            if (c.Def.Kind == BuildingKind.ChemicalPlant) return ChemicalPlantState.KW;
             if (c.Def.Kind == BuildingKind.Pump) return Fluids.PumpKW;
             if (c.Def.Kind == BuildingKind.Pumpjack) return Fluids.PumpjackKW;
             if (c.Def.Kind == BuildingKind.Filler) return Fluids.FillerKW;
@@ -265,7 +270,7 @@ namespace Codebound.Core
                 || st is ComputerState pc && pc.Running
                 || st is ScrubberState sc && sc.Status == "cleaning"
                 || st is LaunchPadState lp && lp.Phase == "ascent"
-                || s == "pumping" || s == "boiling" || s == "filling" || st is SteamEngineState se && se.OutputKW > 0 || st is LampState lm && lm.Lit;
+                || s == "pumping" || s == "boiling" || s == "filling" || s == "refining" || s == "reacting" || st is SteamEngineState se && se.OutputKW > 0 || st is LampState lm && lm.Lit;
             if (!working && st is GreenhouseState gh) foreach (var v in gh.Growth) if (v >= 0 && v < 1) working = true;
             return working ? MachineActivity.Working : MachineActivity.Idle;
         }
@@ -406,7 +411,7 @@ namespace Codebound.Core
             foreach (var b in producers)
             {
                 Inventory output = b.State is DrillState d ? d.Output : b.State is FurnaceState f ? f.Output
-                    : b.State is AssemblerState asm ? asm.Output : b.State is GreenhouseState gr ? gr.Output : b.State is FillerState fi ? fi.Output : null;
+                    : b.State is AssemblerState asm ? asm.Output : b.State is GreenhouseState gr ? gr.Output : b.State is FillerState fi ? fi.Output : b.State is ChemicalPlantState cpl ? cpl.Output : null;
                 if (output == null || output[0].IsEmpty) continue;
                 string item = output[0].ItemId;
                 foreach (var c in b.FrontCells())

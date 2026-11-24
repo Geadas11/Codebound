@@ -324,3 +324,8 @@
 ## Sessão 6 (cont.): Etapa 11 — módulos e beacons
 - `Core/Modules.cs` (novo), 3 itens com receitas, beacon, tecnologia `modules`, 8 textos × 10 línguas; ranhuras nas máquinas da Etapa 10, perfuradora e laboratório.
 - Testes: 204/204 EditMode (5 novos em `ModuleTests`: um por ranhura e reembolso, velocidade/energia, eficiência com mínimo de 20 %, produtividade 50 × 16 % = 8 grátis, beacons a 50 % só com energia e sem produtividade, saves); build + self-test PASS.
+
+## Sessão 6 (cont.): Etapa 12 — refinaria e química
+- `Core/Chemistry.cs` (novo): refinaria, fábrica química com 4 receitas; 2 fluidos, 4 itens, receita do circuito avançado; custos da Mk3 e dos módulos com circuitos avançados; tecnologia `chemistry`; arte; 13 textos × 10 línguas; `start/stop/configure` nas 8 linguagens (C# recompilado).
+- Bug apanhado pelo teste de save: as quantidades e o progresso eram lidos antes da receita (ordem alfabética das chaves) e perdiam-se. Corrigido com valores pendentes.
+- Testes: 209/209 EditMode (5 novos em `ChemistryTests`); runtimes das 8 linguagens PASS; build + self-test PASS.

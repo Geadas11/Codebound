@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Codebound.Core
 {
-    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap, Pipe, Pump, Tank, OffshorePump, Pumpjack, Boiler, SteamEngine, Filler, Cable, ConstantCombinator, ArithmeticCombinator, DeciderCombinator, Lamp, Roboport, ProviderChest, RequesterChest, Rail, RailSignal, TrainStop, TrainDepot, UndergroundPipe, Beacon }
+    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap, Pipe, Pump, Tank, OffshorePump, Pumpjack, Boiler, SteamEngine, Filler, Cable, ConstantCombinator, ArithmeticCombinator, DeciderCombinator, Lamp, Roboport, ProviderChest, RequesterChest, Rail, RailSignal, TrainStop, TrainDepot, UndergroundPipe, Beacon, Refinery, ChemicalPlant }
 
     public sealed class BuildingDef
     {
@@ -146,11 +146,16 @@ namespace Codebound.Core
             new BuildingDef("assembler2", "Assembler Mk2", BuildingKind.Assembler, 2, 2, 0x5d7fa9,
                 new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.IronGear, 6), new ItemStack(ItemDatabase.Circuit, 4)) { Speed = 1.5f, Energy = 1.5f, BaseType = "assembler", ModuleSlots = 2 },
             new BuildingDef("assembler3", "Assembler Mk3", BuildingKind.Assembler, 2, 2, 0x4d8fb9,
-                new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.Circuit, 10), new ItemStack(ItemDatabase.StoneBrick, 10)) { Speed = 2.25f, Energy = 2.5f, BaseType = "assembler", ModuleSlots = 4 },
+                new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.AdvancedCircuit, 10), new ItemStack(ItemDatabase.StoneBrick, 10)) { Speed = 2.25f, Energy = 2.5f, BaseType = "assembler", ModuleSlots = 4 },
             new BuildingDef("electric_furnace", "Electric Furnace", BuildingKind.Furnace, 2, 2, 0x8a6a5a,
                 new ItemStack(ItemDatabase.StoneBrick, 10), new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.Circuit, 5)) { Speed = 2f, BaseType = "furnace", ModuleSlots = 2 },
             new BuildingDef("beacon", "Beacon", BuildingKind.Beacon, 2, 2, 0x6a5aa8,
                 new ItemStack(ItemDatabase.Circuit, 15), new ItemStack(ItemDatabase.CopperWire, 20), new ItemStack(ItemDatabase.IronPlate, 10)) { ModuleSlots = 2 },
+            // oil refining and chemistry (Etapa 12)
+            new BuildingDef("refinery", "Oil Refinery", BuildingKind.Refinery, 3, 3, 0x7a6a5a,
+                new ItemStack(ItemDatabase.IronPlate, 30), new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.Circuit, 10), new ItemStack(ItemDatabase.StoneBrick, 10)) { ModuleSlots = 3 },
+            new BuildingDef("chemical_plant", "Chemical Plant", BuildingKind.ChemicalPlant, 3, 3, 0x5a8a6a,
+                new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.IronGear, 5), new ItemStack(ItemDatabase.Circuit, 5)) { ModuleSlots = 3 },
             // underground transport (Etapa 9)
             new BuildingDef("underground_belt", "Underground Belt", BuildingKind.Belt, 1, 1, 0x4a4f57,
                 new ItemStack(ItemDatabase.IronPlate, 5), new ItemStack(ItemDatabase.IronGear, 2)),

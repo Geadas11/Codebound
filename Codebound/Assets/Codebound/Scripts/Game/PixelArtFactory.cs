@@ -271,6 +271,7 @@ namespace Codebound.Game
                 case BuildingKind.Belt: case BuildingKind.Conveyor: case BuildingKind.Drill: case BuildingKind.Generator: case BuildingKind.Assembler: return 4;
                 case BuildingKind.Furnace: case BuildingKind.Lab: case BuildingKind.Server: case BuildingKind.Scrubber: case BuildingKind.Heater: case BuildingKind.Boiler: return 2;
                 case BuildingKind.Pumpjack: return 8;
+                case BuildingKind.ChemicalPlant: return 2;
                 case BuildingKind.Lamp: return 2;   // 0 = off, 1 = lit (the view picks, lamps do not cycle)
                 case BuildingKind.SteamEngine: case BuildingKind.OffshorePump: return 4;
                 default: return 1;
@@ -528,6 +529,21 @@ namespace Codebound.Game
                         if (cy < -2 && ((x / 6) % 2 == 1) && x > 3 && x < w - 4) return y == 6 || y == 7 ? new Color32(220, 60, 50, 255) : new Color32(40, 40, 45, 255);   // canisters
                         if (cy > 4 && Mathf.Abs(cx) < 3) return Shade(body, 0.6f);                                                  // nozzle
                         break;
+                    case "refinery":
+                    {
+                        float tr2 = Mathf.Sqrt((cx + 9) * (cx + 9) + (cy + 6) * (cy + 6));
+                        if (tr2 < 8) return tr2 > 7 ? Outline : Shade(body, 1.15f - tr2 * 0.04f);                           // a round tank
+                        if (cx > 4 && cx < 12 && cy > -18 && cy < 20) return x % 3 == 0 ? Outline : Shade(body, 1.3f);      // the column
+                        if (cx > -4 && cx < 3 && cy > 6) return Shade(body, 0.7f);                                          // pipes
+                        break;
+                    }
+                    case "chemical_plant":
+                    {
+                        float v1 = Mathf.Sqrt((cx + 8) * (cx + 8) + cy * cy), v2 = Mathf.Sqrt((cx - 8) * (cx - 8) + cy * cy);
+                        if (v1 < 7 || v2 < 7) return (v1 > 6 && v1 < 7) || (v2 > 6 && v2 < 7) ? Outline : (frame % 2 == 0 ? new Color32(120, 220, 140, 255) : new Color32(150, 240, 170, 255));   // vessels
+                        if (Mathf.Abs(cx) < 2 && Mathf.Abs(cy) < 16) return Shade(body, 0.7f);
+                        break;
+                    }
                     case "train_stop":
                         if (x >= 7 && x <= 8 && y >= 2) return Outline;                                                          // post
                         if (y >= 9 && y <= 13 && x >= 3 && x <= 12) return y == 9 || y == 13 || x == 3 || x == 12 ? Outline : Shade(body, 1.2f);   // sign
