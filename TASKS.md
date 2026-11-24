@@ -155,4 +155,5 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 ## Mais Factorio (pedido de 2026-11-24)
 - ✅ Etapa 9 — Tapetes subterrâneos (até 5 células) e tubos subterrâneos (até 10), saída só aceita do túnel, tubos ao lado não ligam, saves — 5 testes (194/194), build + self-test PASS
 - ✅ Etapa 10 — Perfuradora Mk2, montadoras Mk2/Mk3, fornalha elétrica; mais rápidas e com mais consumo; programas veem o tipo base — 5 testes (199/199), build + self-test PASS
-- ⬜ 11 — Módulos e beacons · ⬜ 12 — Refinaria e química · ⬜ 13 — Robôs de construção
+- ✅ Etapa 11 — Módulos de velocidade/eficiência/produtividade, ranhuras por máquina, beacons a 50 % com energia, bónus de produtividade guardado — 5 testes (204/204), build + self-test PASS
+- ⬜ 12 — Refinaria e química · ⬜ 13 — Robôs de construção

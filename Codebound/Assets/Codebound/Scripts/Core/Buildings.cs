@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Codebound.Core
 {
-    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap, Pipe, Pump, Tank, OffshorePump, Pumpjack, Boiler, SteamEngine, Filler, Cable, ConstantCombinator, ArithmeticCombinator, DeciderCombinator, Lamp, Roboport, ProviderChest, RequesterChest, Rail, RailSignal, TrainStop, TrainDepot, UndergroundPipe }
+    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap, Pipe, Pump, Tank, OffshorePump, Pumpjack, Boiler, SteamEngine, Filler, Cable, ConstantCombinator, ArithmeticCombinator, DeciderCombinator, Lamp, Roboport, ProviderChest, RequesterChest, Rail, RailSignal, TrainStop, TrainDepot, UndergroundPipe, Beacon }
 
     public sealed class BuildingDef
     {
@@ -51,7 +51,7 @@ namespace Codebound.Core
             new BuildingDef("chest", "Storage Chest", BuildingKind.Storage, 1, 1, 0xa0703c, new ItemStack(ItemDatabase.Wood, 8)),
             new BuildingDef("furnace", "Stone Furnace", BuildingKind.Furnace, 2, 2, 0x6b5a4a, new ItemStack(ItemDatabase.Stone, 10)),
             new BuildingDef("drill", "Electric Drill", BuildingKind.Drill, 2, 2, 0xc9a227,
-                new ItemStack(ItemDatabase.Stone, 6), new ItemStack(ItemDatabase.IronOre, 8)),
+                new ItemStack(ItemDatabase.Stone, 6), new ItemStack(ItemDatabase.IronOre, 8)) { ModuleSlots = 2 },
             new BuildingDef("computer", "Basic Computer", BuildingKind.Computer, 1, 2, 0x3a7bd5,
                 new ItemStack(ItemDatabase.CopperOre, 6), new ItemStack(ItemDatabase.IronOre, 4), new ItemStack(ItemDatabase.Silicon, 2)),
             new BuildingDef("generator", "Coal Generator", BuildingKind.Generator, 2, 2, 0x5a6470,
@@ -59,7 +59,7 @@ namespace Codebound.Core
             new BuildingDef("pole", "Power Pole", BuildingKind.Pole, 1, 1, 0x7a5a3a,
                 new ItemStack(ItemDatabase.Wood, 2), new ItemStack(ItemDatabase.CopperOre, 1)),
             new BuildingDef("lab", "Research Lab", BuildingKind.Lab, 2, 2, 0xe8e8f0,
-                new ItemStack(ItemDatabase.IronOre, 10), new ItemStack(ItemDatabase.CopperOre, 10), new ItemStack(ItemDatabase.Stone, 10), new ItemStack(ItemDatabase.Silicon, 2)),
+                new ItemStack(ItemDatabase.IronOre, 10), new ItemStack(ItemDatabase.CopperOre, 10), new ItemStack(ItemDatabase.Stone, 10), new ItemStack(ItemDatabase.Silicon, 2)) { ModuleSlots = 2 },
             new BuildingDef("belt", "Transport Belt", BuildingKind.Belt, 1, 1, 0x4a4f57, new ItemStack(ItemDatabase.IronPlate, 1)),
             new BuildingDef("conveyor", "Programmable Conveyor", BuildingKind.Conveyor, 1, 1, 0x2f5f8f,
                 new ItemStack(ItemDatabase.IronPlate, 1), new ItemStack(ItemDatabase.CopperPlate, 1)),
@@ -142,13 +142,15 @@ namespace Codebound.Core
                 new ItemStack(ItemDatabase.IronPlate, 20), new ItemStack(ItemDatabase.StoneBrick, 10), new ItemStack(ItemDatabase.IronGear, 6)),
             // machine versions (Etapa 10)
             new BuildingDef("drill2", "Electric Drill Mk2", BuildingKind.Drill, 2, 2, 0xd9b23a,
-                new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.Circuit, 5), new ItemStack(ItemDatabase.StoneBrick, 10)) { Speed = 2f, Energy = 2f, BaseType = "drill" },
+                new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.Circuit, 5), new ItemStack(ItemDatabase.StoneBrick, 10)) { Speed = 2f, Energy = 2f, BaseType = "drill", ModuleSlots = 3 },
             new BuildingDef("assembler2", "Assembler Mk2", BuildingKind.Assembler, 2, 2, 0x5d7fa9,
-                new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.IronGear, 6), new ItemStack(ItemDatabase.Circuit, 4)) { Speed = 1.5f, Energy = 1.5f, BaseType = "assembler" },
+                new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.IronGear, 6), new ItemStack(ItemDatabase.Circuit, 4)) { Speed = 1.5f, Energy = 1.5f, BaseType = "assembler", ModuleSlots = 2 },
             new BuildingDef("assembler3", "Assembler Mk3", BuildingKind.Assembler, 2, 2, 0x4d8fb9,
-                new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.Circuit, 10), new ItemStack(ItemDatabase.StoneBrick, 10)) { Speed = 2.25f, Energy = 2.5f, BaseType = "assembler" },
+                new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.Circuit, 10), new ItemStack(ItemDatabase.StoneBrick, 10)) { Speed = 2.25f, Energy = 2.5f, BaseType = "assembler", ModuleSlots = 4 },
             new BuildingDef("electric_furnace", "Electric Furnace", BuildingKind.Furnace, 2, 2, 0x8a6a5a,
-                new ItemStack(ItemDatabase.StoneBrick, 10), new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.Circuit, 5)) { Speed = 2f, BaseType = "furnace" },
+                new ItemStack(ItemDatabase.StoneBrick, 10), new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.Circuit, 5)) { Speed = 2f, BaseType = "furnace", ModuleSlots = 2 },
+            new BuildingDef("beacon", "Beacon", BuildingKind.Beacon, 2, 2, 0x6a5aa8,
+                new ItemStack(ItemDatabase.Circuit, 15), new ItemStack(ItemDatabase.CopperWire, 20), new ItemStack(ItemDatabase.IronPlate, 10)) { ModuleSlots = 2 },
             // underground transport (Etapa 9)
             new BuildingDef("underground_belt", "Underground Belt", BuildingKind.Belt, 1, 1, 0x4a4f57,
                 new ItemStack(ItemDatabase.IronPlate, 5), new ItemStack(ItemDatabase.IronGear, 2)),

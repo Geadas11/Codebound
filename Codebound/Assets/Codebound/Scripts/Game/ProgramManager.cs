@@ -690,7 +690,7 @@ namespace Codebound.Game
                             return;
                         case "contents":
                             var c = new Dictionary<string, object>();
-                            foreach (var (role, inv) in m.State.Inventories)
+                            foreach (var (role, inv) in m.State.AllInventories)
                             {
                                 var items = new Dictionary<string, object>();
                                 for (int i = 0; i < inv.SlotCount; i++)
@@ -913,7 +913,7 @@ namespace Codebound.Game
                     { "id", "m" + b.InstanceId }, { "type", b.Def.ProgramType }, { "name", $"{b.Def.DisplayName} #{b.InstanceId}" },
                     { "status", b.State.Status }, { "power", b.State.PowerSatisfaction }, { "busy", session.Factory.HasAction(b) },
                     { "distance", Math.Round(b.DistanceTo(p.Computer), 2) } });
-                foreach (var (role, inv) in b.State.Inventories)
+                foreach (var (role, inv) in b.State.AllInventories)
                     for (int i = 0; i < inv.SlotCount; i++)
                         if (!inv[i].IsEmpty) contents.Add(new List<object> { "m" + b.InstanceId, role, inv[i].ItemId, inv[i].Count });
                 foreach (var (fluid, amount) in b.State.FluidContents)   // fluids as role 'fluid', whole units

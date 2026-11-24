@@ -320,3 +320,7 @@
 - 4 edifícios (perfuradora Mk2, montadoras Mk2/Mk3, fornalha elétrica), tecnologia `advanced_machines`, marcas de versão na arte, 5 textos × 10 línguas.
 - Os testes de velocidade mostraram dois efeitos reais a ter em conta: uma máquina mais rápida gasta mais energia (a Mk2 com um só gerador de 150 kW trabalha a 83 %), e cada peça leva um número inteiro de ticks (1/1,5 s = 13,3 → 14 ticks).
 - Testes: 199/199 EditMode (5 novos em `TierTests`); build + self-test PASS.
+
+## Sessão 6 (cont.): Etapa 11 — módulos e beacons
+- `Core/Modules.cs` (novo), 3 itens com receitas, beacon, tecnologia `modules`, 8 textos × 10 línguas; ranhuras nas máquinas da Etapa 10, perfuradora e laboratório.
+- Testes: 204/204 EditMode (5 novos em `ModuleTests`: um por ranhura e reembolso, velocidade/energia, eficiência com mínimo de 20 %, produtividade 50 × 16 % = 8 grátis, beacons a 50 % só com energia e sem produtividade, saves); build + self-test PASS.

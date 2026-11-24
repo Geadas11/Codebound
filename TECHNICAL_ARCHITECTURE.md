@@ -168,3 +168,9 @@ O projeto usa Enter Play Mode sem domain reload: qualquer estado estático tem d
 - `BuildingDef` ganhou `Speed`, `Energy`, `ModuleSlots` e `BaseType`. Perfuradora Mk2 (velocidade 2, energia 2), Montadora Mk2 (1,5 / 1,5), Mk3 (2,25 / 2,5), Fornalha elétrica (2; 90 kW da rede em vez de carvão, não aceita carvão).
 - As ações avançam a `velocidade × energia recebida`; a procura de energia é a da primeira versão × `Energy`. `Factory.SpeedOf` é o ponto único para a velocidade (a Etapa 11 junta-lhe módulos e beacons).
 - Programas: `type` = tipo da primeira versão (`drill`, `assembler`, `furnace`), por isso `mine/craft/smelt` e `machines.find("drill")` funcionam em todas as linguagens sem mudar os runtimes; o novo campo `model` diz a versão.
+
+## Módulos e beacons (`Core/Modules.cs`, Etapa 11)
+- Módulos de velocidade (+20 % velocidade, +50 % energia), eficiência (−30 % energia) e produtividade (−5 % velocidade, +40 % energia, +4 % produto). Ranhuras: perfuradora 2, Mk2 3, laboratório 2, montadora Mk2 2, Mk3 4, fornalha elétrica 2; primeira montadora e fornalha de pedra 0.
+- `MachineState.Modules` (inventário criado ao construir se `ModuleSlots > 0`), `AllInventories` (inventários + módulos: saves, reembolso, painel, `contents()`, SQL), `PutByHand` (o jogador/convidado põe módulos nas ranhuras, um por ranhura; braços e correias não).
+- `Factory.Effects`: módulos próprios + metade dos módulos de velocidade/eficiência de cada **beacon com energia** a ≤3 células (só afeta máquinas com ranhuras). Velocidade = versão × max(0,2; 1+soma); energia = base × versão × max(0,2; 1+soma).
+- Produtividade: `Produce` junta `ProductivityBonus` a cada produto; cada 1 inteiro dá um produto grátis (fica guardado se a saída estiver cheia). Guardado em `bx prodbonus`.

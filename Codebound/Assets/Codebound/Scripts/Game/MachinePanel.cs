@@ -182,7 +182,12 @@ namespace Codebound.Game
                 GUILayout.EndHorizontal();
             }
 
-            foreach (var (role, inv) in st.Inventories)
+            if (st.Modules != null && !(st is BeaconState))   // what its modules and nearby beacons do
+            {
+                var (es, ee, ep) = session.Factory.Effects(open);
+                GUILayout.Label(L("mp.effects", "Modules: speed {0}%, power {1}%, productivity +{2}%", ((1 + es) * 100).ToString("0"), (System.Math.Max(0.2f, 1 + ee) * 100).ToString("0"), (ep * 100).ToString("0")), small);
+            }
+            foreach (var (role, inv) in st.AllInventories)
             {
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(L("mp.role." + role, role), small, GUILayout.Width(60));
@@ -221,7 +226,7 @@ namespace Codebound.Game
                 {
                     int moved = 0;
                     // insert one at a time so partial fits (e.g. a nearly full slot) still move what they can
-                    while (moved < have && st.TryInsert(s.ItemId, 1)) moved++;
+                    while (moved < have && st.PutByHand(s.ItemId)) moved++;
                     session.Inventory.TryRemove(s.ItemId, moved);
                 }
             }

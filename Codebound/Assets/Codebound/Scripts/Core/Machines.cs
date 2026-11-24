@@ -36,6 +36,29 @@ namespace Codebound.Core
 
         /// <summary>Insert from a conveyor/drill/player. All-or-nothing.</summary>
         public virtual bool TryInsert(string itemId, int count) => false;
+
+        /// <summary>Module slots (machines with ModuleSlots &gt; 0 and beacons; null otherwise). One module per slot.</summary>
+        public Inventory Modules;
+        /// <summary>Productivity modules: the part of a free product earned so far.</summary>
+        public float ProductivityBonus;
+
+        /// <summary>Everything it holds, modules included (saves, refunds, the panel, programs).</summary>
+        public IEnumerable<(string role, Inventory inv)> AllInventories
+        {
+            get { foreach (var x in Inventories) yield return x; if (Modules != null) yield return ("modules", Modules); }
+        }
+
+        /// <summary>The player (or a guest) puts one item in: modules go to the module slots, anything else as usual.</summary>
+        public bool PutByHand(string itemId)
+        {
+            if (Modules != null && Core.Modules.IsModule(itemId))
+            {
+                if (this is BeaconState && itemId == ItemDatabase.ProductivityModule) return false;   // beacons pass on speed and efficiency only
+                int n = 0; for (int i = 0; i < Modules.SlotCount; i++) n += Modules[i].Count;
+                return n < Modules.SlotCount && Modules.Add(itemId, 1) == 0;
+            }
+            return TryInsert(itemId, 1);
+        }
         /// <summary>Would this machine ever take the item (ignoring whether it has room now)? Arms only pick up what the target accepts.</summary>
         public virtual bool AcceptsItem(string itemId) => false;
 
@@ -207,6 +230,12 @@ namespace Codebound.Core
                 Inputs = new[] { new ItemStack(ItemDatabase.IronPlate, 1), new ItemStack(ItemDatabase.CopperWire, 3), new ItemStack(ItemDatabase.Silicon, 1) } } },
             { ItemDatabase.Robot, new Recipe { Product = ItemDatabase.Robot, Amount = 1, Seconds = 5f,
                 Inputs = new[] { new ItemStack(ItemDatabase.Circuit, 2), new ItemStack(ItemDatabase.IronGear, 2), new ItemStack(ItemDatabase.CopperWire, 4) } } },
+            { ItemDatabase.SpeedModule, new Recipe { Product = ItemDatabase.SpeedModule, Amount = 1, Seconds = 8f,
+                Inputs = new[] { new ItemStack(ItemDatabase.Circuit, 5), new ItemStack(ItemDatabase.CopperWire, 10), new ItemStack(ItemDatabase.IronGear, 2) } } },
+            { ItemDatabase.EfficiencyModule, new Recipe { Product = ItemDatabase.EfficiencyModule, Amount = 1, Seconds = 8f,
+                Inputs = new[] { new ItemStack(ItemDatabase.Circuit, 5), new ItemStack(ItemDatabase.CopperWire, 10), new ItemStack(ItemDatabase.Silicon, 2) } } },
+            { ItemDatabase.ProductivityModule, new Recipe { Product = ItemDatabase.ProductivityModule, Amount = 1, Seconds = 8f,
+                Inputs = new[] { new ItemStack(ItemDatabase.Circuit, 5), new ItemStack(ItemDatabase.CopperWire, 10), new ItemStack(ItemDatabase.AlienCrystal, 1) } } },
             { ItemDatabase.Locomotive, new Recipe { Product = ItemDatabase.Locomotive, Amount = 1, Seconds = 10f,
                 Inputs = new[] { new ItemStack(ItemDatabase.IronPlate, 20), new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.Circuit, 5) } } },
             { ItemDatabase.CargoWagon, new Recipe { Product = ItemDatabase.CargoWagon, Amount = 1, Seconds = 5f,

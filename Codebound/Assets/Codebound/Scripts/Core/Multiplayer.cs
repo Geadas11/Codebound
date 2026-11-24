@@ -198,10 +198,10 @@ namespace Codebound.Core
                         if (kind == "put")
                         {
                             int moved = 0;
-                            while (moved < count && inv.Count(item) > 0 && st.TryInsert(item, 1)) { inv.TryRemove(item, 1); moved++; }
+                            while (moved < count && inv.Count(item) > 0 && st.PutByHand(item)) { inv.TryRemove(item, 1); moved++; }
                             return moved > 0 ? null : "does not fit";
                         }
-                        foreach (var (_, mi) in st.Inventories)
+                        foreach (var (_, mi) in st.AllInventories)
                         {
                             int n = Math.Min(count, mi.Count(item));
                             if (n == 0) continue;

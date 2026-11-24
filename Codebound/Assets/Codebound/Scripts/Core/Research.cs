@@ -120,6 +120,12 @@ namespace Codebound.Core
                 Cost = new[] { new ItemStack(ItemDatabase.Circuit, 20), new ItemStack(ItemDatabase.IronGear, 20), new ItemStack(ItemDatabase.StoneBrick, 20) },
                 Prereqs = new[] { "manufacturing", "energy" }, Unlocks = new[] { "drill2", "assembler2", "assembler3", "electric_furnace" } },
 
+            // ---- modules and beacons (Etapa 11)
+            new Tech { Id = "modules", Name = "Modules", Area = "Industry", Seconds = 45,
+                Description = "Speed, efficiency and productivity modules (assembler) go into the module slots of drills, labs, Mk2/Mk3 assemblers and electric furnaces (put them in by hand). Beacons pass on half of their speed and efficiency modules to machines within 3 cells.",
+                Cost = new[] { new ItemStack(ItemDatabase.Circuit, 30), new ItemStack(ItemDatabase.CopperWire, 30), new ItemStack(ItemDatabase.AlienCrystal, 2) },
+                Prereqs = new[] { "advanced_machines" }, Unlocks = new[] { "beacon" } },
+
             // ---- underground transport (Etapa 9)
             new Tech { Id = "underground", Name = "Underground Transport", Area = "Industry", Seconds = 30,
                 Description = "Underground belts (an entrance and the exit up to 5 cells ahead, facing the same way: items pass under anything) and pipes to ground (two facing each other up to 10 cells apart).",

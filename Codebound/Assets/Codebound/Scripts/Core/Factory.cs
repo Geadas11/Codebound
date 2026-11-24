@@ -86,6 +86,7 @@ namespace Codebound.Core
             if (st is LampState) yield return lamps;
             if (st is RoboportState) yield return roboports;
             if (st is TrainDepotState) yield return depots;
+            if (st is BeaconState) yield return beacons;
             if (st is TrainStopState) yield return stops;
         }
 
@@ -109,6 +110,7 @@ namespace Codebound.Core
             grid.Placed += b =>
             {
                 b.State = CreateState(b.Def);
+                if (b.State != null && b.Def.ModuleSlots > 0) b.State.Modules = new Inventory(b.Def.ModuleSlots);
                 if (b.State is GreenhouseState g) g.NearWater = NearWater(b);
                 if (b.Def.Id == "underground_belt") PairUnderground(b);
                 foreach (var l in ListsOf(b)) l.Add(b);
@@ -178,6 +180,7 @@ namespace Codebound.Core
                 case BuildingKind.ConstantCombinator: case BuildingKind.ArithmeticCombinator: case BuildingKind.DeciderCombinator: return new CombinatorState(def.Kind);
                 case BuildingKind.Lamp: return new LampState();
                 case BuildingKind.Roboport: return new RoboportState();
+                case BuildingKind.Beacon: return new BeaconState();
                 case BuildingKind.Rail: return new RailState(false);
                 case BuildingKind.RailSignal: return new RailState(true);
                 case BuildingKind.TrainStop: return new TrainStopState();
@@ -199,7 +202,7 @@ namespace Codebound.Core
             || b.Def.Kind == BuildingKind.Greenhouse || b.Def.Kind == BuildingKind.Assembler || b.Def.Kind == BuildingKind.Lab || b.Def.Kind == BuildingKind.Turret
             || b.Def.Kind == BuildingKind.Scrubber || b.Def.Kind == BuildingKind.Server || b.Def.Kind == BuildingKind.StorageHub || b.Def.Kind == BuildingKind.Heater
             || b.Def.Kind == BuildingKind.Pump || b.Def.Kind == BuildingKind.Pumpjack || b.Def.Kind == BuildingKind.Filler || b.Def.Kind == BuildingKind.Lamp
-            || b.Def.Kind == BuildingKind.Roboport;
+            || b.Def.Kind == BuildingKind.Roboport || b.Def.Kind == BuildingKind.Beacon;
         public const float GrowLampKW = 30f, AssemblerKW = 60f, LabKW = 40f;
         /// <summary>Tech progress of the world (set by GameState).</summary>
         public Research Research = new Research();
@@ -210,7 +213,12 @@ namespace Codebound.Core
 
         public const float ElectricFurnaceKW = 90f;
 
-        float DemandOf(PlacedBuilding c) => BaseDemand(c) * c.Def.Energy;   // later versions draw more
+        float DemandOf(PlacedBuilding c)
+        {
+            float d = BaseDemand(c) * c.Def.Energy;   // later versions draw more
+            if (d > 0 && c.Def.ModuleSlots > 0 && !(c.State is BeaconState)) d *= Math.Max(0.2f, 1f + Effects(c).energy);   // modules
+            return d;
+        }
 
         float BaseDemand(PlacedBuilding c)
         {
@@ -227,6 +235,7 @@ namespace Codebound.Core
             if (c.State is SwitchedFluidState sw && !sw.Working) return 0f;
             if (c.Def.Kind == BuildingKind.Lamp) return c.State.SignalAllows ? LampKW : 0f;
             if (c.Def.Kind == BuildingKind.Roboport) return RoboportKW;
+            if (c.Def.Kind == BuildingKind.Beacon) return BeaconKW;
             if (c.Def.Kind == BuildingKind.Pump) return Fluids.PumpKW;
             if (c.Def.Kind == BuildingKind.Pumpjack) return Fluids.PumpjackKW;
             if (c.Def.Kind == BuildingKind.Filler) return Fluids.FillerKW;
@@ -262,7 +271,7 @@ namespace Codebound.Core
         }
 
         /// <summary>How fast a machine works: its version (Etapa 10), times its modules and nearby beacons (Etapa 11).</summary>
-        public float SpeedOf(PlacedBuilding b) => b.Def.Speed;
+        public float SpeedOf(PlacedBuilding b) => b.Def.ModuleSlots > 0 ? b.Def.Speed * Math.Max(0.2f, 1f + Effects(b).speed) : b.Def.Speed;
 
         public bool HasAction(PlacedBuilding b)
         {
@@ -309,7 +318,7 @@ namespace Codebound.Core
             string item = WorldRules.ItemFor(d.Type);
             if (!CanAccept(st.Output, item)) return null;
             world.Extract(cell, 1);
-            st.Output.Add(item, 1);
+            Produce(drill, st.Output, item, 1);
             return item;
         };
 
@@ -330,7 +339,7 @@ namespace Codebound.Core
             return null;
         }
 
-        static Func<string> SmeltResult(PlacedBuilding furnace) => () =>
+        Func<string> SmeltResult(PlacedBuilding furnace) => () =>
         {
             var st = (FurnaceState)furnace.State;
             var s = st.Input[0];
@@ -338,7 +347,7 @@ namespace Codebound.Core
             string p = FurnaceState.Recipes[s.ItemId];
             if (!CanAccept(st.Output, p)) return null;
             st.Input.TryRemove(s.ItemId, 1);
-            st.Output.Add(p, 1);
+            Produce(furnace, st.Output, p, 1);
             return p;
         };
 
@@ -638,11 +647,11 @@ namespace Codebound.Core
             return null;
         }
 
-        static Func<string> CraftResult(PlacedBuilding asm, AssemblerState.Recipe r) => () =>
+        Func<string> CraftResult(PlacedBuilding asm, AssemblerState.Recipe r) => () =>
         {
             var st = (AssemblerState)asm.State;
             if (!st.Input.TryRemoveAll(r.Inputs)) return null;
-            st.Output.Add(r.Product, r.Amount);
+            Produce(asm, st.Output, r.Product, r.Amount);
             return r.Product;
         };
 

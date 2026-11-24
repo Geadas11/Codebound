@@ -142,7 +142,7 @@ namespace Codebound.Core
         {
             var refund = new List<ItemStack>(b.Def.Cost);
             if (b.State != null)
-                foreach (var (_, inv) in b.State.Inventories)
+                foreach (var (_, inv) in b.State.AllInventories)
                     for (int i = 0; i < inv.SlotCount; i++) if (!inv[i].IsEmpty) refund.Add(inv[i]);
             if (!(payer ?? Inventory).TryAddAll(refund)) return false;
             return Grid.Remove(b);
@@ -180,10 +180,11 @@ namespace Codebound.Core
                 if (b.Health < b.Def.MaxHealth) w.WriteLine("bh " + b.Health.ToString("R", Inv));
                 if (b.Owner != null) w.WriteLine("bo " + b.Owner);
                 if (b.State == null) continue;
-                foreach (var (role, inv) in b.State.Inventories) WriteInv(w, "bi " + role, inv);
+                foreach (var (role, inv) in b.State.AllInventories) WriteInv(w, "bi " + role, inv);
                 extra.Clear();
                 b.State.SaveExtra(extra);
                 if (b.State.Condition != null) extra["cond"] = b.State.Condition.Text;
+                if (b.State.ProductivityBonus > 0) extra["prodbonus"] = b.State.ProductivityBonus.ToString("R", Inv);
                 if (b.State.TakesCondition && !b.State.SignalAllows) extra["sigoff"] = "1";
                 foreach (var kv in extra) w.WriteLine($"bx {kv.Key} {kv.Value}");
             }
@@ -246,12 +247,13 @@ namespace Codebound.Core
                             if (last == null) throw new InvalidDataException($"Building {p[1]} cannot be placed at its saved position");
                             break;
                         case "bi":
-                            foreach (var (role, inv) in Need(last).State.Inventories)
+                            foreach (var (role, inv) in Need(last).State.AllInventories)
                                 if (role == p[1]) inv.Add(p[2], int.Parse(p[3], Inv));
                             break;
                         case "bx":
                             if (p[1] == "cond") Need(last).State.SetCondition(p.Length > 2 ? p[2] : "");
                             else if (p[1] == "sigoff") Need(last).State.SignalAllows = false;
+                            else if (p[1] == "prodbonus") Need(last).State.ProductivityBonus = System.Math.Max(0f, System.Math.Min(1f, float.Parse(p[2], Inv)));
                             else Need(last).State.LoadExtra(p[1], p.Length > 2 ? p[2] : "");
                             break;
                         case "bh": Need(last).Health = float.Parse(p[1], Inv); break;
