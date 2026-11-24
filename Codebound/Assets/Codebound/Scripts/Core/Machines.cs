@@ -58,6 +58,34 @@ namespace Codebound.Core
     public sealed class StorageState : MachineState
     {
         public readonly Inventory Items = new Inventory(16);
+        /// <summary>Plain chest, provider (robots may take from it) or requester (robots bring what it asks for).</summary>
+        public LogisticRole Role;
+        /// <summary>Requester chests: how many of each item to keep (robots top it up).</summary>
+        public readonly Dictionary<string, int> Requests = new Dictionary<string, int>();
+        internal readonly List<string> RequestOrder = new List<string>();
+        public string RequestText => SignalSpec.FormatPairs(Requests);
+
+        /// <summary>"iron_plate=50,copper_plate=20" ("" clears). Returns null or why not.</summary>
+        public string SetRequests(string text)
+        {
+            if (Role != LogisticRole.Requester) return "only requester chests take requests";
+            var d = new Dictionary<string, int>();
+            var err = SignalSpec.ParsePairs(text, d);
+            if (err != null) return err;
+            foreach (var kv in d)
+            {
+                if (!ItemDatabase.Exists(kv.Key)) return $"'{kv.Key}' is not an item";
+                if (kv.Value < 0 || kv.Value > 1600) return $"'{kv.Key}': ask for 0 to 1600";
+            }
+            Requests.Clear(); RequestOrder.Clear();
+            foreach (var kv in d) if (kv.Value > 0) { Requests[kv.Key] = kv.Value; RequestOrder.Add(kv.Key); }
+            RequestOrder.Sort(System.StringComparer.Ordinal);
+            Status = Requests.Count == 0 ? "idle" : "requests " + RequestText;
+            Touch();
+            return null;
+        }
+        public override void SaveExtra(IDictionary<string, string> d) { if (Requests.Count > 0) d["req"] = RequestText; }
+        public override void LoadExtra(string k, string v) { if (k == "req") SetRequests(v); }
         public override bool TryInsert(string itemId, int count) => Items.TryAddAll(new[] { new ItemStack(itemId, count) });
         public override bool AcceptsItem(string itemId) => true;
         public override IEnumerable<(string, Inventory)> Inventories { get { yield return ("items", Items); } }
@@ -175,6 +203,8 @@ namespace Codebound.Core
             { ItemDatabase.CopperWire, new Recipe { Product = ItemDatabase.CopperWire, Amount = 2, Seconds = 0.5f, Inputs = new[] { new ItemStack(ItemDatabase.CopperPlate, 1) } } },
             { ItemDatabase.Circuit, new Recipe { Product = ItemDatabase.Circuit, Amount = 1, Seconds = 3f,
                 Inputs = new[] { new ItemStack(ItemDatabase.IronPlate, 1), new ItemStack(ItemDatabase.CopperWire, 3), new ItemStack(ItemDatabase.Silicon, 1) } } },
+            { ItemDatabase.Robot, new Recipe { Product = ItemDatabase.Robot, Amount = 1, Seconds = 5f,
+                Inputs = new[] { new ItemStack(ItemDatabase.Circuit, 2), new ItemStack(ItemDatabase.IronGear, 2), new ItemStack(ItemDatabase.CopperWire, 4) } } },
             // food processing
             { ItemDatabase.Ration, new Recipe { Product = ItemDatabase.Ration, Amount = 2, Seconds = 2f,
                 Inputs = new[] { new ItemStack(ItemDatabase.AlienFruit, 2), new ItemStack(ItemDatabase.Glowcap, 1) } } },

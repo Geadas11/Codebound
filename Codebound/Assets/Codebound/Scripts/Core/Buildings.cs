@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Codebound.Core
 {
-    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap, Pipe, Pump, Tank, OffshorePump, Pumpjack, Boiler, SteamEngine, Filler, Cable, ConstantCombinator, ArithmeticCombinator, DeciderCombinator, Lamp }
+    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap, Pipe, Pump, Tank, OffshorePump, Pumpjack, Boiler, SteamEngine, Filler, Cable, ConstantCombinator, ArithmeticCombinator, DeciderCombinator, Lamp, Roboport, ProviderChest, RequesterChest }
 
     public sealed class BuildingDef
     {
@@ -115,6 +115,13 @@ namespace Codebound.Core
                 new ItemStack(ItemDatabase.CopperWire, 4), new ItemStack(ItemDatabase.Circuit, 3)),
             new BuildingDef("lamp", "Lamp", BuildingKind.Lamp, 1, 1, 0xd8c86a,
                 new ItemStack(ItemDatabase.IronPlate, 1), new ItemStack(ItemDatabase.CopperWire, 2), new ItemStack(ItemDatabase.Silicon, 1)),
+            // logistic robots (Etapa 6 of the industrial simulation)
+            new BuildingDef("roboport", "Roboport", BuildingKind.Roboport, 2, 2, 0x5a6a7a,
+                new ItemStack(ItemDatabase.IronPlate, 20), new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.Circuit, 10)),
+            new BuildingDef("provider_chest", "Provider Chest", BuildingKind.ProviderChest, 1, 1, 0xb84a3a,
+                new ItemStack(ItemDatabase.IronPlate, 4), new ItemStack(ItemDatabase.Circuit, 2)),
+            new BuildingDef("requester_chest", "Requester Chest", BuildingKind.RequesterChest, 1, 1, 0x3a6ab8,
+                new ItemStack(ItemDatabase.IronPlate, 4), new ItemStack(ItemDatabase.Circuit, 2)),
         };
 
         public static BuildingDef TryGet(string id) { foreach (var b in All) if (b.Id == id) return b; return null; }

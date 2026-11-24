@@ -17,7 +17,7 @@ namespace Codebound.Game
         static Vector2 Dir(Rotation r) =>
             r == Rotation.R0 ? Vector2.up : r == Rotation.R90 ? Vector2.right : r == Rotation.R180 ? Vector2.down : Vector2.left;
 
-        void Draw(string item, Vector2 at, float scale)
+        void Draw(string item, Vector2 at, float scale, Sprite sprite = null, int order = 3)
         {
             if (used == pool.Count)
             {
@@ -28,7 +28,8 @@ namespace Codebound.Game
             }
             var r = pool[used++];
             r.enabled = true;
-            r.sprite = PixelArtFactory.ItemIcon(item);
+            r.sprite = sprite ?? PixelArtFactory.ItemIcon(item);
+            r.sortingOrder = order;
             r.transform.position = at;
             r.transform.localScale = Vector3.one * scale;
         }
@@ -52,6 +53,12 @@ namespace Codebound.Game
                     float reach = b.Def.Id == "long_inserter" ? 2f : 1f;
                     Draw(ins.Held, centre + fwd * Mathf.Lerp(-reach, reach, ins.Arm) * 0.6f, 0.6f);   // the hand travels from the pickup side to the drop side
                 }
+            }
+            foreach (var r in session.Factory.Robots)   // logistic robots in flight, with what they carry
+            {
+                var at = new Vector2((float)r.X, (float)r.Y + 0.35f);
+                Draw(null, at, 1.1f, PixelArtFactory.Robot(), 6);
+                if (r.Item != null && r.Task == RobotTask.ToDrop) Draw(r.Item, at + new Vector2(0, -0.3f), 0.45f, null, 7);
             }
             for (int i = used; i < pool.Count; i++) pool[i].enabled = false;
         }

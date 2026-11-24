@@ -187,6 +187,7 @@ namespace Codebound.Core
                 if (b.State.TakesCondition && !b.State.SignalAllows) extra["sigoff"] = "1";
                 foreach (var kv in extra) w.WriteLine($"bx {kv.Key} {kv.Value}");
             }
+            foreach (var line in g.Factory.RobotSaveLines()) w.WriteLine(line);
             w.WriteLine(g.Vitals.SaveLine());
             w.WriteLine(g.Clock.SaveLine());
             if (g.Research.SaveLine() is string rl) w.WriteLine(rl);
@@ -254,6 +255,7 @@ namespace Codebound.Core
                         case "bh": Need(last).Health = float.Parse(p[1], Inv); break;
                         case "bo": Need(last).Owner = Multiplayer.ValidName(p[1]) ? p[1] : null; break;
                         case "hud": Need(g).Hud.LoadLine(p); break;
+                        case "lrobot": Need(g).Factory.LoadRobot(p); break;
                         case "vitals": Need(g).Vitals.Load(p); break;
                         case "gbody":
                             if (!Multiplayer.ValidName(p[1])) break;

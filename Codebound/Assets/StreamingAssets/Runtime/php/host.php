@@ -102,7 +102,8 @@ final class Machine
         'launchpad' => ['launch', 'throttle', 'flight', 'planets', 'travel', 'land', 'asteroids', 'mine_asteroid', 'dock', 'answer', 'transmit'], 'server' => ['get', 'set', 'keys', 'delete'], 'storage_hub' => ['totals', 'find'],
         'pump' => ['start', 'stop', 'configure', 'signals'], 'pumpjack' => ['start', 'stop', 'configure', 'signals'], 'filler' => ['start', 'stop', 'configure', 'signals'],
         'long_inserter' => ['configure', 'signals'], 'belt' => ['configure', 'signals'], 'lamp' => ['configure', 'signals'],
-        'constant_combinator' => ['configure', 'signals'], 'arithmetic_combinator' => ['configure', 'signals'], 'decider_combinator' => ['configure', 'signals']];
+        'constant_combinator' => ['configure', 'signals'], 'arithmetic_combinator' => ['configure', 'signals'], 'decider_combinator' => ['configure', 'signals'],
+        'requester_chest' => ['configure', 'signals'], 'roboport' => ['network', 'signals']];
     public readonly string $id;
     public readonly string $type;
     public readonly string $name;

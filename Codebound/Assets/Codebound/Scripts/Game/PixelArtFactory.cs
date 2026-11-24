@@ -506,6 +506,21 @@ namespace Codebound.Game
                         if (cy < -2 && ((x / 6) % 2 == 1) && x > 3 && x < w - 4) return y == 6 || y == 7 ? new Color32(220, 60, 50, 255) : new Color32(40, 40, 45, 255);   // canisters
                         if (cy > 4 && Mathf.Abs(cx) < 3) return Shade(body, 0.6f);                                                  // nozzle
                         break;
+                    case "roboport":
+                    {
+                        float rr = Mathf.Sqrt(cx * cx + cy * cy);
+                        if (rr < 9 && rr > 7.5f) return new Color32(240, 200, 60, 255);                                       // landing ring
+                        if (rr < 3 && (Mathf.Abs(cx) < 1 || Mathf.Abs(cy) < 1)) return new Color32(110, 220, 255, 255);        // beacon
+                        if ((x < 5 || x > w - 6) && (y < 5 || y > h - 6)) return Shade(body, 0.6f);                             // corner antennas
+                        break;
+                    }
+                    case "provider_chest":
+                    case "requester_chest":
+                        if (y == h / 2 || y == h / 2 - 1) return Outline;                                                        // lid
+                        if (x >= 6 && x <= 9 && y >= h / 2 - 3 && y <= h / 2 + 2) return new Color32(230, 230, 235, 255);        // latch
+                        if (def.Id == "provider_chest" ? y > h / 2 && Mathf.Abs(x - 7.5f) < (h - 2 - y) * 0.7f : y < h / 2 - 1 && Mathf.Abs(x - 7.5f) < (y - 1) * 0.7f)
+                            return Shade(body, 1.4f);                                                                            // arrow out / in
+                        break;
                     case "constant_combinator":
                     case "arithmetic_combinator":
                     case "decider_combinator":
@@ -600,6 +615,15 @@ namespace Codebound.Game
         }, new Vector2(0.5f, 0.5f));
 
         /// <summary>Small item icon (6x6 px) for items riding on belts.</summary>
+        /// <summary>A small logistic robot (drawn flying, with its cargo).</summary>
+        public static Sprite Robot() => Make("logistic_robot_flying", 10, 8, (x, y) =>
+        {
+            bool body = x >= 2 && x <= 7 && y >= 2 && y <= 5;
+            if (body) return x == 2 || x == 7 || y == 2 || y == 5 ? Outline : (y == 4 && (x == 4 || x == 5) ? new Color32(110, 220, 255, 255) : new Color32(200, 205, 215, 255));
+            if ((y == 6 || y == 7) && (x <= 2 || x >= 7)) return new Color32(90, 96, 108, 255);   // rotors
+            return Clear;
+        }, new Vector2(0.5f, 0.5f));
+
         public static Sprite ItemIcon(string itemId)
         {
             uint rgb;

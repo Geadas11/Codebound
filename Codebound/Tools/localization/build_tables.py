@@ -184,6 +184,9 @@ def main():
     sg = {}
     exec(open(os.path.join(here, "tables_signals.py"), encoding="utf-8").read(), sg)
     T.update(sg["T8"])
+    rb = {}
+    exec(open(os.path.join(here, "tables_robots.py"), encoding="utf-8").read(), rb)
+    T.update(rb["T9"])
     out = os.path.join(here, "..", "..", "Assets", "StreamingAssets", "Localization")
     os.makedirs(out, exist_ok=True)
     for key, row in T.items():

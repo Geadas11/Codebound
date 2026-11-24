@@ -109,3 +109,10 @@ Ordem mantida: a auditoria confirmou que a Etapa 1 é pré-requisito de todas (o
 - **Testes**: 171/171 EditMode; runtimes das 8 linguagens PASS; build + self-test PASS; Play Mode verificado.
 - **Limitações**: uma cor de fio; combinadores sem energia; decisor sem `ANY/EVERYTHING`; HUD sem marcador próprio para sinais (usa `hud.set` nos programas).
 - **Retomar**: Etapa 6 — logística avançada (robôs).
+
+### Etapa 6 — concluída (2026-11-24)
+- **Feito**: robôporto, redes logísticas, baús fornecedor e de pedidos, hub como armazém, robôs físicos com carga, reservas, regresso e pairar sem perdas, sinais, saves dos voos, API nas 8 linguagens, painel, multijogador.
+- **Ficheiros**: `Core/Robots.cs` (novo), `Core/Machines.cs`, `Core/Items.cs`, `Core/Buildings.cs`, `Core/Factory.cs`, `Core/Signals.cs`, `Core/GameState.cs`, `Core/Research.cs`, `Game/ProgramManager.cs`, `Game/MachinePanel.cs`, `Game/ConveyorItemsView.cs`, `Game/PixelArtFactory.cs`, runtimes JS/Python/PHP, `Tools/cshost/Host.cs`, `Tools/localization/tables_robots.py` (novo) e tabelas; testes `RobotTests.cs` (novo), `DeterminismTests.cs`.
+- **Testes**: 178/178 EditMode; runtimes PASS; build + self-test PASS; Play Mode verificado.
+- **Limitações**: sem robôs de construção, baterias dos robôs, baús de armazenamento dedicados ou lixo; voo em linha reta.
+- **Retomar**: Etapa 7 — comboios.

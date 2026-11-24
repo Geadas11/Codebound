@@ -679,6 +679,9 @@ namespace Codebound.Game
                         }
                         case "signals":
                             Reply(p, ToObjects(session.Factory.SignalsAt(m))); return;
+                        case "network":   // roboports: robots and items of their logistic network
+                            if (!(m.State is RoboportState)) break;
+                            Reply(p, session.Factory.LogisticInfo(m)); return;
                         case "status":
                             Reply(p, new Dictionary<string, object> { { "status", m.State.Status }, { "power", m.State.PowerSatisfaction }, { "busy", session.Factory.HasAction(m) } });
                             return;

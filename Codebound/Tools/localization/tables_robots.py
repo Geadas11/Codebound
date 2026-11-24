@@ -1,0 +1,14 @@
+# Rows for build_tables.py (exec'd by it): industrial simulation Etapa 6 — logistic robots.
+# Order: en, pt-PT, pt-BR, es, fr, de, it, ja, zh-Hans, ko.
+T9 = {
+"building.roboport": ["Roboport", "Robôporto", "Roboporto", "Roboport", "Roboport", "Roboterhangar", "Roboporto", "ロボポート", "机器人港", "로보포트"],
+"building.provider_chest": ["Provider Chest", "Baú fornecedor", "Baú fornecedor", "Cofre proveedor", "Coffre fournisseur", "Anbieterkiste", "Cassa fornitrice", "供給チェスト", "供货箱", "공급 상자"],
+"building.requester_chest": ["Requester Chest", "Baú de pedidos", "Baú de requisição", "Cofre solicitante", "Coffre demandeur", "Anforderungskiste", "Cassa richiedente", "要求チェスト", "需求箱", "요청 상자"],
+"item.logistic_robot": ["Logistic Robot", "Robô logístico", "Robô logístico", "Robot logístico", "Robot logistique", "Logistikroboter", "Robot logistico", "物流ロボット", "物流机器人", "물류 로봇"],
+"tech.logistic_robots": ["Logistic Robots", "Robôs logísticos", "Robôs logísticos", "Robots logísticos", "Robots logistiques", "Logistikroboter", "Robot logistici", "物流ロボット", "物流机器人", "물류 로봇"],
+"mp.request": ["Keep in this chest, e.g. iron_plate=50,copper_plate=20 (robots bring it)", "Manter neste baú, p. ex. iron_plate=50,copper_plate=20 (os robôs trazem)", "Manter neste baú, ex.: iron_plate=50,copper_plate=20 (os robôs trazem)", "Mantener en este cofre, p. ej. iron_plate=50,copper_plate=20 (los robots lo traen)", "Garder dans ce coffre, ex. iron_plate=50,copper_plate=20 (les robots l'apportent)", "In dieser Kiste halten, z. B. iron_plate=50,copper_plate=20 (Roboter bringen es)", "Tenere in questa cassa, es. iron_plate=50,copper_plate=20 (i robot lo portano)", "このチェストに保つ 例: iron_plate=50,copper_plate=20（ロボットが運ぶ）", "保持在此箱中，例如 iron_plate=50,copper_plate=20（机器人会送来）", "이 상자에 유지, 예: iron_plate=50,copper_plate=20 (로봇이 가져옴)"],
+"mp.logistics": ["Logistic network: {0} roboports, {1} robots ready, {2} flying", "Rede logística: {0} robôportos, {1} robôs prontos, {2} a voar", "Rede logística: {0} roboportos, {1} robôs prontos, {2} voando", "Red logística: {0} roboports, {1} robots listos, {2} volando", "Réseau logistique : {0} roboports, {1} robots prêts, {2} en vol", "Logistiknetz: {0} Hangars, {1} Roboter bereit, {2} im Flug", "Rete logistica: {0} roboporti, {1} robot pronti, {2} in volo", "物流ネットワーク: ロボポート {0}、待機 {1}、飛行中 {2}", "物流网络：{0} 个机器人港，{1} 个待命，{2} 个飞行中", "물류 네트워크: 로보포트 {0}, 대기 로봇 {1}, 비행 중 {2}"],
+"mp.noLogistics": ["Not covered by a roboport.", "Fora do alcance de um robôporto.", "Fora do alcance de um roboporto.", "Fuera del alcance de un roboport.", "Hors de portée d'un roboport.", "Kein Roboterhangar in Reichweite.", "Fuori dalla portata di un roboporto.", "ロボポートの範囲外です。", "不在机器人港范围内。", "로보포트 범위 밖입니다."],
+"mp.role.robots": ["robots", "robôs", "robôs", "robots", "robots", "Roboter", "robot", "ロボット", "机器人", "로봇"],
+"st.no_robots": ["no robots", "sem robôs", "sem robôs", "sin robots", "aucun robot", "keine Roboter", "nessun robot", "ロボットなし", "无机器人", "로봇 없음"],
+}

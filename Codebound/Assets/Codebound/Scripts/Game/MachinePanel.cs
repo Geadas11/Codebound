@@ -95,8 +95,14 @@ namespace Codebound.Game
         /// <summary>Combinators and switchable machines: the setting text, what the networks carry, and the result.</summary>
         void DrawSignals(MachineState st)
         {
-            bool combinator = st is CombinatorState;
-            if (!combinator && !st.TakesCondition && !(st is CableState)) return;
+            bool combinator = st is CombinatorState, requester = st is StorageState rs0 && rs0.Role == LogisticRole.Requester;
+            if (st is RoboportState || (st is StorageState ls && ls.Role != LogisticRole.None))   // logistic network summary
+            {
+                var info = session.Factory.LogisticInfo(open);
+                GUILayout.Label(info == null ? L("mp.noLogistics", "Not covered by a roboport.")
+                    : L("mp.logistics", "Logistic network: {0} roboports, {1} robots ready, {2} flying", info["roboports"], info["robotsReady"], info["robotsFlying"]), small);
+            }
+            if (!combinator && !requester && !st.TakesCondition && !(st is CableState) && !(st is RoboportState)) return;
             var f = session.Factory;
             if (st is CableState || f.OnSignalNetwork(open))
             {
@@ -105,9 +111,9 @@ namespace Codebound.Game
                 foreach (var kv in sig) { parts.Add(kv.Key + "=" + kv.Value); if (parts.Count >= 12) { parts.Add("…"); break; } }
                 GUILayout.Label(L("mp.sigIn", "Signals: {0}", parts.Count == 0 ? "—" : string.Join(", ", parts)), small);
             }
-            if (st is CableState) return;
-            if (sigFor != open) { sigFor = open; sigError = null; sigText = st is CombinatorState c0 ? c0.Config : st.Condition?.Text ?? ""; }
-            string help = st is CombinatorState cb ? (cb.Kind == BuildingKind.ConstantCombinator ? L("mp.sigConst", "Signals it sends, e.g. A=5,iron_plate=10")
+            if (st is CableState || st is RoboportState) return;
+            if (sigFor != open) { sigFor = open; sigError = null; sigText = st is CombinatorState c0 ? c0.Config : requester ? ((StorageState)st).RequestText : st.Condition?.Text ?? ""; }
+            string help = requester ? L("mp.request", "Keep in this chest, e.g. iron_plate=50,copper_plate=20 (robots bring it)") : st is CombinatorState cb ? (cb.Kind == BuildingKind.ConstantCombinator ? L("mp.sigConst", "Signals it sends, e.g. A=5,iron_plate=10")
                 : cb.Kind == BuildingKind.ArithmeticCombinator ? L("mp.sigArith", "left op right->output, e.g. iron_plate/10->A or EACH*2->EACH (+ - * / %)")
                 : L("mp.sigDecide", "condition->output, e.g. iron_plate<100->A (sends 1) or A>5->B:input"))
                 : L("mp.sigCond", "Works only while, e.g. iron_plate<100 (empty = always). Needs a signal cable next to it.");
@@ -137,7 +143,7 @@ namespace Codebound.Game
         void DrawMachine()
         {
             var st = open.State;
-            bool signals = st is CombinatorState || st.TakesCondition || st is CableState;
+            bool signals = st is CombinatorState || st.TakesCondition || st is CableState || st is RoboportState || (st is StorageState sl && sl.Role != LogisticRole.None);
             float w = 420, h = signals ? 470 : 360;
             GUILayout.BeginArea(new Rect((UiGui.W - w) / 2, (UiGui.H - h) / 2, w, h), box);
             GUILayout.Label($"{Loc.Building(open.Def)} #{open.InstanceId}", title);

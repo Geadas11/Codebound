@@ -282,7 +282,7 @@ namespace Codebound.Core
         readonly Dictionary<string, int> merged = new Dictionary<string, int>();
         bool signalDirty = true;
 
-        static bool IsSignalUser(MachineState s) => s is StorageState || s is PipeState || s is CombinatorState || s is ComputerState || s.TakesCondition;
+        static bool IsSignalUser(MachineState s) => s is StorageState || s is PipeState || s is CombinatorState || s is ComputerState || s is RoboportState || s.TakesCondition;
         public const float LampKW = 5f;
 
         void SignalPlaced(PlacedBuilding b)
@@ -385,6 +385,9 @@ namespace Codebound.Core
                             if (seg?.Fluid == null) break;
                             foreach (var n in link.Out) if (n.Counted.Add(seg)) Add(n.Next, SignalSpec.FluidSignal(seg.Fluid), (int)seg.Amount);   // each segment once per network
                             break;
+                        case RoboportState _:
+                            RoboportSignals(b, link.Out);
+                            break;
                         case ComputerState pc:
                             foreach (var kv in pc.SignalOut) foreach (var n in link.Out) Add(n.Next, kv.Key, kv.Value);
                             break;
@@ -436,6 +439,7 @@ namespace Codebound.Core
             if (b?.State == null) return "nothing there";
             if (text != null && text.Length > SignalSpec.MaxText) return "too long";
             if (b.State is CombinatorState cb) return cb.Configure(text);
+            if (b.State is StorageState ss && ss.Role == LogisticRole.Requester) return ss.SetRequests(text);
             if (b.State.TakesCondition) return b.State.SetCondition(text);
             return "this machine has no signal settings";
         }

@@ -102,6 +102,12 @@ namespace Codebound.Core
                 Cost = new[] { new ItemStack(ItemDatabase.Circuit, 10), new ItemStack(ItemDatabase.CopperWire, 20) },
                 Prereqs = new[] { "manufacturing" }, Unlocks = new[] { "cable", "constant_combinator", "arithmetic_combinator", "decider_combinator", "lamp" } },
 
+            // ---- logistic robots (Etapa 6 of the industrial simulation)
+            new Tech { Id = "logistic_robots", Name = "Logistic Robots", Area = "Industry", Seconds = 40,
+                Description = "Roboports (cover 25x25 cells, those that touch form one network), provider chests and requester chests (requests like iron_plate=50). Robots (assembler: 2 circuits, 2 gears, 4 copper wire) fly items from providers, then from a powered storage hub's chests. Programs: roboport.network(), requester.configure(text).",
+                Cost = new[] { new ItemStack(ItemDatabase.Circuit, 20), new ItemStack(ItemDatabase.IronGear, 20), new ItemStack(ItemDatabase.CopperWire, 20) },
+                Prereqs = new[] { "robotics", "networking" }, Unlocks = new[] { "roboport", "provider_chest", "requester_chest" } },
+
             // ---- main line: rebuild the ship
             new Tech { Id = "ship_frame", Name = "Ship: Hull Frame", Area = "Space", MainLine = true, Seconds = 45,
                 Description = "Repair the crashed hull's frame.",

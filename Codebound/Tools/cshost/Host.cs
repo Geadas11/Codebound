@@ -104,6 +104,7 @@ namespace Codebound
             ["pump"] = new[] { "start", "stop", "configure", "signals" }, ["pumpjack"] = new[] { "start", "stop", "configure", "signals" }, ["filler"] = new[] { "start", "stop", "configure", "signals" },
             ["long_inserter"] = new[] { "configure", "signals" }, ["belt"] = new[] { "configure", "signals" }, ["lamp"] = new[] { "configure", "signals" },
             ["constant_combinator"] = new[] { "configure", "signals" }, ["arithmetic_combinator"] = new[] { "configure", "signals" }, ["decider_combinator"] = new[] { "configure", "signals" },
+            ["requester_chest"] = new[] { "configure", "signals" }, ["roboport"] = new[] { "network", "signals" },
         };
         public string Id { get; }
         public string Type { get; }
@@ -130,6 +131,8 @@ namespace Codebound
         /// <summary>Combinators and machine conditions: "iron_plate&lt;100", "A*2->B", "A>5->B:input", "A=5,B=2".</summary>
         public JsonNode Configure(string text) => Call("configure", text ?? "");
         public JsonNode Signals() => Call("signals");
+        /// <summary>Roboports: robots and items of their logistic network.</summary>
+        public JsonNode Network() => Call("network");
         public JsonNode Plant(int plot = -1, string species = null) => Call("plant", plot < 0 ? null : (object)plot, species);
         public JsonNode Water(int plot = -1) => plot < 0 ? Call("water") : Call("water", plot);
         public JsonNode Harvest(int plot = -1) => plot < 0 ? Call("harvest") : Call("harvest", plot);

@@ -151,7 +151,8 @@ const PRELUDE = `
     if (info.type === 'server') { m.get = (k) => call(id, 'get', [String(k)]); m.set = (k, v) => call(id, 'set', [String(k), v]); m.keys = () => call(id, 'keys'); m.delete = (k) => call(id, 'delete', [String(k)]); }
     if (info.type === 'storage_hub') { m.totals = () => call(id, 'totals'); m.find = (item) => call(id, 'find', [String(item)]); }
     if (info.type === 'lab') { m.research = (tech) => call(id, 'research', [String(tech)]); m.techs = () => call(id, 'techs'); }
-    if (['inserter', 'long_inserter', 'conveyor', 'belt', 'pump', 'pumpjack', 'filler', 'lamp', 'constant_combinator', 'arithmetic_combinator', 'decider_combinator'].includes(info.type)) { m.configure = (text) => call(id, 'configure', [text == null ? '' : String(text)]); m.signals = () => call(id, 'signals'); }
+    if (['inserter', 'long_inserter', 'conveyor', 'belt', 'pump', 'pumpjack', 'filler', 'lamp', 'constant_combinator', 'arithmetic_combinator', 'decider_combinator', 'requester_chest'].includes(info.type)) { m.configure = (text) => call(id, 'configure', [text == null ? '' : String(text)]); m.signals = () => call(id, 'signals'); }
+    if (info.type === 'roboport') m.network = () => call(id, 'network');
     if (info.type === 'pump' || info.type === 'pumpjack' || info.type === 'filler') { m.start = () => call(id, 'start'); m.stop = () => call(id, 'stop'); }
     if (info.type === 'conveyor' || info.type === 'inserter') {
       m.start = () => call(id, 'start');

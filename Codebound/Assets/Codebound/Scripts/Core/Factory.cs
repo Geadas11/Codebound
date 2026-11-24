@@ -83,6 +83,7 @@ namespace Codebound.Core
             if (st is CableState) yield return cables;
             if (st != null && IsSignalUser(st)) yield return signalUsers;
             if (st is LampState) yield return lamps;
+            if (st is RoboportState) yield return roboports;
         }
 
         static void RemoveSorted(List<PlacedBuilding> l, PlacedBuilding b)
@@ -113,6 +114,7 @@ namespace Codebound.Core
                 PowerPlaced(b);
                 SignalPlaced(b);
                 if (b.State is StorageState || b.State is StorageHubState) hubsDirty = true;
+                if (b.State is StorageState || b.State is StorageHubState || b.State is RoboportState) logisticsDirty = true;
                 if (b.State is PipeState) fluidDirty = true;
             };
             grid.Removed += b =>
@@ -124,6 +126,7 @@ namespace Codebound.Core
                 PowerRemoved(b);
                 SignalRemoved(b);
                 if (b.State is StorageState || b.State is StorageHubState) hubsDirty = true;
+                if (b.State is StorageState || b.State is StorageHubState || b.State is RoboportState) logisticsDirty = true;
                 if (b.State is PipeState) fluidDirty = true;
             };
         }
@@ -164,6 +167,9 @@ namespace Codebound.Core
                 case BuildingKind.Cable: return new CableState();
                 case BuildingKind.ConstantCombinator: case BuildingKind.ArithmeticCombinator: case BuildingKind.DeciderCombinator: return new CombinatorState(def.Kind);
                 case BuildingKind.Lamp: return new LampState();
+                case BuildingKind.Roboport: return new RoboportState();
+                case BuildingKind.ProviderChest: return new StorageState { Role = LogisticRole.Provider };
+                case BuildingKind.RequesterChest: return new StorageState { Role = LogisticRole.Requester };
                 default: return null;
             }
         }
@@ -178,7 +184,8 @@ namespace Codebound.Core
         static bool IsConsumer(PlacedBuilding b) => b.Def.Kind == BuildingKind.Drill || b.Def.Kind == BuildingKind.Computer
             || b.Def.Kind == BuildingKind.Greenhouse || b.Def.Kind == BuildingKind.Assembler || b.Def.Kind == BuildingKind.Lab || b.Def.Kind == BuildingKind.Turret
             || b.Def.Kind == BuildingKind.Scrubber || b.Def.Kind == BuildingKind.Server || b.Def.Kind == BuildingKind.StorageHub || b.Def.Kind == BuildingKind.Heater
-            || b.Def.Kind == BuildingKind.Pump || b.Def.Kind == BuildingKind.Pumpjack || b.Def.Kind == BuildingKind.Filler || b.Def.Kind == BuildingKind.Lamp;
+            || b.Def.Kind == BuildingKind.Pump || b.Def.Kind == BuildingKind.Pumpjack || b.Def.Kind == BuildingKind.Filler || b.Def.Kind == BuildingKind.Lamp
+            || b.Def.Kind == BuildingKind.Roboport;
         public const float GrowLampKW = 30f, AssemblerKW = 60f, LabKW = 40f;
         /// <summary>Tech progress of the world (set by GameState).</summary>
         public Research Research = new Research();
@@ -200,6 +207,7 @@ namespace Codebound.Core
             if (c.Def.Kind == BuildingKind.StorageHub) return 20f;
             if (c.State is SwitchedFluidState sw && !sw.Working) return 0f;
             if (c.Def.Kind == BuildingKind.Lamp) return c.State.SignalAllows ? LampKW : 0f;
+            if (c.Def.Kind == BuildingKind.Roboport) return RoboportKW;
             if (c.Def.Kind == BuildingKind.Pump) return Fluids.PumpKW;
             if (c.Def.Kind == BuildingKind.Pumpjack) return Fluids.PumpjackKW;
             if (c.Def.Kind == BuildingKind.Filler) return Fluids.FillerKW;
@@ -391,6 +399,7 @@ namespace Codebound.Core
             yield return new SimSystem("greenhouses", () => TickGreenhouses(dt));
             yield return new SimSystem("launch pads", () => TickLaunchPads(dt));
             yield return new SimSystem("storage hubs", LinkStorageHubs);
+            yield return new SimSystem("robots", () => TickRobots(dt));
         }
 
         public void Tick(float dt)
@@ -407,6 +416,7 @@ namespace Codebound.Core
             TickGreenhouses(dt);
             TickLaunchPads(dt);
             LinkStorageHubs();
+            TickRobots(dt);
         }
 
         readonly List<PlacedBuilding> found = new List<PlacedBuilding>();
@@ -427,7 +437,7 @@ namespace Codebound.Core
                     int cx = (int)Math.Floor(b.CenterX), cy = (int)Math.Floor(b.CenterY);
                     for (int dx = -r; dx <= r; dx++)
                         for (int dy = -r; dy <= r; dy++)
-                            if (grid.At(new Cell(cx + dx, cy + dy)) is PlacedBuilding c && c.State is StorageState && c.DistanceTo(b) <= StorageHubState.Radius && !found.Contains(c)) found.Add(c);
+                            if (grid.At(new Cell(cx + dx, cy + dy)) is PlacedBuilding c && c.State is StorageState hc && hc.Role != LogisticRole.Requester && c.DistanceTo(b) <= StorageHubState.Radius && !found.Contains(c)) found.Add(c);
                     found.Sort((p, q) => p.InstanceId.CompareTo(q.InstanceId));   // same order as before: the order they were built
                     hub.Chests.Clear();
                     foreach (var c in found) hub.Chests.Add((StorageState)c.State);
