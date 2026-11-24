@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Codebound.Core
 {
-    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap, Pipe, Pump, Tank, OffshorePump, Pumpjack, Boiler, SteamEngine, Filler, Cable, ConstantCombinator, ArithmeticCombinator, DeciderCombinator, Lamp, Roboport, ProviderChest, RequesterChest, Rail, RailSignal, TrainStop, TrainDepot }
+    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap, Pipe, Pump, Tank, OffshorePump, Pumpjack, Boiler, SteamEngine, Filler, Cable, ConstantCombinator, ArithmeticCombinator, DeciderCombinator, Lamp, Roboport, ProviderChest, RequesterChest, Rail, RailSignal, TrainStop, TrainDepot, UndergroundPipe }
 
     public sealed class BuildingDef
     {
@@ -131,6 +131,11 @@ namespace Codebound.Core
                 new ItemStack(ItemDatabase.IronPlate, 4), new ItemStack(ItemDatabase.Circuit, 2)),
             new BuildingDef("train_depot", "Train Depot", BuildingKind.TrainDepot, 2, 2, 0x7a4a3a,
                 new ItemStack(ItemDatabase.IronPlate, 20), new ItemStack(ItemDatabase.StoneBrick, 10), new ItemStack(ItemDatabase.IronGear, 6)),
+            // underground transport (Etapa 9)
+            new BuildingDef("underground_belt", "Underground Belt", BuildingKind.Belt, 1, 1, 0x4a4f57,
+                new ItemStack(ItemDatabase.IronPlate, 5), new ItemStack(ItemDatabase.IronGear, 2)),
+            new BuildingDef("pipe_to_ground", "Pipe to Ground", BuildingKind.UndergroundPipe, 1, 1, 0x7d8894,
+                new ItemStack(ItemDatabase.IronPlate, 5), new ItemStack(ItemDatabase.StoneBrick, 2)),
         };
 
         public static BuildingDef TryGet(string id) { foreach (var b in All) if (b.Id == id) return b; return null; }

@@ -40,6 +40,8 @@ namespace Codebound.Core
     public sealed class PipeState : MachineState
     {
         public readonly float Capacity;
+        /// <summary>Pipe to ground: joins only the pipe behind it and its partner (the next one ahead, facing back, within 10 cells).</summary>
+        public bool Underground;
         internal Factory.FluidSegment Segment;
         internal string LoadFluid; internal float LoadAmount;   // its share, kept while segments are rebuilt (and from saves)
         public PipeState(float capacity) { Capacity = capacity; }
@@ -213,13 +215,12 @@ namespace Codebound.Core
                 {
                     var p = stack.Pop();
                     seg.Pipes.Add(p);
-                    foreach (var c in p.Cells())
-                        for (int r = 0; r < 4; r++)
-                        {
-                            var q = grid.At(c.Move((Rotation)r));
-                            if (q == null || q == p || !(q.State is PipeState qs) || qs.Segment != null) continue;
-                            qs.Segment = seg; stack.Push(q);
-                        }
+                    foreach (var q in PipeLinks(p))
+                    {
+                        var qs = (PipeState)q.State;
+                        if (qs.Segment != null) continue;
+                        qs.Segment = seg; stack.Push(q);
+                    }
                 }
                 seg.Pipes.Sort((a, b) => a.InstanceId.CompareTo(b.InstanceId));
                 // the fluid with the most in it wins (two fluids never meet in play: placement refuses it)
@@ -239,11 +240,49 @@ namespace Codebound.Core
 
         FluidSegment SegmentAt(Cell c) => (grid.At(c)?.State as PipeState)?.Segment;
 
+        public const int PipeUndergroundReach = 10;
+
+        /// <summary>A pipe to ground's partner: the first pipe to ground ahead within reach, if it faces back.</summary>
+        PlacedBuilding PipePartner(PlacedBuilding p)
+        {
+            for (int d = 1; d <= PipeUndergroundReach; d++)
+            {
+                var o = grid.At(p.Origin.Move(p.Rotation, d));
+                if (o?.State is PipeState os && os.Underground) return o.Rotation == p.Rotation.Next().Next() ? o : null;
+            }
+            return null;
+        }
+
+        /// <summary>Pipes and tanks a pipe or tank is joined to.</summary>
+        IEnumerable<PlacedBuilding> PipeLinks(PlacedBuilding p)
+        {
+            var ps = (PipeState)p.State;
+            var cand = new List<PlacedBuilding>();
+            if (ps.Underground) { cand.Add(grid.At(p.Origin.Move(p.Rotation, -1))); cand.Add(PipePartner(p)); }
+            else foreach (var c in p.Cells()) for (int r = 0; r < 4; r++) cand.Add(grid.At(c.Move((Rotation)r)));
+            foreach (var q in cand)
+            {
+                if (q == null || q == p || !(q.State is PipeState qs)) continue;
+                if (qs.Underground && grid.At(q.Origin.Move(q.Rotation, -1)) != p && PipePartner(q) != p) continue;   // its side does not connect
+                yield return q;
+            }
+        }
+
         /// <summary>Would placing this pipe or tank join two segments holding different fluids?</summary>
         public bool FluidConflict(BuildingDef def, Cell origin, Rotation rot)
         {
-            if (def.Kind != BuildingKind.Pipe && def.Kind != BuildingKind.Tank) return false;
+            if (def.Kind != BuildingKind.Pipe && def.Kind != BuildingKind.Tank && def.Kind != BuildingKind.UndergroundPipe) return false;
             if (fluidDirty) RebuildSegments();
+            if (def.Kind == BuildingKind.UndergroundPipe)   // the pipe behind it and whatever it would reach underground
+            {
+                string fb = SegmentAt(origin.Move(rot, -1))?.Fluid, fa = null;
+                for (int d = 1; d <= PipeUndergroundReach; d++)
+                {
+                    var o = grid.At(origin.Move(rot, d));
+                    if (o?.State is PipeState os && os.Underground) { if (o.Rotation == rot.Next().Next()) fa = os.Segment?.Fluid; break; }
+                }
+                return fb != null && fa != null && fb != fa;
+            }
             var (w, h) = def.Size(rot);
             string seen = null;
             for (int x = -1; x <= w; x++)

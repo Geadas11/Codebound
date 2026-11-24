@@ -42,6 +42,8 @@ namespace Codebound.Core
         public string Filter { get => filter; set { if (filter != value) { filter = value; Touch(); } } }
         public int Turn;           // splitter: which output goes next
         public bool Sorts;         // sorter: the filter picks the exit instead of refusing items
+        /// <summary>Underground belts: entrance (false) or exit (true). Set when built (an exit pairs with the entrance behind it).</summary>
+        public bool Exit;
 
         public ConveyorState() { Contents.Changed += Reconcile; }
         public override bool TakesCondition => true;
@@ -160,6 +162,7 @@ namespace Codebound.Core
         {
             d["on"] = Running ? "1" : "0";
             if (Filter != null) d["filter"] = Filter;
+            if (Exit) d["ug"] = "out";
             if (ItemCount == 0) return;
             var sb = new StringBuilder();
             for (int l = 0; l < Lanes; l++)
@@ -174,6 +177,7 @@ namespace Codebound.Core
         {
             if (k == "on") Running = v == "1";
             else if (k == "filter") Filter = v;
+            else if (k == "ug") Exit = v == "out";
             else if (k == "lanes")   // exact positions (the "bi item" line already put the items on, roughly)
             {
                 var parts = v.Split('|');
@@ -278,6 +282,7 @@ namespace Codebound.Core
                 c.Status = "blocked";
                 if (!c.Packed()) continue;   // an item that came in this pass can still move up next tick
                 // nothing can move until the way ahead changes (or this belt's own contents do)
+                if (IsUnderground(b) && !c.Exit && UndergroundPartner(b) == null) continue;   // no exit yet: one may be built anywhere ahead
                 var (first, second) = Outputs(b, c, c.Item);
                 bool split = b.Def.Id == "splitter" || b.Def.Id == "sorter";
                 if (!Watchable(first) || (split && !Watchable(second))) continue;
@@ -295,8 +300,39 @@ namespace Codebound.Core
         }
 
         /// <summary>Where this belt sends an item first, and the alternative (splitters fall back to it).</summary>
-        static (Cell first, Cell second) Outputs(PlacedBuilding b, ConveyorState c, string item)
+        public const int UndergroundReach = 5;   // an entrance reaches an exit up to 5 cells ahead (4 cells in between)
+
+        static bool IsUnderground(PlacedBuilding b) => b?.Def.Id == "underground_belt";
+
+        /// <summary>An underground belt's other end: the first underground belt facing the same way within reach, if it is the other kind.</summary>
+        internal PlacedBuilding UndergroundPartner(PlacedBuilding b)
         {
+            var c = (ConveyorState)b.State;
+            int dir = c.Exit ? -1 : 1;
+            for (int d = 1; d <= UndergroundReach; d++)
+            {
+                var o = grid.At(b.Origin.Move(b.Rotation, d * dir));
+                if (!IsUnderground(o) || o.Rotation != b.Rotation) continue;
+                return ((ConveyorState)o.State).Exit != c.Exit ? o : null;
+            }
+            return null;
+        }
+
+        /// <summary>When an underground belt is built: it is an exit if the nearest one behind it (same way) is an entrance without one.</summary>
+        void PairUnderground(PlacedBuilding b)
+        {
+            for (int d = 1; d <= UndergroundReach; d++)
+            {
+                var o = grid.At(b.Origin.Move(b.Rotation, -d));
+                if (!IsUnderground(o) || o.Rotation != b.Rotation) continue;
+                ((ConveyorState)b.State).Exit = !((ConveyorState)o.State).Exit;
+                return;
+            }
+        }
+
+        (Cell first, Cell second) Outputs(PlacedBuilding b, ConveyorState c, string item)
+        {
+            if (IsUnderground(b) && !c.Exit) { var p = UndergroundPartner(b); return p == null ? (b.Origin, b.Origin) : (p.Origin, p.Origin); }   // into the tunnel
             var front = b.Origin.Move(b.Rotation);
             var right = b.Origin.Move(b.Rotation.Next());
             if (b.Def.Id == "sorter") return c.Filter == null || c.Filter == item ? (front, right) : (right, front);   // chosen item straight, others right
@@ -323,7 +359,7 @@ namespace Codebound.Core
             if (target.State is ConveyorState tc)
             {
                 if (!tc.Accepts(it.Id)) return false;
-                var (tl, pos) = EntryInto(b, target, lane);
+                var (tl, pos) = IsUnderground(b) && !c.Exit ? (lane, 0f) : EntryInto(b, target, lane);   // out of a tunnel: same lane
                 if (pos == 0f) pos = over;   // straight on or round a curve: keep the rest of the step
                 if (tl < 0 || !tc.CanEnter(tl, pos)) return false;
                 c.TakeFront(lane);
@@ -348,6 +384,7 @@ namespace Codebound.Core
             Rotation travel = Rotation.R0;
             for (int r = 0; r < 4; r++) if (b.Origin.Move((Rotation)r).Equals(t.Origin)) travel = (Rotation)r;
             var rt = t.Rotation;
+            if (IsUnderground(t) && ((ConveyorState)t.State).Exit) return (-1, 0f);   // an exit only takes what comes out of its tunnel
             if (rt == travel) return (lane, 0f);
             if (rt == travel.Next().Next()) return (-1, 0f);
             var behind = grid.At(t.Origin.Move(rt, -1));

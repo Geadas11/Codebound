@@ -114,6 +114,12 @@ namespace Codebound.Core
                 Cost = new[] { new ItemStack(ItemDatabase.IronGear, 30), new ItemStack(ItemDatabase.Circuit, 15), new ItemStack(ItemDatabase.StoneBrick, 20) },
                 Prereqs = new[] { "manufacturing", "logistics" }, Unlocks = new[] { "rail", "rail_signal", "train_stop", "train_depot" } },
 
+            // ---- underground transport (Etapa 9)
+            new Tech { Id = "underground", Name = "Underground Transport", Area = "Industry", Seconds = 30,
+                Description = "Underground belts (an entrance and the exit up to 5 cells ahead, facing the same way: items pass under anything) and pipes to ground (two facing each other up to 10 cells apart).",
+                Cost = new[] { new ItemStack(ItemDatabase.IronGear, 15), new ItemStack(ItemDatabase.StoneBrick, 10), new ItemStack(ItemDatabase.Circuit, 4) },
+                Prereqs = new[] { "logistics", "fluid_handling" }, Unlocks = new[] { "underground_belt", "pipe_to_ground" } },
+
             // ---- main line: rebuild the ship
             new Tech { Id = "ship_frame", Name = "Ship: Hull Frame", Area = "Space", MainLine = true, Seconds = 45,
                 Description = "Repair the crashed hull's frame.",

@@ -110,6 +110,7 @@ namespace Codebound.Core
             {
                 b.State = CreateState(b.Def);
                 if (b.State is GreenhouseState g) g.NearWater = NearWater(b);
+                if (b.Def.Id == "underground_belt") PairUnderground(b);
                 foreach (var l in ListsOf(b)) l.Add(b);
                 if (b.State != null) foreach (var (_, inv) in b.State.Inventories) inv.Changed += () => { if (b.State != null) b.State.Asleep = false; WakeAround(b); };   // its own contents changed too: a belt whose item an arm took, then got a new one
                 if (b.State != null) b.State.Touched += () => { if (b.State != null) b.State.Asleep = false; WakeAround(b); };
@@ -166,6 +167,7 @@ namespace Codebound.Core
                 case BuildingKind.Inserter: return new InserterState();
                 case BuildingKind.Pipe: return new PipeState(Fluids.PipeCapacity);
                 case BuildingKind.Tank: return new PipeState(Fluids.TankCapacity);
+                case BuildingKind.UndergroundPipe: return new PipeState(Fluids.PipeCapacity) { Underground = true };
                 case BuildingKind.Pump: return new PumpState();
                 case BuildingKind.OffshorePump: return new OffshorePumpState();
                 case BuildingKind.Pumpjack: return new PumpjackState();

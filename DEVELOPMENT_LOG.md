@@ -310,3 +310,8 @@
 - 135 → 189 testes EditMode, todos a passar; runtimes das 8 linguagens a passar; build Windows + self-test PASS em cada etapa; cada etapa verificada em Play Mode.
 - Novos ficheiros do núcleo: `Simulation.cs`, `Logistics.cs`, `Fluids.cs`, `Power.cs`, `Signals.cs`, `Robots.cs`, `Trains.cs`. Nada foi removido do jogo; saves antigos continuam a carregar (migrações testadas onde o formato mudou).
 - Ver `INDUSTRY_PLAN.md` para o registo por etapa e as limitações conhecidas.
+
+## Sessão 6 (2026-11-24): pedido "o que falta do Factorio" — Etapa 9, transporte subterrâneo
+- Plano: 9 subterrâneos, 10 máquinas em várias versões, 11 módulos e beacons, 12 refinaria e química, 13 robôs de construção.
+- Tapetes e tubos subterrâneos (ver `TECHNICAL_ARCHITECTURE.md`); tecnologia `underground`; arte; 3 textos × 10 línguas; `build_tables.py` passou a incluir as tabelas das etapas seguintes quando existirem.
+- Testes: 194/194 EditMode (5 novos em `UndergroundTests`); build + self-test PASS.

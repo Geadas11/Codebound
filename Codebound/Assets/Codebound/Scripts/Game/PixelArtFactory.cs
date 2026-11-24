@@ -285,6 +285,14 @@ namespace Codebound.Game
             var body = Hex(def.Color);
             return Make($"bld_{def.Id}_{frame}", w, h, (x, y) =>
             {
+                if (def.Id == "underground_belt" && y >= 9)   // the tunnel mouth at the front (the belt goes under)
+                    return y == 9 || x <= 1 || x >= w - 2 ? Outline : new Color32(28, 26, 30, 255);
+                if (def.Kind == BuildingKind.UndergroundPipe)   // a pipe from the back that dives into the ground at a flange
+                {
+                    if (y >= 8 && y <= 12 && x >= 3 && x <= 12) return y == 8 || y == 12 || x == 3 || x == 12 ? Outline : Shade(body, 0.7f);
+                    if (y < 8 && x >= 5 && x <= 10) return x == 5 || x == 10 ? Outline : Shade(body, x == 6 ? 1.35f : 0.95f);
+                    return Clear;
+                }
                 if (def.Kind == BuildingKind.Belt || def.Kind == BuildingKind.Conveyor)
                 {
                     if (x == 0 || x == w - 1) return Outline;

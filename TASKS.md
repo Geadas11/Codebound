@@ -151,3 +151,7 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ C17 e C++17: o Unity verifica o código (`CSource`: só `#include <cabeçalhos do sistema>`, sem `__has_include`, `#embed`, `asm`/`.incbin` — o compilador corre no PC e podia ler ficheiros), compila com clang (wasi-sdk) para WebAssembly num Job Object com 20 s de limite, e o programa corre num worker do Node já incluído, com WASI próprio (sem sistema de ficheiros nem rede; `printf` → log; `sleep` em tempo de jogo) e memória criada pelo anfitrião com máximo = RAM; API em `<codebound.h>` (`cb_find`, `cb_op`, `cb_call`, `cb_num`, eventos) e `cb::Machine` em C++ — 12 testes de runtime + 15 testes do filtro
 - ✅ Self-test do build com 8 linguagens (JS, TS, Python, SQL, PHP, C, C++, C#); HTML/CSS no HUD → as 10 linguagens do Prompt Mestre funcionam
 - ✅ Depurador passo a passo para PHP e C#; linhas (e ficheiro) de erro em tempo de execução para C/C++
+
+## Mais Factorio (pedido de 2026-11-24)
+- ✅ Etapa 9 — Tapetes subterrâneos (até 5 células) e tubos subterrâneos (até 10), saída só aceita do túnel, tubos ao lado não ligam, saves — 5 testes (194/194), build + self-test PASS
+- ⬜ Etapa 10 — Máquinas em várias versões · ⬜ 11 — Módulos e beacons · ⬜ 12 — Refinaria e química · ⬜ 13 — Robôs de construção

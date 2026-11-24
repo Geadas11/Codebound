@@ -190,6 +190,12 @@ def main():
     tr = {}
     exec(open(os.path.join(here, "tables_trains.py"), encoding="utf-8").read(), tr)
     T.update(tr["T10"])
+    for name, var in (("tables_underground.py", "T11"), ("tables_tiers.py", "T12"), ("tables_modules.py", "T13"), ("tables_chemistry.py", "T14"), ("tables_construction.py", "T15")):
+        path = os.path.join(here, name)
+        if os.path.exists(path):   # later stages add their own tables
+            more_t = {}
+            exec(open(path, encoding="utf-8").read(), more_t)
+            T.update(more_t[var])
     out = os.path.join(here, "..", "..", "Assets", "StreamingAssets", "Localization")
     os.makedirs(out, exist_ok=True)
     for key, row in T.items():
