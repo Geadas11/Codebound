@@ -202,9 +202,9 @@ class Machine:
                    "assembler": {"craft"}, "lab": {"research", "techs"}, "turret": {"targets", "fire"},
                    "launchpad": {"launch", "throttle", "flight", "planets", "travel", "land", "asteroids", "mine_asteroid", "dock", "answer", "transmit"},
                    "server": {"get", "set", "keys", "delete"}, "storage_hub": {"totals", "find"},
-                   "pump": {"start", "stop"}, "pumpjack": {"start", "stop"}, "filler": {"start", "stop"}, "roboport": {"network"}}.get(self.type, set())
+                   "pump": {"start", "stop"}, "pumpjack": {"start", "stop"}, "filler": {"start", "stop"}, "roboport": {"network"}, "train_depot": {"train"}}.get(self.type, set())
         if self.type in ("inserter", "long_inserter", "conveyor", "belt", "pump", "pumpjack", "filler", "lamp",
-                         "constant_combinator", "arithmetic_combinator", "decider_combinator", "requester_chest"):
+                         "constant_combinator", "arithmetic_combinator", "decider_combinator", "requester_chest", "train_depot", "train_stop"):
             allowed = allowed | {"configure", "signals"}
         if name not in allowed:
             raise AttributeError(f"'{self.type}' has no function '{name}'")

@@ -282,7 +282,7 @@ namespace Codebound.Core
         readonly Dictionary<string, int> merged = new Dictionary<string, int>();
         bool signalDirty = true;
 
-        static bool IsSignalUser(MachineState s) => s is StorageState || s is PipeState || s is CombinatorState || s is ComputerState || s is RoboportState || s.TakesCondition;
+        static bool IsSignalUser(MachineState s) => s is StorageState || s is PipeState || s is CombinatorState || s is ComputerState || s is RoboportState || s is TrainStopState || s.TakesCondition;
         public const float LampKW = 5f;
 
         void SignalPlaced(PlacedBuilding b)
@@ -385,6 +385,19 @@ namespace Codebound.Core
                             if (seg?.Fluid == null) break;
                             foreach (var n in link.Out) if (n.Counted.Add(seg)) Add(n.Next, SignalSpec.FluidSignal(seg.Fluid), (int)seg.Amount);   // each segment once per network
                             break;
+                        case TrainStopState tstop:   // a waiting train's cargo, and T = 1
+                        {
+                            var tr = tstop.Train;
+                            if (tr == null) break;
+                            foreach (var n in link.Out)
+                            {
+                                Add(n.Next, "T", 1);
+                                for (int w = 0; w < tr.WagonCount; w++)
+                                    for (int sl = 0; sl < TrainDepotState.WagonSlots; sl++)
+                                        if (!tr.Wagons[w][sl].IsEmpty) Add(n.Next, tr.Wagons[w][sl].ItemId, tr.Wagons[w][sl].Count);
+                            }
+                            break;
+                        }
                         case RoboportState _:
                             RoboportSignals(b, link.Out);
                             break;
@@ -440,6 +453,8 @@ namespace Codebound.Core
             if (text != null && text.Length > SignalSpec.MaxText) return "too long";
             if (b.State is CombinatorState cb) return cb.Configure(text);
             if (b.State is StorageState ss && ss.Role == LogisticRole.Requester) return ss.SetRequests(text);
+            if (b.State is TrainDepotState td) return td.SetSchedule(text);
+            if (b.State is TrainStopState tsp) return tsp.Rename(text);
             if (b.State.TakesCondition) return b.State.SetCondition(text);
             return "this machine has no signal settings";
         }

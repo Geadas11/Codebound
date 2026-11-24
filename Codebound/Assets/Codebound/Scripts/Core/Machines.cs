@@ -205,6 +205,10 @@ namespace Codebound.Core
                 Inputs = new[] { new ItemStack(ItemDatabase.IronPlate, 1), new ItemStack(ItemDatabase.CopperWire, 3), new ItemStack(ItemDatabase.Silicon, 1) } } },
             { ItemDatabase.Robot, new Recipe { Product = ItemDatabase.Robot, Amount = 1, Seconds = 5f,
                 Inputs = new[] { new ItemStack(ItemDatabase.Circuit, 2), new ItemStack(ItemDatabase.IronGear, 2), new ItemStack(ItemDatabase.CopperWire, 4) } } },
+            { ItemDatabase.Locomotive, new Recipe { Product = ItemDatabase.Locomotive, Amount = 1, Seconds = 10f,
+                Inputs = new[] { new ItemStack(ItemDatabase.IronPlate, 20), new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.Circuit, 5) } } },
+            { ItemDatabase.CargoWagon, new Recipe { Product = ItemDatabase.CargoWagon, Amount = 1, Seconds = 5f,
+                Inputs = new[] { new ItemStack(ItemDatabase.IronPlate, 12), new ItemStack(ItemDatabase.IronGear, 6) } } },
             // food processing
             { ItemDatabase.Ration, new Recipe { Product = ItemDatabase.Ration, Amount = 2, Seconds = 2f,
                 Inputs = new[] { new ItemStack(ItemDatabase.AlienFruit, 2), new ItemStack(ItemDatabase.Glowcap, 1) } } },

@@ -187,6 +187,9 @@ def main():
     rb = {}
     exec(open(os.path.join(here, "tables_robots.py"), encoding="utf-8").read(), rb)
     T.update(rb["T9"])
+    tr = {}
+    exec(open(os.path.join(here, "tables_trains.py"), encoding="utf-8").read(), tr)
+    T.update(tr["T10"])
     out = os.path.join(here, "..", "..", "Assets", "StreamingAssets", "Localization")
     os.makedirs(out, exist_ok=True)
     for key, row in T.items():

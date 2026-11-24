@@ -116,3 +116,10 @@ Ordem mantida: a auditoria confirmou que a Etapa 1 é pré-requisito de todas (o
 - **Testes**: 178/178 EditMode; runtimes PASS; build + self-test PASS; Play Mode verificado.
 - **Limitações**: sem robôs de construção, baterias dos robôs, baús de armazenamento dedicados ou lixo; voo em linha reta.
 - **Retomar**: Etapa 7 — comboios.
+
+### Etapa 7 — concluída (2026-11-24)
+- **Feito**: carris, blocos e sinais de sentido único, paragens com nome (baía de carga), depósitos (locomotiva, vagões, combustível, carga, horário), caminho sem inversões, segurança entre comboios, ligação aos sinais de circuito, saves exatos, API nas 8 linguagens, painel, multijogador.
+- **Ficheiros**: `Core/Trains.cs` (novo), `Core/Items.cs`, `Core/Machines.cs`, `Core/Buildings.cs`, `Core/Factory.cs`, `Core/Signals.cs`, `Core/Research.cs`, `Game/ProgramManager.cs`, `Game/MachinePanel.cs`, `Game/ConveyorItemsView.cs`, `Game/PixelArtFactory.cs`, runtimes JS/Python/PHP, `Tools/cshost/Host.cs`, `Tools/localization/tables_trains.py` (novo) e tabelas; testes `TrainTests.cs` (novo), `DeterminismTests.cs`.
+- **Testes**: 184/184 EditMode; runtimes PASS; build + self-test PASS; Play Mode verificado.
+- **Limitações**: sem sinais de cadeia, marcha-atrás, curvas desenhadas, nem colisão com o jogador.
+- **Retomar**: Etapa 8 — integração.

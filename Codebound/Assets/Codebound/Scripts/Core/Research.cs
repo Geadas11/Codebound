@@ -108,6 +108,12 @@ namespace Codebound.Core
                 Cost = new[] { new ItemStack(ItemDatabase.Circuit, 20), new ItemStack(ItemDatabase.IronGear, 20), new ItemStack(ItemDatabase.CopperWire, 20) },
                 Prereqs = new[] { "robotics", "networking" }, Unlocks = new[] { "roboport", "provider_chest", "requester_chest" } },
 
+            // ---- trains (Etapa 7 of the industrial simulation)
+            new Tech { Id = "railways", Name = "Railways", Area = "Industry", Seconds = 45,
+                Description = "Rails, rail signals (split the track into blocks: one train per block), named train stops (loading bays for arms) and train depots: put a locomotive, up to 4 cargo wagons (assembler) and coal in, and a schedule like iron_mine:full,base:empty.",
+                Cost = new[] { new ItemStack(ItemDatabase.IronGear, 30), new ItemStack(ItemDatabase.Circuit, 15), new ItemStack(ItemDatabase.StoneBrick, 20) },
+                Prereqs = new[] { "manufacturing", "logistics" }, Unlocks = new[] { "rail", "rail_signal", "train_stop", "train_depot" } },
+
             // ---- main line: rebuild the ship
             new Tech { Id = "ship_frame", Name = "Ship: Hull Frame", Area = "Space", MainLine = true, Seconds = 45,
                 Description = "Repair the crashed hull's frame.",

@@ -17,7 +17,7 @@ namespace Codebound.Game
         static Vector2 Dir(Rotation r) =>
             r == Rotation.R0 ? Vector2.up : r == Rotation.R90 ? Vector2.right : r == Rotation.R180 ? Vector2.down : Vector2.left;
 
-        void Draw(string item, Vector2 at, float scale, Sprite sprite = null, int order = 3)
+        void Draw(string item, Vector2 at, float scale, Sprite sprite = null, int order = 3, float angle = 0f)
         {
             if (used == pool.Count)
             {
@@ -32,6 +32,7 @@ namespace Codebound.Game
             r.sortingOrder = order;
             r.transform.position = at;
             r.transform.localScale = Vector3.one * scale;
+            r.transform.rotation = Quaternion.Euler(0, 0, angle);
         }
 
         void LateUpdate()
@@ -52,6 +53,20 @@ namespace Codebound.Game
                 {
                     float reach = b.Def.Id == "long_inserter" ? 2f : 1f;
                     Draw(ins.Held, centre + fwd * Mathf.Lerp(-reach, reach, ins.Arm) * 0.6f, 0.6f);   // the hand travels from the pickup side to the drop side
+                }
+            }
+            foreach (var (depot, t) in session.Factory.Trains())   // trains: each unit slides from its cell towards the one ahead
+            {
+                bool moving = session.Factory.NextCell(depot, out var next);
+                float p = moving ? t.Progress : 0f;
+                for (int i = 0; i < t.Length && i < t.Trail.Count; i++)
+                {
+                    var from = t.Trail[i]; var to = i == 0 ? (moving ? next : from) : t.Trail[i - 1];
+                    var a = new Vector2(from.X + 0.5f, from.Y + 0.5f); var b = new Vector2(to.X + 0.5f, to.Y + 0.5f);
+                    var dir = b - a;
+                    if (dir.sqrMagnitude < 1e-4f && i + 1 < t.Trail.Count) dir = a - new Vector2(t.Trail[i + 1].X + 0.5f, t.Trail[i + 1].Y + 0.5f);
+                    float ang = dir.sqrMagnitude < 1e-4f ? 0f : Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg - 90f;
+                    Draw(null, Vector2.Lerp(a, b, p), 1.05f, PixelArtFactory.TrainUnit(i == 0), 5, ang);
                 }
             }
             foreach (var r in session.Factory.Robots)   // logistic robots in flight, with what they carry

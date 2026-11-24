@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Codebound.Core
 {
-    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap, Pipe, Pump, Tank, OffshorePump, Pumpjack, Boiler, SteamEngine, Filler, Cable, ConstantCombinator, ArithmeticCombinator, DeciderCombinator, Lamp, Roboport, ProviderChest, RequesterChest }
+    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap, Pipe, Pump, Tank, OffshorePump, Pumpjack, Boiler, SteamEngine, Filler, Cable, ConstantCombinator, ArithmeticCombinator, DeciderCombinator, Lamp, Roboport, ProviderChest, RequesterChest, Rail, RailSignal, TrainStop, TrainDepot }
 
     public sealed class BuildingDef
     {
@@ -25,7 +25,8 @@ namespace Codebound.Core
             || Kind == BuildingKind.LaunchPad || Kind == BuildingKind.Pump || Kind == BuildingKind.Pumpjack || Kind == BuildingKind.Filler;
 
         /// <summary>Belts can be walked over (Factorio-style); everything else blocks the player.</summary>
-        public bool Walkable => Kind == BuildingKind.Belt || Kind == BuildingKind.Conveyor || Kind == BuildingKind.ShockTrap || Kind == BuildingKind.Pipe || Kind == BuildingKind.Cable;
+        public bool Walkable => Kind == BuildingKind.Belt || Kind == BuildingKind.Conveyor || Kind == BuildingKind.ShockTrap || Kind == BuildingKind.Pipe || Kind == BuildingKind.Cable
+            || Kind == BuildingKind.Rail || Kind == BuildingKind.RailSignal;
 
         public (int w, int h) Size(Rotation r) => r.IsSideways() ? (Height, Width) : (Width, Height);
 
@@ -122,6 +123,14 @@ namespace Codebound.Core
                 new ItemStack(ItemDatabase.IronPlate, 4), new ItemStack(ItemDatabase.Circuit, 2)),
             new BuildingDef("requester_chest", "Requester Chest", BuildingKind.RequesterChest, 1, 1, 0x3a6ab8,
                 new ItemStack(ItemDatabase.IronPlate, 4), new ItemStack(ItemDatabase.Circuit, 2)),
+            // trains (Etapa 7 of the industrial simulation)
+            new BuildingDef("rail", "Rail", BuildingKind.Rail, 1, 1, 0x6a5a4a, new ItemStack(ItemDatabase.IronPlate, 1), new ItemStack(ItemDatabase.Stone, 1)),
+            new BuildingDef("rail_signal", "Rail Signal", BuildingKind.RailSignal, 1, 1, 0x6a5a4a,
+                new ItemStack(ItemDatabase.IronPlate, 2), new ItemStack(ItemDatabase.CopperWire, 2), new ItemStack(ItemDatabase.Circuit, 1)),
+            new BuildingDef("train_stop", "Train Stop", BuildingKind.TrainStop, 1, 1, 0xc8a03a,
+                new ItemStack(ItemDatabase.IronPlate, 4), new ItemStack(ItemDatabase.Circuit, 2)),
+            new BuildingDef("train_depot", "Train Depot", BuildingKind.TrainDepot, 2, 2, 0x7a4a3a,
+                new ItemStack(ItemDatabase.IronPlate, 20), new ItemStack(ItemDatabase.StoneBrick, 10), new ItemStack(ItemDatabase.IronGear, 6)),
         };
 
         public static BuildingDef TryGet(string id) { foreach (var b in All) if (b.Id == id) return b; return null; }

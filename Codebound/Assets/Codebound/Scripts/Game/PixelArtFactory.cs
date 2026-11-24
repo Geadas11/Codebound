@@ -325,6 +325,17 @@ namespace Codebound.Game
                     if ((y == 10 || y == 13) && x >= 3 && x <= 12) return Outline;
                     return Clear;
                 }
+                if (def.Kind == BuildingKind.Rail || def.Kind == BuildingKind.RailSignal)
+                {
+                    // a crossing of track (rails join every neighbouring rail): sleepers, then two steel rails each way
+                    bool sleeperV = (y % 4 == 1) && x >= 3 && x <= 12, sleeperH = (x % 4 == 1) && y >= 3 && y <= 12;
+                    bool railV = x == 5 || x == 10, railH = y == 5 || y == 10;
+                    if (def.Kind == BuildingKind.RailSignal && x >= 11 && y >= 11) return (x - 13) * (x - 13) + (y - 13) * (y - 13) <= 4 ? new Color32(40, 40, 46, 255) : Clear;   // the signal head (its light is the LED)
+                    if (def.Kind == BuildingKind.RailSignal && y >= 6 && y <= 11 && Mathf.Abs(x - 7.5f) < (11.5f - y) * 0.6f + 0.5f) return new Color32(255, 255, 255, 255);   // the way trains may pass
+                    if (railV || railH) return new Color32(176, 182, 192, 255);
+                    if (sleeperV || sleeperH) return Shade(body, 0.9f);
+                    return Clear;
+                }
                 if (def.Kind == BuildingKind.Cable)   // a thin red cross: it joins every neighbouring cable
                 {
                     bool v = x >= 7 && x <= 8, hz = y >= 7 && y <= 8;
@@ -506,6 +517,15 @@ namespace Codebound.Game
                         if (cy < -2 && ((x / 6) % 2 == 1) && x > 3 && x < w - 4) return y == 6 || y == 7 ? new Color32(220, 60, 50, 255) : new Color32(40, 40, 45, 255);   // canisters
                         if (cy > 4 && Mathf.Abs(cx) < 3) return Shade(body, 0.6f);                                                  // nozzle
                         break;
+                    case "train_stop":
+                        if (x >= 7 && x <= 8 && y >= 2) return Outline;                                                          // post
+                        if (y >= 9 && y <= 13 && x >= 3 && x <= 12) return y == 9 || y == 13 || x == 3 || x == 12 ? Outline : Shade(body, 1.2f);   // sign
+                        if (y <= 2 && x >= 5 && x <= 10) return Shade(body, 0.6f);
+                        return Clear;
+                    case "train_depot":
+                        if (y > h - 9 && Mathf.Abs(cx) < (y - (h - 9)) * 1.6f + 6) return Shade(body, 0.8f + (y % 3 == 0 ? 0.15f : 0f));   // roof
+                        if (y < h - 10 && Mathf.Abs(cx) < 8) return y < 2 ? Outline : (Mathf.Abs(cx) < 7 && y < h - 12 ? new Color32(40, 34, 30, 255) : Outline);   // doorway
+                        break;
                     case "roboport":
                     {
                         float rr = Mathf.Sqrt(cx * cx + cy * cy);
@@ -615,6 +635,20 @@ namespace Codebound.Game
         }, new Vector2(0.5f, 0.5f));
 
         /// <summary>Small item icon (6x6 px) for items riding on belts.</summary>
+        /// <summary>A locomotive or a cargo wagon, facing up (drawn rotated along the track).</summary>
+        public static Sprite TrainUnit(bool locomotive) => Make(locomotive ? "train_locomotive" : "train_wagon", 14, 15, (x, y) =>
+        {
+            if (x == 0 || x == 13 || y == 0 || y == 14) return Outline;
+            if (locomotive)
+            {
+                if (y >= 10 && x >= 3 && x <= 10) return y == 10 || x == 3 || x == 10 ? Outline : new Color32(140, 200, 230, 255);   // cab window
+                if (x >= 5 && x <= 8 && y >= 2 && y <= 5) return new Color32(40, 40, 44, 255);                                         // chimney
+                return (x == 1 || x == 12) ? new Color32(150, 50, 40, 255) : new Color32(190, 70, 55, 255);
+            }
+            if (y == 7 || x == 6 || x == 7) return new Color32(90, 96, 104, 255);
+            return (x == 1 || x == 12) ? new Color32(110, 116, 124, 255) : new Color32(140, 146, 154, 255);
+        }, new Vector2(0.5f, 0.5f));
+
         /// <summary>A small logistic robot (drawn flying, with its cargo).</summary>
         public static Sprite Robot() => Make("logistic_robot_flying", 10, 8, (x, y) =>
         {

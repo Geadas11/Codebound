@@ -65,7 +65,7 @@ namespace Codebound.Core
 
         /// <summary>Can a machine waiting on this cell sleep? Only if what it accepts depends just on its inventories and
         /// settings, which raise events. Hubs (power and other chests) and shock traps (charges) are retried every tick.</summary>
-        bool Watchable(Cell c) => !(grid.At(c)?.State is StorageHubState || grid.At(c)?.State is ShockTrapState);
+        bool Watchable(Cell c) => !(grid.At(c)?.State is StorageHubState || grid.At(c)?.State is ShockTrapState || grid.At(c)?.State is TrainStopState);   // a stop changes when a train comes, not by an event
 
         IEnumerable<List<PlacedBuilding>> ListsOf(PlacedBuilding b)
         {
@@ -84,6 +84,8 @@ namespace Codebound.Core
             if (st != null && IsSignalUser(st)) yield return signalUsers;
             if (st is LampState) yield return lamps;
             if (st is RoboportState) yield return roboports;
+            if (st is TrainDepotState) yield return depots;
+            if (st is TrainStopState) yield return stops;
         }
 
         static void RemoveSorted(List<PlacedBuilding> l, PlacedBuilding b)
@@ -116,6 +118,9 @@ namespace Codebound.Core
                 if (b.State is StorageState || b.State is StorageHubState) hubsDirty = true;
                 if (b.State is StorageState || b.State is StorageHubState || b.State is RoboportState) logisticsDirty = true;
                 if (b.State is PipeState) fluidDirty = true;
+                if (b.State is RailState) railsDirty = true;
+                if (b.State is TrainStopState ts) { ts.Owner = this; ts.Self = b; }
+                pathCache.Clear();   // a stop, rail or anything on the way may have changed
             };
             grid.Removed += b =>
             {
@@ -128,6 +133,8 @@ namespace Codebound.Core
                 if (b.State is StorageState || b.State is StorageHubState) hubsDirty = true;
                 if (b.State is StorageState || b.State is StorageHubState || b.State is RoboportState) logisticsDirty = true;
                 if (b.State is PipeState) fluidDirty = true;
+                if (b.State is RailState) railsDirty = true;
+                pathCache.Clear();
             };
         }
 
@@ -168,6 +175,10 @@ namespace Codebound.Core
                 case BuildingKind.ConstantCombinator: case BuildingKind.ArithmeticCombinator: case BuildingKind.DeciderCombinator: return new CombinatorState(def.Kind);
                 case BuildingKind.Lamp: return new LampState();
                 case BuildingKind.Roboport: return new RoboportState();
+                case BuildingKind.Rail: return new RailState(false);
+                case BuildingKind.RailSignal: return new RailState(true);
+                case BuildingKind.TrainStop: return new TrainStopState();
+                case BuildingKind.TrainDepot: return new TrainDepotState();
                 case BuildingKind.ProviderChest: return new StorageState { Role = LogisticRole.Provider };
                 case BuildingKind.RequesterChest: return new StorageState { Role = LogisticRole.Requester };
                 default: return null;
@@ -223,6 +234,9 @@ namespace Codebound.Core
         {
             var st = b.State;
             if (st == null || st is StorageState || st is PipeState || b.Def.Kind == BuildingKind.Pole) return MachineActivity.None;
+            if (st is RailState rail) return rail.Signal ? (SignalRed(b) ? MachineActivity.Blocked : MachineActivity.Working) : MachineActivity.None;   // a signal's light
+            if (st is TrainDepotState dep) return dep.HasTrain ? MachineActivity.Working : dep.Garage.Count(ItemDatabase.Locomotive) > 0 ? MachineActivity.Blocked : MachineActivity.Idle;
+            if (st is TrainStopState) return WaitingTrainAt(b) != null ? MachineActivity.Working : MachineActivity.Idle;
             if (IsConsumer(b) && st.PowerSatisfaction <= 0 && (HasAction(b) || st is ComputerState cs && cs.Running || st is ScrubberState || st is TurretState || st is SwitchedFluidState sw && sw.Running)) return MachineActivity.NoPower;
             string s = (st.Status ?? "").ToLowerInvariant();
             if (s.Contains("blocked") || s.Contains("full") || s.Contains("no fuel") || s.Contains("no source") || s.Contains("tank") || s.Contains("no power")
@@ -400,6 +414,7 @@ namespace Codebound.Core
             yield return new SimSystem("launch pads", () => TickLaunchPads(dt));
             yield return new SimSystem("storage hubs", LinkStorageHubs);
             yield return new SimSystem("robots", () => TickRobots(dt));
+            yield return new SimSystem("trains", () => TickTrains(dt));
         }
 
         public void Tick(float dt)
@@ -417,6 +432,7 @@ namespace Codebound.Core
             TickLaunchPads(dt);
             LinkStorageHubs();
             TickRobots(dt);
+            TickTrains(dt);
         }
 
         readonly List<PlacedBuilding> found = new List<PlacedBuilding>();

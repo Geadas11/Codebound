@@ -105,6 +105,7 @@ namespace Codebound
             ["long_inserter"] = new[] { "configure", "signals" }, ["belt"] = new[] { "configure", "signals" }, ["lamp"] = new[] { "configure", "signals" },
             ["constant_combinator"] = new[] { "configure", "signals" }, ["arithmetic_combinator"] = new[] { "configure", "signals" }, ["decider_combinator"] = new[] { "configure", "signals" },
             ["requester_chest"] = new[] { "configure", "signals" }, ["roboport"] = new[] { "network", "signals" },
+            ["train_depot"] = new[] { "configure", "signals", "train" }, ["train_stop"] = new[] { "configure", "signals" },
         };
         public string Id { get; }
         public string Type { get; }
@@ -133,6 +134,8 @@ namespace Codebound
         public JsonNode Signals() => Call("signals");
         /// <summary>Roboports: robots and items of their logistic network.</summary>
         public JsonNode Network() => Call("network");
+        /// <summary>Train depots: the train's state, stop, cargo and fuel.</summary>
+        public JsonNode Train() => Call("train");
         public JsonNode Plant(int plot = -1, string species = null) => Call("plant", plot < 0 ? null : (object)plot, species);
         public JsonNode Water(int plot = -1) => plot < 0 ? Call("water") : Call("water", plot);
         public JsonNode Harvest(int plot = -1) => plot < 0 ? Call("harvest") : Call("harvest", plot);

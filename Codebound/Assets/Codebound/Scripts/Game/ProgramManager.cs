@@ -679,6 +679,9 @@ namespace Codebound.Game
                         }
                         case "signals":
                             Reply(p, ToObjects(session.Factory.SignalsAt(m))); return;
+                        case "train":   // train depots: their train's state, stop, cargo and fuel
+                            if (!(m.State is TrainDepotState)) break;
+                            Reply(p, session.Factory.TrainInfo(m)); return;
                         case "network":   // roboports: robots and items of their logistic network
                             if (!(m.State is RoboportState)) break;
                             Reply(p, session.Factory.LogisticInfo(m)); return;
