@@ -145,7 +145,7 @@ namespace Codebound.Core
             switch (def.Kind)
             {
                 case BuildingKind.Storage: return new StorageState();
-                case BuildingKind.Furnace: return new FurnaceState();
+                case BuildingKind.Furnace: return new FurnaceState { Electric = def.Id == "electric_furnace" };
                 case BuildingKind.Drill: return new DrillState();
                 case BuildingKind.Generator: return new GeneratorState();
                 case BuildingKind.Computer: return ComputerState.ForModel(def.Id);
@@ -195,7 +195,7 @@ namespace Codebound.Core
         public const float SolarKW = 40f;
         /// <summary>Sunlight reaching solar panels 0..1 (daylight × clouds/rain/storm), set every tick by the game.</summary>
         public float SolarFactor = 1f;
-        static bool IsConsumer(PlacedBuilding b) => b.Def.Kind == BuildingKind.Drill || b.Def.Kind == BuildingKind.Computer
+        static bool IsConsumer(PlacedBuilding b) => b.Def.Id == "electric_furnace" || b.Def.Kind == BuildingKind.Drill || b.Def.Kind == BuildingKind.Computer
             || b.Def.Kind == BuildingKind.Greenhouse || b.Def.Kind == BuildingKind.Assembler || b.Def.Kind == BuildingKind.Lab || b.Def.Kind == BuildingKind.Turret
             || b.Def.Kind == BuildingKind.Scrubber || b.Def.Kind == BuildingKind.Server || b.Def.Kind == BuildingKind.StorageHub || b.Def.Kind == BuildingKind.Heater
             || b.Def.Kind == BuildingKind.Pump || b.Def.Kind == BuildingKind.Pumpjack || b.Def.Kind == BuildingKind.Filler || b.Def.Kind == BuildingKind.Lamp
@@ -208,8 +208,13 @@ namespace Codebound.Core
         /// <summary>Set by GameState; null in bare factory tests.</summary>
         public Ecology Ecology;
 
-        float DemandOf(PlacedBuilding c)
+        public const float ElectricFurnaceKW = 90f;
+
+        float DemandOf(PlacedBuilding c) => BaseDemand(c) * c.Def.Energy;   // later versions draw more
+
+        float BaseDemand(PlacedBuilding c)
         {
+            if (c.State is FurnaceState fs && fs.Electric) return HasAction(c) ? ElectricFurnaceKW : 0f;
             if (c.Def.Kind == BuildingKind.Computer) return ((ComputerState)c.State).Running ? ComputerKW : 0f;
             if (c.Def.Kind == BuildingKind.Drill) return HasAction(c) ? DrillKW : 0f;
             if (c.Def.Kind == BuildingKind.Assembler) return HasAction(c) ? AssemblerKW : 0f;
@@ -255,6 +260,9 @@ namespace Codebound.Core
             if (!working && st is GreenhouseState gh) foreach (var v in gh.Growth) if (v >= 0 && v < 1) working = true;
             return working ? MachineActivity.Working : MachineActivity.Idle;
         }
+
+        /// <summary>How fast a machine works: its version (Etapa 10), times its modules and nearby beacons (Etapa 11).</summary>
+        public float SpeedOf(PlacedBuilding b) => b.Def.Speed;
 
         public bool HasAction(PlacedBuilding b)
         {
@@ -315,7 +323,8 @@ namespace Codebound.Core
             if (input.IsEmpty) { st.Status = "no input"; return "no_input"; }
             string product = FurnaceState.Recipes[input.ItemId];
             if (!CanAccept(st.Output, product)) { st.Status = "output full"; return "output_full"; }
-            if (st.BurnLeftKJ <= 0 && st.Fuel.Count(ItemDatabase.Coal) == 0) { st.Status = "no fuel"; return "no_fuel"; }
+            if (st.Electric) { if (!HasPower(furnace)) { st.Status = "no power"; return "no_power"; } }
+            else if (st.BurnLeftKJ <= 0 && st.Fuel.Count(ItemDatabase.Coal) == 0) { st.Status = "no fuel"; return "no_fuel"; }
             st.Status = "smelting";
             actions.Add(new PendingAction { Machine = furnace, Kind = "smelt", Remaining = SmeltSeconds, Done = done, Complete = SmeltResult(furnace) });
             return null;
@@ -347,7 +356,7 @@ namespace Codebound.Core
             {
                 var a = actions[i];
                 float rate;
-                if (a.Machine.Def.Kind == BuildingKind.Furnace)
+                if (a.Machine.Def.Kind == BuildingKind.Furnace && !((FurnaceState)a.Machine.State).Electric)
                 {
                     var f = (FurnaceState)a.Machine.State;
                     if (f.BurnLeftKJ <= 0 && f.Fuel.TryRemove(ItemDatabase.Coal, 1)) f.BurnLeftKJ += CoalEnergyKJ;
@@ -361,9 +370,9 @@ namespace Codebound.Core
                     var st = a.Machine.State;
                     if (rate <= 0) st.Status = "no power";
                     else if (st is LabState ls) { if (st.Status == null || !st.Status.StartsWith("researching")) st.Status = "researching " + ls.Current; }
-                    else st.Status = a.Machine.Def.Kind == BuildingKind.Drill ? "mining" : "crafting";
+                    else st.Status = a.Machine.Def.Kind == BuildingKind.Drill ? "mining" : a.Machine.Def.Kind == BuildingKind.Furnace ? "smelting" : "crafting";
                 }
-                a.Remaining -= rate * dt;
+                a.Remaining -= rate * SpeedOf(a.Machine) * dt;
             }
         }
 

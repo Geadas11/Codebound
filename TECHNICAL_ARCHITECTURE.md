@@ -163,3 +163,8 @@ O projeto usa Enter Play Mode sem domain reload: qualquer estado estático tem d
 ## Transporte subterrâneo (Etapa 9)
 - **Tapete subterrâneo** (`underground_belt`, uma `ConveyorState` com `Exit`): ao construir, fica **saída** se o tapete subterrâneo mais próximo atrás (mesma direção, até 5 células) for uma entrada; o par é procurado ao longo da linha. A entrada passa os itens da frente para a mesma pista da saída (sem tempo no túnel); a saída só aceita o que vem do túnel. Entrada sem saída fica bloqueada e não dorme (uma saída pode aparecer). Save: `bx ug out`.
 - **Tubo subterrâneo** (`pipe_to_ground`, `PipeState.Underground`): liga-se só ao tubo atrás de si e ao par — o primeiro tubo subterrâneo à frente (até 10 células) virado para trás. Os tubos ao lado não se ligam. A colocação recusa ligar dois fluidos pelo túnel.
+
+## Máquinas em várias versões (Etapa 10)
+- `BuildingDef` ganhou `Speed`, `Energy`, `ModuleSlots` e `BaseType`. Perfuradora Mk2 (velocidade 2, energia 2), Montadora Mk2 (1,5 / 1,5), Mk3 (2,25 / 2,5), Fornalha elétrica (2; 90 kW da rede em vez de carvão, não aceita carvão).
+- As ações avançam a `velocidade × energia recebida`; a procura de energia é a da primeira versão × `Energy`. `Factory.SpeedOf` é o ponto único para a velocidade (a Etapa 11 junta-lhe módulos e beacons).
+- Programas: `type` = tipo da primeira versão (`drill`, `assembler`, `furnace`), por isso `mine/craft/smelt` e `machines.find("drill")` funcionam em todas as linguagens sem mudar os runtimes; o novo campo `model` diz a versão.

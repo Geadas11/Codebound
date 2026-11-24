@@ -30,6 +30,15 @@ namespace Codebound.Core
 
         public (int w, int h) Size(Rotation r) => r.IsSideways() ? (Height, Width) : (Width, Height);
 
+        /// <summary>Machine versions (Etapa 10): how fast it works and how much power it draws, relative to the first version.</summary>
+        public float Speed { get; set; } = 1f;
+        public float Energy { get; set; } = 1f;
+        /// <summary>Module slots (Etapa 11).</summary>
+        public int ModuleSlots { get; set; }
+        /// <summary>The type programs see: later versions answer to the first version's name (drill2 is a "drill").</summary>
+        public string BaseType { get; set; }
+        public string ProgramType => BaseType ?? Id;
+
         /// <summary>Hit points against creatures: walls are tough, turrets sturdy.</summary>
         public float MaxHealth => Id == "reinforced_wall" ? 1000f : Kind == BuildingKind.Structure ? 400f : Kind == BuildingKind.Turret ? 200f : 100f;
     }
@@ -131,6 +140,15 @@ namespace Codebound.Core
                 new ItemStack(ItemDatabase.IronPlate, 4), new ItemStack(ItemDatabase.Circuit, 2)),
             new BuildingDef("train_depot", "Train Depot", BuildingKind.TrainDepot, 2, 2, 0x7a4a3a,
                 new ItemStack(ItemDatabase.IronPlate, 20), new ItemStack(ItemDatabase.StoneBrick, 10), new ItemStack(ItemDatabase.IronGear, 6)),
+            // machine versions (Etapa 10)
+            new BuildingDef("drill2", "Electric Drill Mk2", BuildingKind.Drill, 2, 2, 0xd9b23a,
+                new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.Circuit, 5), new ItemStack(ItemDatabase.StoneBrick, 10)) { Speed = 2f, Energy = 2f, BaseType = "drill" },
+            new BuildingDef("assembler2", "Assembler Mk2", BuildingKind.Assembler, 2, 2, 0x5d7fa9,
+                new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.IronGear, 6), new ItemStack(ItemDatabase.Circuit, 4)) { Speed = 1.5f, Energy = 1.5f, BaseType = "assembler" },
+            new BuildingDef("assembler3", "Assembler Mk3", BuildingKind.Assembler, 2, 2, 0x4d8fb9,
+                new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.Circuit, 10), new ItemStack(ItemDatabase.StoneBrick, 10)) { Speed = 2.25f, Energy = 2.5f, BaseType = "assembler" },
+            new BuildingDef("electric_furnace", "Electric Furnace", BuildingKind.Furnace, 2, 2, 0x8a6a5a,
+                new ItemStack(ItemDatabase.StoneBrick, 10), new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.Circuit, 5)) { Speed = 2f, BaseType = "furnace" },
             // underground transport (Etapa 9)
             new BuildingDef("underground_belt", "Underground Belt", BuildingKind.Belt, 1, 1, 0x4a4f57,
                 new ItemStack(ItemDatabase.IronPlate, 5), new ItemStack(ItemDatabase.IronGear, 2)),

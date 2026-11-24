@@ -103,14 +103,16 @@ namespace Codebound.Core
 
         public readonly Inventory Input = new Inventory(1), Fuel = new Inventory(1), Output = new Inventory(1);
         public float BurnLeftKJ;
+        /// <summary>The electric furnace: powered from the grid, no coal.</summary>
+        public bool Electric;
 
         public override bool TryInsert(string itemId, int count)
         {
-            if (itemId == ItemDatabase.Coal) return Fuel.TryAddAll(new[] { new ItemStack(itemId, count) });
+            if (itemId == ItemDatabase.Coal) return !Electric && Fuel.TryAddAll(new[] { new ItemStack(itemId, count) });
             if (Recipes.ContainsKey(itemId)) return Input.TryAddAll(new[] { new ItemStack(itemId, count) });
             return false;
         }
-        public override bool AcceptsItem(string itemId) => itemId == ItemDatabase.Coal || Recipes.ContainsKey(itemId);
+        public override bool AcceptsItem(string itemId) => (itemId == ItemDatabase.Coal && !Electric) || Recipes.ContainsKey(itemId);
 
         public override IEnumerable<(string, Inventory)> Inventories
         {

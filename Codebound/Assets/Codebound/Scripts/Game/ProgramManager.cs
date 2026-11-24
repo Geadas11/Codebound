@@ -552,7 +552,7 @@ namespace Codebound.Game
 
         // ------------------------------------------------------------ world API
         static Dictionary<string, object> Info(PlacedBuilding b) =>
-            new Dictionary<string, object> { { "id", "m" + b.InstanceId }, { "type", b.Def.Id }, { "name", $"{b.Def.DisplayName} #{b.InstanceId}" } };
+            new Dictionary<string, object> { { "id", "m" + b.InstanceId }, { "type", b.Def.ProgramType }, { "model", b.Def.Id }, { "name", $"{b.Def.DisplayName} #{b.InstanceId}" } };
 
         PlacedBuilding Resolve(Program p, object idArg)
         {
@@ -663,7 +663,7 @@ namespace Codebound.Game
                 case "machines":
                     var near = session.Factory.MachinesNear(p.Computer);
                     if (fn == "list") { var l = new List<object>(); foreach (var b in near) l.Add(Info(b)); Reply(p, l); return; }
-                    if (fn == "find") { string type = Arg(0) as string; foreach (var b in near) if (b.Def.Id == type) { Reply(p, Info(b)); return; } Reply(p, null); return; }
+                    if (fn == "find") { string type = Arg(0) as string; foreach (var b in near) if (b.Def.ProgramType == type || b.Def.Id == type) { Reply(p, Info(b)); return; } Reply(p, null); return; }
                     if (fn == "get") { var b = Resolve(p, Arg(0)); Reply(p, b != null ? Info(b) : null); return; }
                     break;
                 default:
@@ -910,7 +910,7 @@ namespace Codebound.Game
             foreach (var b in session.Factory.MachinesNear(p.Computer))
             {
                 machines.Add(new Dictionary<string, object> {
-                    { "id", "m" + b.InstanceId }, { "type", b.Def.Id }, { "name", $"{b.Def.DisplayName} #{b.InstanceId}" },
+                    { "id", "m" + b.InstanceId }, { "type", b.Def.ProgramType }, { "name", $"{b.Def.DisplayName} #{b.InstanceId}" },
                     { "status", b.State.Status }, { "power", b.State.PowerSatisfaction }, { "busy", session.Factory.HasAction(b) },
                     { "distance", Math.Round(b.DistanceTo(p.Computer), 2) } });
                 foreach (var (role, inv) in b.State.Inventories)

@@ -382,7 +382,10 @@ namespace Codebound.Game
                 if (x == 1 || y == h - 2) return Shade(body, 1.25f);
                 if (y == 1 || x == w - 2) return Shade(body, 0.7f);
                 float cx = x - w / 2f + 0.5f, cy = y - h / 2f + 0.5f;
-                switch (def.Id)
+                int tier = def.Id == "drill2" || def.Id == "assembler2" || def.Id == "electric_furnace" ? 2 : def.Id == "assembler3" ? 3 : 1;
+                if (tier > 1 && y >= h - 5 && y <= h - 3 && x >= 3 && x < 3 + tier * 4 && (x - 3) % 4 < 3)   // version marks: two or three stripes
+                    return tier == 2 ? new Color32(255, 210, 60, 255) : new Color32(90, 200, 255, 255);
+                switch (def.BaseType ?? def.Id)
                 {
                     case "furnace":
                         if (Mathf.Abs(cx) < 5 && cy < 0 && cy > -10)

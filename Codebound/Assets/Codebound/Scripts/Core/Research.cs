@@ -114,6 +114,12 @@ namespace Codebound.Core
                 Cost = new[] { new ItemStack(ItemDatabase.IronGear, 30), new ItemStack(ItemDatabase.Circuit, 15), new ItemStack(ItemDatabase.StoneBrick, 20) },
                 Prereqs = new[] { "manufacturing", "logistics" }, Unlocks = new[] { "rail", "rail_signal", "train_stop", "train_depot" } },
 
+            // ---- machine versions (Etapa 10)
+            new Tech { Id = "advanced_machines", Name = "Advanced Machines", Area = "Industry", Seconds = 45,
+                Description = "Electric Drill Mk2 (2x faster), Assembler Mk2 (1.5x) and Mk3 (2.25x), Electric Furnace (2x, uses power instead of coal). Faster machines draw more power. Programs see them as drill, assembler and furnace.",
+                Cost = new[] { new ItemStack(ItemDatabase.Circuit, 20), new ItemStack(ItemDatabase.IronGear, 20), new ItemStack(ItemDatabase.StoneBrick, 20) },
+                Prereqs = new[] { "manufacturing", "energy" }, Unlocks = new[] { "drill2", "assembler2", "assembler3", "electric_furnace" } },
+
             // ---- underground transport (Etapa 9)
             new Tech { Id = "underground", Name = "Underground Transport", Area = "Industry", Seconds = 30,
                 Description = "Underground belts (an entrance and the exit up to 5 cells ahead, facing the same way: items pass under anything) and pipes to ground (two facing each other up to 10 cells apart).",
