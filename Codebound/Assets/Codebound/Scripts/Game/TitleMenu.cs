@@ -51,8 +51,15 @@ namespace Codebound.Game
         string[] Entries => new[]
         {
             Loc.T("title.continue", "Continue"), Loc.T("title.new", "New game"),
+            Loc.T("title.account", "Account and friends") + Pending(),
             Loc.T("menu.language", "Language") + ": " + LanguageName(), Loc.T("menu.quit", "Quit game"),
         };
+
+        static string Pending()
+        {
+            int n = Online.FriendRequests + Online.Invites.Count;
+            return n > 0 ? "  (" + Loc.T("title.pending", "{0} new", n) + ")" : "";
+        }
 
         static string LanguageName() { foreach (var l in Loc.Languages) if (l.code == Settings.Language) return l.native; return Settings.Language; }
 
@@ -66,22 +73,25 @@ namespace Codebound.Game
                     Close(); boot.LoadFrom(p); return;
                 case 1:
                     Close();
+                    Online.Record("worlds_created", 1);
                     if (int.TryParse(seedText.Trim(), out int seed)) GameBootstrap.NewGame(seed);   // otherwise keep the fresh random world already running
                     return;
-                case 2:
+                case 2: AccountMenu.Open(); return;
+                case 3:
                     int k = 0; for (int j = 0; j < Loc.Languages.Length; j++) if (Loc.Languages[j].code == Settings.Language) k = j;
                     Settings.Language = Loc.Languages[(k + 1) % Loc.Languages.Length].code; return;
-                case 3: Application.Quit(); return;
+                case 4: Application.Quit(); return;
             }
         }
 
         void Update()
         {
-            if (!open) return;
+            if (!open || AccountMenu.IsOpen) return;
             var kb = Keyboard.current;
             if (kb == null) return;
-            if (kb.downArrowKey.wasPressedThisFrame) selected = (selected + 1) % 4;
-            if (kb.upArrowKey.wasPressedThisFrame) selected = (selected + 3) % 4;
+            int n = Entries.Length;
+            if (kb.downArrowKey.wasPressedThisFrame) selected = (selected + 1) % n;
+            if (kb.upArrowKey.wasPressedThisFrame) selected = (selected + n - 1) % n;
             if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) Choose(selected);
         }
 
@@ -101,7 +111,7 @@ namespace Codebound.Game
 
         void OnGUI()
         {
-            if (!open) return;
+            if (!open || AccountMenu.IsOpen) return;
             UiGui.Begin();
             Styles();
             GUI.Box(new Rect(0, 0, UiGui.W, UiGui.H), GUIContent.none, box);
@@ -128,6 +138,8 @@ namespace Codebound.Game
             }
             GUI.enabled = true;
             GUILayout.Label(Loc.T("title.keys", "Up/Down and Enter, or the mouse · options later with Esc"), small);
+            GUILayout.Space(10);
+            GUILayout.Label(Online.StatusLine(), Online.OnlineNow || !Online.SignedIn ? small : label);   // who is playing, and whether the service is reachable
             GUILayout.EndArea();
         }
     }

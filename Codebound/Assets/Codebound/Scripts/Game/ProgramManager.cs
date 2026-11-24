@@ -282,6 +282,9 @@ namespace Codebound.Game
         public static event Action<PlacedBuilding, Planet> TravelRequested;
 
         /// <param name="snippet">terminal one-liner: runs instead of the saved program, which is not changed</param>
+        /// <summary>A program started (language, lines): play statistics.</summary>
+        public static event Action<string, int> ProgramStarted;
+
         public bool StartProgram(PlacedBuilding computer, bool debug = false, string snippet = null)
         {
             var st = (ComputerState)computer.State;
@@ -309,6 +312,7 @@ namespace Codebound.Game
             programs[computer.InstanceId] = prog;
             stats[computer.InstanceId] = new Stats { Running = true, RamMb = st.RamMb };
             st.Running = true;
+            ProgramStarted?.Invoke(st.Language, (st.Code ?? "").Split('\n').Length);
             st.AddLog($"[{(snippet != null ? "snippet" : debug ? "debug" : "run")}] {DateTime.Now:HH:mm:ss} {st.Language}");
             if (st.Language == "c" || st.Language == "cpp")
             {

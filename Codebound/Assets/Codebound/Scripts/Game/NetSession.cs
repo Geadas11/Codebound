@@ -22,6 +22,8 @@ namespace Codebound.Game
         public readonly ConcurrentQueue<string> Inbox = new ConcurrentQueue<string>();
         public volatile bool Closed;
         public string Name, Role = Multiplayer.Builder;
+        public string PublicId;                                           // the guest's account, when the game is listed online (verified by the service)
+        public System.Threading.Tasks.Task<Codebound.Core.Online.ApiResult> Verify;
         public double X, Y, MoveBudget = Multiplayer.MoveBurst;
         public float LastMine, LastPos, LastCorrect = -10, LastChat = -10, LastUnlock = -10, PcTimer;
         public readonly float Connected = Time.realtimeSinceStartup;
@@ -93,6 +95,8 @@ namespace Codebound.Game
         public static string MyName = "player", MyRole = Multiplayer.Builder;
         public static string WorldPassword = "";   // host: every guest must know it; it keys the encryption and never travels
         static string joinPassword = "";
+        /// <summary>Guest: the one-use ticket from the online service for the game being joined (null for LAN / direct joins).</summary>
+        public static string JoinTicket, OnlineSession;
         public static readonly List<(string name, double x, double y)> Others = new List<(string, double, double)>();
         public static readonly List<(string from, string text, float at)> Chat = new List<(string, string, float)>();
 
@@ -204,7 +208,15 @@ namespace Codebound.Game
             if (Chat.Count > 50) Chat.RemoveAt(0);
         }
 
-        public static void Kick(string name) { foreach (var p in peers) if (p.Name == name) { p.Send(Msg("kick", Loc.T("net.kicked", "removed by the host"))); p.Close(); } }
+        public static void Kick(string name, bool ban = false)
+        {
+            foreach (var p in peers)
+                if (p.Name == name)
+                {
+                    p.Send(Msg("kick", Loc.T("net.kicked", "removed by the host"))); p.Close();
+                    if (p.PublicId != null && Online.HostedSession != null && Online.SignedIn) _ = Online.Client.Kick(Online.HostedSession, p.PublicId, ban);   // a ban keeps them out of this listing
+                }
+        }
         public static void SetRole(string name, string role) { foreach (var p in peers) if (p.Name == name) { p.Role = role; p.Send(Msg("msg", "the host made you a " + role)); } }
 
         static Dictionary<string, object> Msg(string t, string text) => new Dictionary<string, object> { { "t", t }, { "text", text } };
@@ -260,7 +272,8 @@ namespace Codebound.Game
             }
             foreach (var p in peers)
             {
-                if (p.Name == null && now - p.Connected > 10) { p.Close(); continue; }   // never said hello
+                if (p.Name == null && now - p.Connected > (p.Verify != null ? 25 : 10)) { p.Close(); continue; }   // never said hello (or the service never answered)
+                if (p.Name == null && p.Verify != null) { if (p.Verify.IsCompleted) Verified(s, p); continue; }
                 int budget = 64;   // messages per frame per guest
                 while (budget-- > 0 && p.Inbox.TryDequeue(out var raw))
                 {
@@ -331,7 +344,10 @@ namespace Codebound.Game
                 }
             }
             foreach (var p in peers.FindAll(x => x.Closed))
+            {
                 if (p.Name != null) s.State.Hud.Notify(Loc.T("notify.left", "{0} left the game", p.Name));
+                if (p.PublicId != null && Online.HostedSession != null && Online.SignedIn) _ = Online.Client.PlayerLeft(Online.HostedSession, p.PublicId);
+            }
             peers.RemoveAll(x => x.Closed);
 
             foreach (var p in peers)   // the open computer's console, debugger and monitor, 4×/s
@@ -389,9 +405,30 @@ namespace Codebound.Game
         static bool Hello(GameSession s, Peer p, string t, Dictionary<string, object> m)
         {
             string name = S(m, "name");
-            string why = t != "hello" ? "say hello first" : D(m, "v") != Multiplayer.ProtocolVersion ? Loc.T("net.version", "different game version")
-                       : !Multiplayer.ValidName(name) || name == MyName ? Loc.T("net.invalidName", "invalid name") : peers.Exists(o => o.Name == name) ? Loc.T("net.nameInUse", "name already in use") : null;
-            if (why != null) { p.Send(Msg("kick", why)); p.Close(); return false; }   // encrypted: the guest has the keys by now
+            string why = t != "hello" ? "say hello first" : D(m, "v") != Multiplayer.ProtocolVersion ? Loc.T("net.version", "different game version") : null;
+            if (why == null && Online.HostedSession != null)
+            {   // listed online: who the guest is comes from the service (its one-use ticket), never from the name it sends
+                if (!(S(m, "ticket") is string ticket) || !Online.SignedIn) why = Loc.T("net.needAccount", "this game needs a Codebound account: join it from the online games list");
+                else { p.Verify = Online.Client.VerifyTicket(Online.HostedSession, ticket); return false; }
+            }
+            return why == null ? Admit(s, p, name) : Refuse(p, why);
+        }
+
+        static bool Refuse(Peer p, string why) { p.Send(Msg("kick", why)); p.Close(); return false; }   // encrypted: the guest has the keys by now
+
+        static void Verified(GameSession s, Peer p)
+        {
+            var r = p.Verify.Result; p.Verify = null;
+            if (!r.Ok) { Refuse(p, r.Offline ? Loc.T("net.cantVerify", "the host could not check your account right now; try again") : r.Message); return; }
+            p.PublicId = r.Str("publicId");
+            if (peers.Exists(o => o != p && o.PublicId == p.PublicId)) { Refuse(p, Loc.T("net.alreadyIn", "you are already in this game")); return; }
+            Admit(s, p, r.Str("displayName"));
+        }
+
+        static bool Admit(GameSession s, Peer p, string name)
+        {
+            string why = !Multiplayer.ValidName(name) || name == MyName ? Loc.T("net.invalidName", "invalid name") : peers.Exists(o => o.Name == name) ? Loc.T("net.nameInUse", "name already in use") : null;
+            if (why != null) return Refuse(p, why);
             p.Name = name;
             bool known = s.State.GuestBodies.ContainsKey(name);
             var body = Body(s.State, name);
@@ -519,7 +556,9 @@ namespace Codebound.Game
                     }
                     catch (Exception e) when (e is FormatException || e is CryptographicException) { Status = "kicked: " + Loc.T("net.version", "different game version"); server.Close(); return; }
                     server.SendPlain(new Dictionary<string, object> { { "t", "hs" }, { "v", (double)SecureChannel.Version }, { "pub", Convert.ToBase64String(server.Chan.Public) } });
-                    server.Send(new Dictionary<string, object> { { "t", "hello" }, { "name", MyName }, { "v", (double)Multiplayer.ProtocolVersion } });
+                    var hello = new Dictionary<string, object> { { "t", "hello" }, { "name", MyName }, { "v", (double)Multiplayer.ProtocolVersion } };
+                    if (JoinTicket != null) { hello["ticket"] = JoinTicket; JoinTicket = null; }   // one use
+                    server.Send(hello);
                     continue;
                 }
                 if (!server.Secure) continue;
@@ -583,6 +622,8 @@ namespace Codebound.Game
         }
 
         /// <summary>This PC's LAN addresses, for the host to tell friends on the same network.</summary>
+        public static string FirstLanAddress() { var a = LocalAddresses(); return a == "?" ? null : a.Split(',')[0].Trim(); }
+
         public static string LocalAddresses()
         {
             try
@@ -752,6 +793,7 @@ namespace Codebound.Game
                     if (GUILayout.Button(Loc.T("net.openInternet", "Open to the internet (UPnP on the router)"))) RouterPort.OpenAsync(Multiplayer.Port);
                     GUI.enabled = true;
                     if (RouterPort.Status != null) GUILayout.Label("<size=12>" + RouterPort.Status + "</size>", label);
+                    OnlineListing();
                     foreach (var p in Net.Peers)
                     {
                         if (p.Name == null) continue;
@@ -760,6 +802,7 @@ namespace Codebound.Game
                         string next = p.Role == Multiplayer.Visitor ? Multiplayer.Builder : p.Role == Multiplayer.Builder ? Multiplayer.Admin : Multiplayer.Visitor;
                         if (GUILayout.Button(Loc.T("net.make", "Make {0}", Loc.T("net.role." + next, next)), GUILayout.Width(130))) Net.SetRole(p.Name, next);
                         if (GUILayout.Button(Loc.T("net.kick", "Kick"), GUILayout.Width(60))) Net.Kick(p.Name);
+                        if (p.PublicId != null && GUILayout.Button(Loc.T("net.ban", "Ban"), GUILayout.Width(60))) Net.Kick(p.Name, ban: true);
                         GUILayout.EndHorizontal();
                     }
                 }
@@ -768,10 +811,40 @@ namespace Codebound.Game
                 chatScroll = GUILayout.BeginScrollView(chatScroll, GUILayout.Height(110));
                 foreach (var (from, text, _) in Net.Chat) GUILayout.Label($"<b>{from}</b>: {text}", chatStyle);
                 GUILayout.EndScrollView();
-                if (GUILayout.Button(Loc.T("net.disconnect", "Disconnect"))) Net.Disconnect();
+                if (GUILayout.Button(Loc.T("net.disconnect", "Disconnect"))) { Online.ForgetJoin(); Net.Disconnect(); }
             }
             if (GUILayout.Button(Loc.T("net.close", "Close (Esc)"))) Close();
             GUILayout.EndArea();
+        }
+
+        string listingStatus;
+
+        /// <summary>Host: list this world on the online service (friends / everyone / invite only), or stop listing it.</summary>
+        void OnlineListing()
+        {
+            if (!Online.SignedIn) { GUILayout.Label("<size=11>" + Loc.T("net.signInToList", "Sign in (title screen, Account) to list this world online and invite friends.") + "</size>", label); return; }
+            if (Online.HostedSession != null)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("<size=12>" + Loc.T("net.listed", "Listed online: {0}", Loc.T("online.vis." + Online.HostedVisibility, Online.HostedVisibility)) + "</size>", label);
+                if (GUILayout.Button(Loc.T("net.unlist", "Stop listing"), GUILayout.Width(120))) Online.Unpublish();
+                GUILayout.EndHorizontal();
+            }
+            else
+            {
+                GUILayout.BeginHorizontal();
+                foreach (var v in new[] { "friends", "public", "private" })
+                    if (GUILayout.Button(Loc.T("net.listAs", "List: {0}", Loc.T("online.vis." + v, v)))) ListAs(v);
+                GUILayout.EndHorizontal();
+            }
+            if (listingStatus != null) GUILayout.Label("<size=11>" + listingStatus + "</size>", label);
+        }
+
+        async void ListAs(string visibility)
+        {
+            if (Online.Client.DisplayName != null) Net.MyName = Online.Client.DisplayName;
+            listingStatus = Loc.T("net.checking", "checking…");
+            listingStatus = await Online.Publish(visibility);
         }
 
         void Remember() { try { PlayerPrefs.SetString("cb.netName", Net.MyName); PlayerPrefs.SetString("cb.netAddress", address); PlayerPrefs.Save(); } catch { } }

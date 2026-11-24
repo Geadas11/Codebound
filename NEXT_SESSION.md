@@ -16,6 +16,14 @@
 - Antes de mexer na simulação: `DeterminismTests` e `SleepWakeTests` têm de continuar verdes (comparam hashes de estado).
 - Recuperação: tag local `pre-industry-2026-11-24`.
 
+## Contas e serviços online (missão de 2026-11-24)
+- Plano, auditoria, escolha do backend, registo por etapa e o que falta: `ONLINE_PLAN.md`. Executar/configurar/produção: `Services/README.md`.
+- Serviço local: `cd Services; <DotNetSdk>/dotnet.exe run --project Codebound.Services --environment Development` (http://127.0.0.1:5080; códigos de email em `/dev/outbox`). Testes: `dotnet test` (34).
+- O jogo usa o serviço local no Editor e em builds de desenvolvimento; numa build de lançamento só com `-online <url https>` ou pelo campo "Serviço…" do painel de conta.
+- Painel de conta: ecrã inicial → "Conta e amigos" ou Esc → "Conta, amigos e jogos online". Listar um mundo: painel N → alojar → "Listar: …".
+- Testes por `script eval`: não bloquear métodos `async` de `Game/Online.cs` (bloqueia o Editor); os de `OnlineClient` podem.
+- Próximo: servidor de produção (VPS + TLS + SMTP) e URL na build; testar ao vivo dois jogos com bilhete por TCP; relay para NAT estrito.
+
 ## Mapa do código
 - Core: `Codebound/Assets/Codebound/Scripts/Core/` — `GameState.cs` (agregado + `SaveSystem`), `Factory.cs` (energia/ações/logística), `Machines.cs` (estados), `Buildings.cs`, `World.cs`, `Inventory.cs`, `Items.cs`, `Json.cs`.
 - Game: `.../Scripts/Game/` — `GameBootstrap.cs` (arranque, tick 20 Hz, F5/F9), `ProgramManager.cs` (ponte runtime + API), `MachinePanel.cs` (painel E + editor de código), `BuildController.cs`, `MiningController.cs`, `ChunkRenderer.cs`, `DebugHud.cs`.

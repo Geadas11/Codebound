@@ -43,6 +43,7 @@ namespace Codebound.Game
             items.Add(new Item { Label = Loc.T("menu.resume", "Resume"), Change = _ => Close() });
             items.Add(new Item { Label = Loc.T("menu.save", "Save game") + " (" + Controls.Name("save") + ")", Change = _ => boot.Save() });
             items.Add(new Item { Label = Loc.T("menu.load", "Load game") + " (" + Controls.Name("load") + ")", Change = _ => { Close(); boot.Load(); } });
+            items.Add(new Item { Label = Loc.T("menu.account", "Account, friends and online games"), Value = Online.StatusLine, Change = _ => { Close(); AccountMenu.Open(); } });
             items.Add(new Item { Header = true, Label = Loc.T("menu.gameplay", "Gameplay") });
             items.Add(new Item { Label = Loc.T("menu.peaceful", "Peaceful mode (no creatures)"), Value = () => OnOff(Settings.Peaceful), Change = _ => Settings.Peaceful = !Settings.Peaceful });
             items.Add(new Item { Header = true, Label = Loc.T("menu.accessibility", "Accessibility") });

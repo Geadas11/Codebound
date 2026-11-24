@@ -158,3 +158,9 @@ Legenda: ✅ feito e verificado · 🟡 feito, verificação parcial · ⬜ pend
 - ✅ Etapa 11 — Módulos de velocidade/eficiência/produtividade, ranhuras por máquina, beacons a 50 % com energia, bónus de produtividade guardado — 5 testes (204/204), build + self-test PASS
 - ✅ Etapa 12 — Refinaria (petróleo → gás), fábrica química (plástico, enxofre, ácido sulfúrico, células de bateria), circuitos avançados (Mk3 e módulos passam a usá-los) — 5 testes (209/209), runtimes PASS, build + self-test PASS
 - ✅ Etapa 13 — Robôs de construção: planos com Shift+clique, demolição com Shift+clique direito, recolha de materiais em vários baús, reservas partilhadas, saves exatos — 5 testes (214/214), build + self-test PASS, Play Mode
+
+## Contas, social e serviços online (missão de 2026-11-24)
+- ✅ Serviço `Services/` (ASP.NET Core 8 + SQLite): contas, verificação de email, recuperação, sessões por dispositivo, perfis, amigos, bloqueios, denúncias, presença, jogos online com bilhetes, convites, estatísticas e conquistas validadas no servidor, saves na cloud com versões e conflitos — 28 testes
+- ✅ Cliente do jogo (`Core/Online`): tokens com renovação, modo offline, fila de estatísticas, decisões dos saves sem nunca apagar o local — 9 testes Unity + 6 testes contra o serviço real
+- ✅ Interface (painel de conta, ecrã inicial, menu Esc, painel N) e multijogador (bilhetes verificados pelo anfitrião, banir, reconexão) — 178 textos × 10 línguas; 223/223 Unity, build + self-test PASS
+- ⏳ Produção: escolher VPS e fornecedor SMTP, publicar o serviço com TLS e definir o URL na build (ver `ONLINE_PLAN.md` §4)

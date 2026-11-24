@@ -20,6 +20,12 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+  <!-- The game's own online client (engine-free Unity code), tested here against the real service -->
+  <ItemGroup>
+    <Compile Include="..\..\Codebound\Assets\Codebound\Scripts\Core\Json.cs" Link="GameClient\Json.cs" />
+    <Compile Include="..\..\Codebound\Assets\Codebound\Scripts\Core\Online\*.cs" Link="GameClient\%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Codebound.Services\Codebound.Services.csproj" />
   </ItemGroup>

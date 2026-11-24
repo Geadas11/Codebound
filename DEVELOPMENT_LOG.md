@@ -337,3 +337,11 @@
 
 ## Resumo do pedido "mais Factorio" (Etapas 9–13)
 - Tapetes e tubos subterrâneos, máquinas em várias versões, módulos e beacons, refinaria e química, robôs de construção. 189 → 214 testes, todos a passar; runtimes das 8 linguagens a passar; build + self-test PASS em cada etapa.
+
+## Sessão 7: contas, social e serviços online
+- Auditoria do multiplayer (identidade só por nome = usurpação possível) e comparação de backends em `ONLINE_PLAN.md`; escolhido um serviço próprio em ASP.NET Core 8 + SQLite por ser o único testável aqui sem contas nem custos.
+- Serviço com migrações, limites de pedidos, registo JSON, cópias de segurança online e manutenção (retenção de 30 dias). 28 testes de integração com relógio controlável.
+- Cliente sem motor em `Core/Online` e integração em `Game/Online.cs`, `AccountMenu.cs`, `NetSession.cs`, `TitleMenu.cs`, `OptionsMenu.cs`; ganchos de estatísticas (tempo, distância, edifícios, mineração, itens, programas e linguagens, investigação, lançamentos, mundos).
+- Bugs apanhados pelos testes: `Refresh()` guardava uma tarefa já terminada quando o transporte respondia de forma síncrona (o `finally` corria antes da atribuição) — a sessão revogada nunca terminava; um 429 durante a renovação terminaria a sessão (agora só 400/401). No Play Mode: as opções de perfil apareciam sem caixa de seleção.
+- Nota para testes por `script eval`: não bloquear (`GetResult`) métodos `async` do jogo — retomam no thread principal e o Editor bloqueia; os métodos de `OnlineClient` podem ser bloqueados (usam `ConfigureAwait(false)`).
+- Resultado: serviço 34/34, Unity 223/223, build + self-test PASS; Play Mode contra o serviço local.
