@@ -1,0 +1,17 @@
+Car::applyUpdate
+Vehicle::update
+Train::updateSpeed
+Train::updateSpeedAndMove
+Train::updateBrakingForce
+Train::updateMaxSpeed
+RobotWithLogisticInterface::updateMovement
+FlyingRobot::moveToAndUseEnergy
+FlyingRobot::moveTo
+ElectricNetworkInputValues::computeUsage
+ElectricSubNetwork::useDemand
+ElectricSubNetwork::useProduction
+math_random
+luaopen_partialdebug
+luaopen_math
+luaopen_string
+luaopen_table

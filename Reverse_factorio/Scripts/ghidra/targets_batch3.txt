@@ -1,0 +1,14 @@
+Car::moveCar
+Character::calculateMovementSpeed
+Character::calculateMovementVectorAndStepCount
+Character::calculateShortMovement
+MapHeader::save
+Inserter::save
+CraftingMachine::save
+TransportBeltConnectable::save
+luaH_next
+luaH_getn
+luaH_resize
+luaV_lessthan
+lua_next
+DrawEngine::prepare
