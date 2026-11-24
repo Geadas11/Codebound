@@ -136,7 +136,7 @@ final class Computer
     public function send(string $channel, $data = null) { return cb_call('computer', 'send', [$channel, $data]); }
 }
 
-final class Energy { public function available() { return cb_call('energy', 'available'); } public function stats() { return cb_call('energy', 'stats'); } }
+final class Energy { public function available() { return cb_call('energy', 'available'); } public function stats() { return cb_call('energy', 'stats'); } public function network() { return cb_call('energy', 'network'); } }
 final class World { public function pollution() { return cb_call('world', 'pollution'); } public function weather() { return cb_call('world', 'weather'); } }
 final class Hud
 {

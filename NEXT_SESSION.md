@@ -12,7 +12,7 @@
 - `Codebound/Tools/python/` não está no git (ver README para o obter).
 
 ## Simulação industrial (missão de 2026-11-24)
-- Plano e auditoria: `INDUSTRY_PLAN.md`. Etapas 1 (tick ordenado, determinismo, sleep/wake) e 2 (correias com 2 pistas, braços com mão — `Core/Logistics.cs`) feitas. Etapa 3 (fluidos — `Core/Fluids.cs`) feita. **Próximo: Etapa 4 — energia com prioridades** (categorias de produção/procura, estatísticas por rede, reconstrução incremental das redes). Pendente da Etapa 4: reconstrução incremental das redes elétricas (depois baixar o limite de `Building_InABigBase_DoesNotStall` de 25 ms).
+- Plano e auditoria: `INDUSTRY_PLAN.md`. Etapas 1 (tick ordenado, determinismo, sleep/wake) e 2 (correias com 2 pistas, braços com mão — `Core/Logistics.cs`) feitas. Etapa 3 (fluidos — `Core/Fluids.cs`) feita. Etapa 4 (energia — `Core/Power.cs`) feita. **Próximo: Etapa 5 — sinais** (cabos, redes de sinais, combinadores, ligação a máquinas, computadores e HUD). Pendente da Etapa 4: reconstrução incremental das redes elétricas (depois baixar o limite de `Building_InABigBase_DoesNotStall` de 25 ms).
 - Antes de mexer na simulação: `DeterminismTests` e `SleepWakeTests` têm de continuar verdes (comparam hashes de estado).
 - Recuperação: tag local `pre-industry-2026-11-24`.
 

@@ -24,21 +24,10 @@ namespace Codebound.Core
             public Action<string> Done;
         }
 
-        sealed class Network
-        {
-            public readonly List<PlacedBuilding> Generators = new List<PlacedBuilding>();
-            public readonly List<PlacedBuilding> Consumers = new List<PlacedBuilding>();
-            public readonly List<PlacedBuilding> Solars = new List<PlacedBuilding>(), Batteries = new List<PlacedBuilding>(), Engines = new List<PlacedBuilding>();
-            public float StoredKJ;
-            public float CapacityKW, DemandKW, Satisfaction;
-        }
-
         readonly WorldState world;
         readonly BuildGrid grid;
         readonly List<PendingAction> actions = new List<PendingAction>();
-        readonly Dictionary<int, Network> networkOf = new Dictionary<int, Network>();
-        readonly List<Network> networks = new List<Network>();
-        bool powerDirty = true, powerDirtyForHubs = true;
+        bool hubsDirty = true;   // a chest or hub was built or removed: hubs look for their chests again
 
         // Each system walks only its own entities, in build order (ids ascending) — the Codebound analogue of
         // grouping active entities by type. Appending keeps them sorted because ids only grow.
@@ -117,7 +106,8 @@ namespace Codebound.Core
                 if (b.State != null) foreach (var (_, inv) in b.State.Inventories) inv.Changed += () => { if (b.State != null) b.State.Asleep = false; WakeAround(b); };   // its own contents changed too: a belt whose item an arm took, then got a new one
                 if (b.State != null) b.State.Touched += () => { if (b.State != null) b.State.Asleep = false; WakeAround(b); };
                 WakeAround(b);   // whoever waited for something to appear here
-                powerDirty = powerDirtyForHubs = true;
+                PowerPlaced(b);
+                if (b.State is StorageState || b.State is StorageHubState) hubsDirty = true;
                 if (b.State is PipeState) fluidDirty = true;
             };
             grid.Removed += b =>
@@ -126,7 +116,8 @@ namespace Codebound.Core
                 WakeAround(b);
                 for (int i = actions.Count - 1; i >= 0; i--)
                     if (actions[i].Machine == b) { var a = actions[i]; actions.RemoveAt(i); a.Done?.Invoke(null); }
-                powerDirty = powerDirtyForHubs = true;
+                PowerRemoved(b);
+                if (b.State is StorageState || b.State is StorageHubState) hubsDirty = true;
                 if (b.State is PipeState) fluidDirty = true;
             };
         }
@@ -187,67 +178,6 @@ namespace Codebound.Core
         /// <summary>Set by GameState; null in bare factory tests.</summary>
         public Ecology Ecology;
 
-        void RebuildNetworks()
-        {
-            networks.Clear(); networkOf.Clear();
-            var nodes = nodeList;
-
-            // spatial buckets of PoleReach cells: every link (≤ PoleReach) and supply (≤ PoleSupply + half a building) is in the 3×3 around
-            var buckets = new Dictionary<(int, int), List<int>>();
-            (int, int) Key(double x, double y) => ((int)Math.Floor(x / PoleReach), (int)Math.Floor(y / PoleReach));
-            for (int i = 0; i < nodes.Count; i++)
-            {
-                var k = Key(nodes[i].CenterX, nodes[i].CenterY);
-                if (!buckets.TryGetValue(k, out var l)) buckets[k] = l = new List<int>();
-                l.Add(i);
-            }
-            var near = new List<int>();
-            void Near(PlacedBuilding b)   // node indexes around b, in list order (same order as the old all-pairs scan)
-            {
-                near.Clear();
-                var (kx, ky) = Key(b.CenterX, b.CenterY);
-                for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) if (buckets.TryGetValue((kx + dx, ky + dy), out var l)) near.AddRange(l);
-                near.Sort();
-            }
-
-            foreach (var start in nodes)
-            {
-                if (networkOf.ContainsKey(start.InstanceId)) continue;
-                var net = new Network();
-                networks.Add(net);
-                var stack = new Stack<PlacedBuilding>();
-                stack.Push(start); networkOf[start.InstanceId] = net;
-                while (stack.Count > 0)
-                {
-                    var n = stack.Pop();
-                    if (n.Def.Kind == BuildingKind.Generator) net.Generators.Add(n);
-                    if (n.Def.Kind == BuildingKind.Solar) net.Solars.Add(n);
-                    if (n.Def.Kind == BuildingKind.Battery) net.Batteries.Add(n);
-                    if (n.Def.Kind == BuildingKind.SteamEngine) net.Engines.Add(n);
-                    Near(n);
-                    foreach (int i in near)
-                    {
-                        var m = nodes[i];
-                        if (!networkOf.ContainsKey(m.InstanceId) && n.DistanceTo(m) <= PoleReach) { networkOf[m.InstanceId] = net; stack.Push(m); }
-                    }
-                }
-            }
-
-            foreach (var c in consumers)
-            {
-                var (cw, ch) = c.Size;
-                double pad = Math.Max(cw, ch) / 2.0;
-                Near(c);
-                foreach (int i in near)
-                {
-                    var n = nodes[i];
-                    double reach = (n.Def.Kind == BuildingKind.Pole ? PoleSupply : GeneratorSupply) + pad;
-                    if (n.DistanceTo(c) <= reach) { var net = networkOf[n.InstanceId]; net.Consumers.Add(c); networkOf[c.InstanceId] = net; break; }
-                }
-            }
-            powerDirty = false;
-        }
-
         float DemandOf(PlacedBuilding c)
         {
             if (c.Def.Kind == BuildingKind.Computer) return ((ComputerState)c.State).Running ? ComputerKW : 0f;
@@ -268,112 +198,6 @@ namespace Codebound.Core
         }
 
         static bool GeneratorCanRun(GeneratorState g) => g.BurnLeftKJ > 0 || g.Fuel.Count(ItemDatabase.Coal) > 0;
-
-        /// <summary>Power, prepare: rebuild the networks if something was built or removed; reset what is computed each tick.</summary>
-        void PreparePower()
-        {
-            if (powerDirty) RebuildNetworks();
-            foreach (var b in consumers) b.State.PowerSatisfaction = 0f;
-        }
-
-        /// <summary>Power, update: balance each network (solar, then coal, then batteries).</summary>
-        void UpdatePower(float dt)
-        {
-            foreach (var net in networks)
-            {
-                running.Clear();
-                foreach (var g in net.Generators) { var gs = (GeneratorState)g.State; gs.LoadKW = 0; if (GeneratorCanRun(gs)) running.Add(gs); }
-                float solarKW = net.Solars.Count * SolarKW * SolarFactor;
-                foreach (var s in net.Solars) ((SolarState)s.State).OutputKW = SolarKW * SolarFactor;
-                float genKW = running.Count * GeneratorKW, battKW = 0, engKW = 0;
-                foreach (var e in net.Engines) engKW += EngineCapacityKW(e, dt);
-                foreach (var b in net.Batteries) battKW += Math.Min(BatteryState.MaxKW, ((BatteryState)b.State).StoredKJ / Math.Max(dt, 1e-4f));
-                net.CapacityKW = solarKW + engKW + genKW + battKW;
-                net.DemandKW = 0;
-                foreach (var c in net.Consumers) net.DemandKW += DemandOf(c);
-
-                // supply order: free sunlight, then steam already made, then coal, then stored energy
-                float rem = net.DemandKW;
-                float useSolar = Math.Min(rem, solarKW); rem -= useSolar;
-                float useEng = Math.Min(rem, engKW); rem -= useEng;
-                foreach (var e in net.Engines) { float cap = EngineCapacityKW(e, dt); RunEngine(e, engKW > 0 ? useEng * cap / engKW : 0f, dt); }
-                float useGen = Math.Min(rem, genKW); rem -= useGen;
-                float useBatt = Math.Min(rem, battKW); rem -= useBatt;
-                net.Satisfaction = net.DemandKW <= 0 ? (net.CapacityKW > 0 ? 1f : 0f) : 1f - rem / net.DemandKW;
-
-                // batteries: discharge what was used, charge from spare sunlight (never burn coal just to fill them)
-                float spare = solarKW - useSolar;
-                net.StoredKJ = 0;
-                foreach (var b in net.Batteries)
-                {
-                    var bs = (BatteryState)b.State;
-                    float take = useBatt > 0 ? Math.Min(useBatt, Math.Min(BatteryState.MaxKW, bs.StoredKJ / Math.Max(dt, 1e-4f))) : 0;
-                    useBatt -= take; bs.StoredKJ -= take * dt;
-                    float give = Math.Min(spare, Math.Min(BatteryState.MaxKW, (BatteryState.CapacityKJ - bs.StoredKJ) / Math.Max(dt, 1e-4f)));
-                    spare -= give; bs.StoredKJ = Math.Max(0, Math.Min(BatteryState.CapacityKJ, bs.StoredKJ + give * dt));
-                    int pct = (int)Math.Round(bs.StoredKJ / BatteryState.CapacityKJ * 100), rate = (int)Math.Round(take > 0 ? -take : give);
-                    if (pct != bs.ShownPct || rate != bs.ShownRate)   // the text only changes when the numbers do: no string per tick
-                    {
-                        bs.ShownPct = pct; bs.ShownRate = rate;
-                        bs.Status = $"{pct}% ({(rate < 0 ? rate.ToString() : rate > 0 ? "+" + rate : "0")} kW)";
-                    }
-                    net.StoredKJ += bs.StoredKJ;
-                }
-
-                float used = useGen;
-                foreach (var gs in running)
-                {
-                    float share = used / running.Count;
-                    gs.LoadKW = share;
-                    gs.BurnLeftKJ -= share * dt;
-                    while (gs.BurnLeftKJ <= 0 && share > 0 && gs.Fuel.TryRemove(ItemDatabase.Coal, 1)) gs.BurnLeftKJ += CoalEnergyKJ;
-                    if (gs.BurnLeftKJ < 0) gs.BurnLeftKJ = 0;
-                    int kw = gs.BurnLeftKJ > 0 || gs.Fuel.Count(ItemDatabase.Coal) > 0 ? (int)Math.Round(share) : -1;
-                    if (kw != gs.ShownKW) { gs.ShownKW = kw; gs.Status = kw < 0 ? "no fuel" : kw + " kW"; }
-                }
-                foreach (var c in net.Consumers) c.State.PowerSatisfaction = net.Satisfaction;
-            }
-        }
-
-        /// <summary>True when the building is on a network with at least one fuelled generator.</summary>
-        public bool HasPower(PlacedBuilding b)
-        {
-            if (powerDirty) RebuildNetworks();
-            return networkOf.TryGetValue(b.InstanceId, out var net) && (net.Generators.Exists(g => GeneratorCanRun((GeneratorState)g.State))
-                || (net.Solars.Count > 0 && SolarFactor > 0.01f) || net.Engines.Exists(e => ((SteamEngineState)e.State).Steam.Amount > 0) || net.Batteries.Exists(x => ((BatteryState)x.State).StoredKJ > 1f));
-        }
-
-        public (float capacityKW, float demandKW) NetworkStats(PlacedBuilding b)
-        {
-            if (powerDirty) RebuildNetworks();
-            return networkOf.TryGetValue(b.InstanceId, out var n) ? (n.CapacityKW, n.DemandKW) : (0f, 0f);
-        }
-
-        /// <summary>Energy stored in the batteries of a building's network (kJ).</summary>
-        /// <summary>Puts energy into the batteries of b's network (lightning). Returns what fitted.</summary>
-        public float StoreEnergy(PlacedBuilding b, float kj)
-        {
-            if (powerDirty) RebuildNetworks();
-            if (!networkOf.TryGetValue(b.InstanceId, out var n)) return 0f;
-            float stored = 0;
-            foreach (var bat in n.Batteries)
-            {
-                var s = (BatteryState)bat.State;
-                float add = Math.Min(kj - stored, BatteryState.CapacityKJ - s.StoredKJ);
-                if (add > 0) { s.StoredKJ += add; stored += add; }
-            }
-            return stored;
-        }
-
-        public float NetworkStoredKJ(PlacedBuilding b) => networkOf.TryGetValue(b.InstanceId, out var n) ? n.StoredKJ : 0f;
-
-        /// <summary>All networks together: supply capacity, demand served, stored energy (for the HUD).</summary>
-        public (float capacityKW, float usedKW, float storedKJ) Totals()
-        {
-            float cap = 0, used = 0, kj = 0;
-            foreach (var n in networks) { cap += n.CapacityKW; used += Math.Min(n.CapacityKW, n.DemandKW); kj += n.StoredKJ; }
-            return (cap, used, kj);
-        }
 
         // ------------------------------------------------------------ actions
         /// <summary>What a machine is doing right now, for its on-map indicator.</summary>
@@ -573,15 +397,14 @@ namespace Codebound.Core
             LinkStorageHubs();
         }
 
-        int hubRelink;
         readonly List<PlacedBuilding> found = new List<PlacedBuilding>();
 
         /// <summary>Hubs see the chests within their radius. Relinked when something is built or removed (and once a second,
         /// in case a building's state object was replaced), looking only at the cells around each hub.</summary>
         void LinkStorageHubs()
         {
-            bool relink = powerDirtyForHubs || ++hubRelink >= 20;
-            if (relink) { powerDirtyForHubs = false; hubRelink = 0; }
+            bool relink = hubsDirty;   // which chests a hub serves only changes when chests or hubs are built or removed
+            hubsDirty = false;
             int r = (int)Math.Ceiling(StorageHubState.Radius) + 2;
             foreach (var b in hubs)
             {

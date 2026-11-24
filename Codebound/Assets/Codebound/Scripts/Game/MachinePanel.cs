@@ -98,6 +98,14 @@ namespace Codebound.Game
             GUILayout.Label($"{Loc.Building(open.Def)} #{open.InstanceId}", title);
             string power = open.Def.Kind == BuildingKind.Drill ? "   " + L("mp.power", "power {0}%", (st.PowerSatisfaction * 100).ToString("0")) : "";
             GUILayout.Label(L("mp.status", "Status: <b>{0}</b>", St(st.Status)) + power, small);
+            var ns = session.Factory.NetworkDetails(open);
+            if (ns != null)   // poles, generators and every powered machine: what its network did last tick
+            {
+                GUILayout.Label(L("mp.network", "Network #{0}: {1}/{2} kW — sun {3}, steam {4}, coal {5}, battery {6}", ns.Network, ns.SuppliedKW.ToString("0"), ns.CapacityKW.ToString("0"),
+                    ns.SolarKW.ToString("0"), ns.SteamKW.ToString("0"), ns.CoalKW.ToString("0"), ns.BatteryKW.ToString("0")), small);
+                GUILayout.Label(L("mp.priorities", "Critical {0} kW at {1}% · other {2} kW at {3}% · batteries {4}/{5} kJ", ns.CriticalDemandKW.ToString("0"), (ns.CriticalSatisfaction * 100).ToString("0"),
+                    ns.NormalDemandKW.ToString("0"), (ns.NormalSatisfaction * 100).ToString("0"), ns.StoredKJ.ToString("0"), ns.StorageKJ.ToString("0")), small);
+            }
             if (open.Def.Programmable) GUILayout.Label("<i>" + L("mp.programmable", "Works only when a nearby computer program commands it.") + "</i>", small);
             if (st is GeneratorState g) GUILayout.Label(L("mp.genFuel", "Fuel energy left: {0} kJ   output {1}/{2} kW", g.BurnLeftKJ.ToString("0"), g.LoadKW.ToString("0"), Factory.GeneratorKW.ToString("0")), small);
             if (st is FurnaceState f) GUILayout.Label(L("mp.fuel", "Fuel energy left: {0} kJ", f.BurnLeftKJ.ToString("0")), small);

@@ -184,6 +184,7 @@ const PRELUDE = `
   const energy = Object.freeze({
     available: () => call('energy', 'available'),
     stats: () => call('energy', 'stats'),
+    network: () => call('energy', 'network'),
   });
 
   global.log = log;

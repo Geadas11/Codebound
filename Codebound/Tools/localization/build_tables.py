@@ -178,6 +178,9 @@ def main():
     fl = {}
     exec(open(os.path.join(here, "tables_fluids.py"), encoding="utf-8").read(), fl)
     T.update(fl["T6"])
+    pw = {}
+    exec(open(os.path.join(here, "tables_power.py"), encoding="utf-8").read(), pw)
+    T.update(pw["T7"])
     out = os.path.join(here, "..", "..", "Assets", "StreamingAssets", "Localization")
     os.makedirs(out, exist_ok=True)
     for key, row in T.items():

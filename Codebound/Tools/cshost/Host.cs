@@ -167,7 +167,7 @@ namespace Codebound
         public bool Send(string channel, object data = null) => Proto.Call("computer", "send", channel, data is JsonNode || data is string || data is double || data is int || data is bool || data == null ? data : data.ToString())?.GetValue<bool>() ?? false;
     }
 
-    public sealed class EnergyApi { public bool Available() => Proto.Call("energy", "available")?.GetValue<bool>() ?? false; public JsonNode Stats() => Proto.Call("energy", "stats"); }
+    public sealed class EnergyApi { public bool Available() => Proto.Call("energy", "available")?.GetValue<bool>() ?? false; public JsonNode Stats() => Proto.Call("energy", "stats"); public JsonNode Network() => Proto.Call("energy", "network"); }
     public sealed class WorldApi { public JsonNode Pollution() => Proto.Call("world", "pollution"); public JsonNode Weather() => Proto.Call("world", "weather"); }
     public sealed class HudApi
     {

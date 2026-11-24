@@ -624,6 +624,7 @@ namespace Codebound.Game
                         Reply(p, new Dictionary<string, object> { { "capacityKW", cap }, { "demandKW", dem }, { "satisfaction", p.Computer.State.PowerSatisfaction }, { "storedKJ", Math.Round(session.Factory.NetworkStoredKJ(p.Computer), 1) } });
                         return;
                     }
+                    if (fn == "network") { Reply(p, NetworkInfo(session.Factory.NetworkDetails(p.Computer))); return; }
                     break;
                 case "world":
                     if (fn == "weather")
@@ -839,6 +840,20 @@ namespace Codebound.Game
         }
     
         // ------------------------------------------------------------ SQL
+        /// <summary>energy.network(): the last tick of the computer's power network, by source and priority (null when it has none).</summary>
+        static Dictionary<string, object> NetworkInfo(PowerStats s)
+        {
+            if (s == null) return null;
+            double R(float v) => Math.Round(v, 2);
+            return new Dictionary<string, object> {
+                { "id", s.Network }, { "nodes", s.Nodes }, { "consumers", s.Consumers },
+                { "supplyKW", new Dictionary<string, object> { { "solar", R(s.SolarKW) }, { "steam", R(s.SteamKW) }, { "coal", R(s.CoalKW) }, { "battery", R(s.BatteryKW) } } },
+                { "capacityKW", new Dictionary<string, object> { { "solar", R(s.SolarCapacityKW) }, { "steam", R(s.SteamCapacityKW) }, { "coal", R(s.CoalCapacityKW) }, { "battery", R(s.BatteryCapacityKW) }, { "total", R(s.CapacityKW) } } },
+                { "demandKW", new Dictionary<string, object> { { "critical", R(s.CriticalDemandKW) }, { "normal", R(s.NormalDemandKW) } } },
+                { "satisfaction", new Dictionary<string, object> { { "critical", R(s.CriticalSatisfaction) }, { "normal", R(s.NormalSatisfaction) } } },
+                { "chargingKW", R(s.ChargeKW) }, { "storedKJ", R(s.StoredKJ) }, { "storageKJ", R(s.StorageKJ) } };
+        }
+
         /// <summary>One cycle's view of the world for an SQL program: machines in range, their contents, power, events.</summary>
         Dictionary<string, object> SqlSnapshot(Program p)
         {
@@ -868,8 +883,16 @@ namespace Codebound.Game
             p.Events.Clear();
             return new Dictionary<string, object> {
                 { "time", Math.Round(Time.time, 2) }, { "pollution", Math.Round(session.State.Ecology.At(p.Computer.Origin), 1) }, { "weather", session.State.Clock.WeatherAt(session.World.Generator.BiomeAt(p.Computer.Origin)).ToString().ToLowerInvariant() }, { "temperature", Math.Round(Vitals.At(session.World.Generator, p.Computer.Origin, session.State.Clock).AmbientC, 1) }, { "day", session.State.Clock.Day }, { "daylight", Math.Round(session.State.Clock.Daylight, 3) }, { "machines", machines }, { "contents", contents }, { "events", events }, { "creatures", creatures },
-                { "energy", new Dictionary<string, object> { { "capacityKW", cap }, { "demandKW", dem },
-                    { "satisfaction", p.Computer.State.PowerSatisfaction }, { "available", session.Factory.HasPower(p.Computer) } } } };
+                { "energy", EnergyRow(p, cap, dem) } };
+        }
+
+        Dictionary<string, object> EnergyRow(Program p, float cap, float dem)
+        {
+            var s = session.Factory.NetworkDetails(p.Computer);
+            return new Dictionary<string, object> { { "capacityKW", cap }, { "demandKW", dem },
+                { "satisfaction", p.Computer.State.PowerSatisfaction }, { "available", session.Factory.HasPower(p.Computer) },
+                { "solarKW", s?.SolarKW ?? 0f }, { "steamKW", s?.SteamKW ?? 0f }, { "coalKW", s?.CoalKW ?? 0f }, { "batteryKW", s?.BatteryKW ?? 0f },
+                { "criticalSatisfaction", s?.CriticalSatisfaction ?? 0f }, { "normalSatisfaction", s?.NormalSatisfaction ?? 0f }, { "storedKJ", s?.StoredKJ ?? 0f } };
         }
 
         /// <summary>Runs rows of the SQL commands table; returns readable warnings for the console.</summary>

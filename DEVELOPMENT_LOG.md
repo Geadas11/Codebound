@@ -272,3 +272,11 @@
 - C#: `Tools/cshost` recompilado com o SDK do Unity (`Editor/Data/DotNetSdk/dotnet.exe build -c Release -o out`); o `Tools/dotnet` só tem o runtime.
 - `php -l host.php` acusa "Cannot redeclare sleep()" também na versão anterior: o host redefine `sleep` de propósito e o php corre com essa função desativada (os testes PHP passam).
 - Testes: 158/158 EditMode (8 novos em `FluidTests`); `DeterminismTests.TickOrder_IsExplicit` atualizado com o sistema `fluids`; runtimes JS, Python, PHP, SQL, C#, C/C++ PASS; build + self-test PASS; Play Mode: caldeira + máquina a vapor alimentam um computador, programa JS liga a bomba e lê `contents().fluids`.
+
+## Sessão 5 (cont.): Etapa 4 — energia
+- Medição primeiro: o tick depois de uma edição custava 15–17 ms porque **qualquer** construção reconstruía todas as redes (4,7 ms com 444 nós) e fazia os hubs procurar baús (2 ms, que também corria a cada 20 ticks).
+- `Core/Power.cs` (novo): redes mantidas em cada edição (juntar ao pôr, reagrupar só a rede afetada ao tirar), listas por id, prioridades (críticos primeiro), `PowerStats` por rede. `RebuildPowerNetworks()` fica como referência para os testes. O código antigo de energia saiu de `Factory.cs`.
+- `energy.network()` novo em vez de alargar `energy.stats()`: o exemplo de C lê `stats` para um buffer de 512 caracteres e podia deixar de caber.
+- Resultado: edição longe 0,4 ms/tick, edição no meio de uma rede grande ~3 ms; limite de `Building_InABigBase_DoesNotStall` 25 → 5 ms.
+- Mudanças de comportamento: com falta de energia, os críticos são servidos primeiro (antes todos recebiam a mesma fração); baterias descarregam por ordem de id.
+- Testes: 164/164 EditMode (6 novos em `PowerTests`); runtimes JS, Python, PHP, SQL, C#, C/C++ PASS; build + self-test PASS; Play Mode: `energy.network()` em JS e as colunas novas em SQL.

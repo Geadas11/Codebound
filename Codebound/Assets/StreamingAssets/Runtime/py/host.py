@@ -255,6 +255,9 @@ class _Energy:
     def stats(self):
         return _call("energy", "stats")
 
+    def network(self):
+        return _call("energy", "network")
+
 
 class _World:
     def pollution(self):

@@ -2,7 +2,7 @@
 # The player's SQL script runs once per cycle (default every 1 s; "-- @every N" or "-- @once").
 # Each cycle sees read-only TEMP tables with live game data and controls the world by writing rows:
 #   machines(id, type, name, status, power, busy, distance)   contents(machine, role, item, count)
-#   energy(capacity_kw, demand_kw, satisfaction, available)    events(name, machine, item, time)
+#   energy(capacity_kw, demand_kw, satisfaction, available, solar_kw, steam_kw, coal_kw, battery_kw, critical_satisfaction, normal_satisfaction, stored_kj)    events(name, machine, item, time)
 #   game(time, cycle, pollution, weather, temperature, day, daylight)
 #   commands(machine, action, arg)  -> executed by the game after the cycle (start, stop, set_filter, mine, smelt)
 #   hud(key, value)                 -> published like hud.set(key, value)
@@ -91,7 +91,8 @@ def refresh(db, snap, cycle):
             DROP TABLE IF EXISTS temp.events; DROP TABLE IF EXISTS temp.game; DROP TABLE IF EXISTS temp.creatures;
             CREATE TEMP TABLE machines(id TEXT, type TEXT, name TEXT, status TEXT, power REAL, busy INTEGER, distance REAL);
             CREATE TEMP TABLE contents(machine TEXT, role TEXT, item TEXT, count INTEGER);
-            CREATE TEMP TABLE energy(capacity_kw REAL, demand_kw REAL, satisfaction REAL, available INTEGER);
+            CREATE TEMP TABLE energy(capacity_kw REAL, demand_kw REAL, satisfaction REAL, available INTEGER,
+                solar_kw REAL, steam_kw REAL, coal_kw REAL, battery_kw REAL, critical_satisfaction REAL, normal_satisfaction REAL, stored_kj REAL);
             CREATE TEMP TABLE events(name TEXT, machine TEXT, item TEXT, time REAL);
             CREATE TEMP TABLE game(time REAL, cycle INTEGER, pollution REAL, weather TEXT, temperature REAL, day INTEGER, daylight REAL);
             CREATE TEMP TABLE creatures(id INTEGER, type TEXT, health REAL, distance REAL);
@@ -100,7 +101,9 @@ def refresh(db, snap, cycle):
                        [(m["id"], m["type"], m["name"], m["status"], m["power"], 1 if m["busy"] else 0, m["distance"]) for m in snap["machines"]])
         db.executemany("INSERT INTO temp.contents VALUES (?,?,?,?)", [tuple(c) for c in snap["contents"]])
         e = snap["energy"]
-        db.execute("INSERT INTO temp.energy VALUES (?,?,?,?)", (e["capacityKW"], e["demandKW"], e["satisfaction"], 1 if e["available"] else 0))
+        db.execute("INSERT INTO temp.energy VALUES (?,?,?,?,?,?,?,?,?,?,?)", (e["capacityKW"], e["demandKW"], e["satisfaction"], 1 if e["available"] else 0,
+                   e.get("solarKW", 0), e.get("steamKW", 0), e.get("coalKW", 0), e.get("batteryKW", 0),
+                   e.get("criticalSatisfaction", 0), e.get("normalSatisfaction", 0), e.get("storedKJ", 0)))
         db.executemany("INSERT INTO temp.events VALUES (?,?,?,?)",
                        [(ev.get("name"), (ev.get("data") or {}).get("machine"), (ev.get("data") or {}).get("item"), snap["time"]) for ev in snap["events"]])
         db.execute("INSERT INTO temp.game VALUES (?,?,?,?,?,?,?)", (snap["time"], cycle, snap.get("pollution", 0), snap.get("weather"), snap.get("temperature"), snap.get("day"), snap.get("daylight")))

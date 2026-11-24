@@ -95,3 +95,10 @@ Ordem mantida: a auditoria confirmou que a Etapa 1 é pré-requisito de todas (o
 - **Testes**: 158/158 EditMode; runtimes das 8 linguagens PASS; build + self-test PASS; Play Mode verificado.
 - **Limitações**: fluxo instantâneo dentro de um segmento (sem pressão nem velocidade por tubo); máquinas ligam-se a tubos, não diretamente umas às outras; sem tubos subterrâneos; tubos atravessáveis pelo jogador (não bloqueiam caminhos); a máquina a vapor não guarda energia (só o vapor que tem).
 - **Retomar**: Etapa 4 — energia com prioridades, estatísticas por rede e reconstrução incremental das redes (baixar o limite de 25 ms).
+
+### Etapa 4 — concluída (2026-11-24)
+- **Feito**: P9 (prioridades de procura, categorias de produção, estatísticas por rede) e a reconstrução incremental pendente desde a Etapa 2; hubs deixam de procurar baús sem motivo.
+- **Ficheiros**: `Core/Power.cs` (novo), `Core/Factory.cs`, `Game/ProgramManager.cs`, `Game/MachinePanel.cs`, runtimes JS/Python/PHP/SQL, `Tools/cshost/Host.cs`, `Tools/localization/tables_power.py` (novo) e tabelas; testes `PowerTests.cs` (novo), `PerformanceTests.cs`.
+- **Testes**: 164/164 EditMode; runtimes das 8 linguagens PASS; build + self-test PASS; Play Mode verificado.
+- **Limitações**: prioridades fixas por tipo de máquina (os jogadores ainda não as mudam); estatísticas só do último tick (sem histórico/gráficos); os acumuladores continuam a ser as baterias existentes; tirar um nó no meio de uma rede muito grande ainda percorre essa rede (~3 ms com 2000 edifícios).
+- **Retomar**: Etapa 5 — sinais.
