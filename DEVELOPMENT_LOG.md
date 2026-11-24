@@ -299,3 +299,14 @@
 - Decisão principal: **o comboio pertence a um depósito** (edifício normal). Assim o painel, o reembolso, os saves (`bi`/`bx`), os braços e a API funcionam pelo caminho que já existia, sem uma ferramenta de construção nova para pôr veículos em cima dos carris.
 - Problemas apanhados: (1) um braço a dormir junto a uma paragem nunca acordaria quando o comboio chegasse — paragens marcadas como não observáveis; (2) a verificação manual mostrou dois comboios bloqueados frente a frente num anel com sinais de dois sentidos (o teste só verificava que não colidiam) — sinais passaram a ser de sentido único e o teste exige agora que ambos cumpram o horário.
 - Testes: 184/184 EditMode (6 novos em `TrainTests`); runtimes das 8 linguagens PASS; build + self-test PASS; Play Mode: anel com sinais, comboio de 3 vagões, programa JS com `configure` e `train()`.
+
+## Sessão 5 (cont.): Etapa 8 — integração
+- Auditoria: a barra de construção já mostra os edifícios novos à medida que a investigação os desbloqueia; os instantâneos de multijogador já levavam o estado dos edifícios, mas não os robôs em voo (linhas fora dos edifícios) nem as lâmpadas acesas; P11 (ids renumerados) e P12 (ações perdidas) continuavam abertos.
+- Feito: ids no save e nos instantâneos; ações em curso no save (as funções de conclusão saíram para métodos reutilizáveis); robôs e lâmpadas para os convidados; `IntegrationTests` com uma base mista de todos os sistemas.
+- Bug antigo encontrado: a ecologia não guardava onde caíam os passos de 1 s (nem invalidava a cache de árvores), por isso guardar e carregar com máquinas a poluir dava outro mundo. Corrigido (`ecoclock`, cache invalidada por `DepositChanged`).
+- Testes: 189/189 EditMode; build + self-test PASS; Play Mode: guardar/carregar pelo jogo mantém `m2` (com um id livre antes) e a fundição a meio termina depois de carregar.
+
+## Resumo da missão "Evoluir o Codebound" (Etapas 0–8, 2026-11-24)
+- 135 → 189 testes EditMode, todos a passar; runtimes das 8 linguagens a passar; build Windows + self-test PASS em cada etapa; cada etapa verificada em Play Mode.
+- Novos ficheiros do núcleo: `Simulation.cs`, `Logistics.cs`, `Fluids.cs`, `Power.cs`, `Signals.cs`, `Robots.cs`, `Trains.cs`. Nada foi removido do jogo; saves antigos continuam a carregar (migrações testadas onde o formato mudou).
+- Ver `INDUSTRY_PLAN.md` para o registo por etapa e as limitações conhecidas.

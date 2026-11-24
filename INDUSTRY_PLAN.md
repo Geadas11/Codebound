@@ -123,3 +123,12 @@ Ordem mantida: a auditoria confirmou que a Etapa 1 é pré-requisito de todas (o
 - **Testes**: 184/184 EditMode; runtimes PASS; build + self-test PASS; Play Mode verificado.
 - **Limitações**: sem sinais de cadeia, marcha-atrás, curvas desenhadas, nem colisão com o jogador.
 - **Retomar**: Etapa 8 — integração.
+
+### Etapa 8 — concluída (2026-11-24)
+- **Feito**: P11 (ids guardados) e P12 (ações em curso guardadas); multijogador com robôs, lâmpadas e comboios; bug de determinismo da ecologia; base mista com todos os sistemas (2280 edifícios, 0,8 ms/tick) e equivalências dormir/guardar nela.
+- **Ficheiros**: `Core/Factory.cs`, `Core/Buildings.cs`, `Core/GameState.cs`, `Core/Multiplayer.cs`, `Core/Signals.cs`, `Core/Ecology.cs`; testes `IntegrationTests.cs` (novo).
+- **Testes**: 189/189 EditMode; build + self-test PASS; Play Mode verificado.
+- **Limitações**: nos convidados as estatísticas de energia e os valores das redes de sinais do painel não atualizam; a barra de construção fica longa com tudo desbloqueado.
+
+## 7. Estado final da missão
+Todas as etapas (0–8) concluídas e testadas. Problemas da auditoria: P1–P12 resolvidos (P9 e P10 com os sistemas das Etapas 3–7). Limitações conhecidas estão no registo de cada etapa acima.

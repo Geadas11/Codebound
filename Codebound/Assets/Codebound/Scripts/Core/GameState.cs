@@ -176,7 +176,7 @@ namespace Codebound.Core
             var extra = new SortedDictionary<string, string>();
             foreach (var b in g.Grid.Buildings)
             {
-                w.WriteLine($"b {b.Def.Id} {b.Origin.X} {b.Origin.Y} {(int)b.Rotation}");
+                w.WriteLine($"b {b.Def.Id} {b.Origin.X} {b.Origin.Y} {(int)b.Rotation} {b.InstanceId}");
                 if (b.Health < b.Def.MaxHealth) w.WriteLine("bh " + b.Health.ToString("R", Inv));
                 if (b.Owner != null) w.WriteLine("bo " + b.Owner);
                 if (b.State == null) continue;
@@ -188,6 +188,7 @@ namespace Codebound.Core
                 foreach (var kv in extra) w.WriteLine($"bx {kv.Key} {kv.Value}");
             }
             foreach (var line in g.Factory.RobotSaveLines()) w.WriteLine(line);
+            foreach (var line in g.Factory.ActionSaveLines()) w.WriteLine(line);
             w.WriteLine(g.Vitals.SaveLine());
             w.WriteLine(g.Clock.SaveLine());
             if (g.Research.SaveLine() is string rl) w.WriteLine(rl);
@@ -240,7 +241,8 @@ namespace Codebound.Core
                         case "mined": Need(g).World.SetMined(new Cell(int.Parse(p[1], Inv), int.Parse(p[2], Inv)), int.Parse(p[3], Inv)); break;
                         case "b":
                             var def = BuildingDatabase.Get(p[1]);
-                            last = Need(g).Grid.Place(def, new Cell(int.Parse(p[2], Inv), int.Parse(p[3], Inv)), (Rotation)(int.Parse(p[4], Inv) & 3));
+                            int keepId = p.Length > 5 && int.TryParse(p[5], NumberStyles.Integer, Inv, out int sid) && sid > 0 ? sid : 0;   // old saves: numbered in order
+                            last = Need(g).Grid.Place(def, new Cell(int.Parse(p[2], Inv), int.Parse(p[3], Inv)), (Rotation)(int.Parse(p[4], Inv) & 3), null, keepId);
                             if (last == null) throw new InvalidDataException($"Building {p[1]} cannot be placed at its saved position");
                             break;
                         case "bi":
@@ -256,6 +258,7 @@ namespace Codebound.Core
                         case "bo": Need(last).Owner = Multiplayer.ValidName(p[1]) ? p[1] : null; break;
                         case "hud": Need(g).Hud.LoadLine(p); break;
                         case "lrobot": Need(g).Factory.LoadRobot(p); break;
+                        case "act": Need(g).Factory.LoadAction(p); break;
                         case "vitals": Need(g).Vitals.Load(p); break;
                         case "gbody":
                             if (!Multiplayer.ValidName(p[1])) break;
@@ -266,7 +269,7 @@ namespace Codebound.Core
                         case "clock": Need(g).Clock.Load(p); break;
                         case "research": Need(g).Research.Load(p); break;
                         case "explore": Need(g).Exploration.Load(p); break;
-                        case "eco": Need(g).Ecology.Load(p); break;
+                        case "eco": case "ecoclock": Need(g).Ecology.Load(p); break;
                         case "skills": Need(g).Skills.Load(p); break;
                         case "story": Need(g).Story.Load(p); break;
                         case "tutorial": Need(g).Tutorial.Load(p); sawTutorial = true; break;

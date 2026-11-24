@@ -19,6 +19,7 @@ namespace Codebound.Core
         sealed class PendingAction
         {
             public PlacedBuilding Machine;
+            public string Kind, Arg;   // what it is, for the save: mine, smelt, research <tech>, craft <product>
             public float Remaining;
             public Func<string> Complete;
             public Action<string> Done;
@@ -286,22 +287,21 @@ namespace Codebound.Core
             if (!CanAccept(st.Output, WorldRules.ItemFor(dep.Type))) { st.Status = "output full"; return "output_full"; }
             if (!HasPower(drill)) { st.Status = "no power"; return "no_power"; }
             st.Status = "mining";
-            actions.Add(new PendingAction
-            {
-                Machine = drill, Remaining = MineSeconds, Done = done,
-                Complete = () =>
-                {
-                    var d = FirstDeposit(drill, out var cell);
-                    if (d.IsNone) return null;
-                    string item = WorldRules.ItemFor(d.Type);
-                    if (!CanAccept(st.Output, item)) return null;
-                    world.Extract(cell, 1);
-                    st.Output.Add(item, 1);
-                    return item;
-                }
-            });
+            actions.Add(new PendingAction { Machine = drill, Kind = "mine", Remaining = MineSeconds, Done = done, Complete = MineResult(drill) });
             return null;
         }
+
+        Func<string> MineResult(PlacedBuilding drill) => () =>
+        {
+            var st = (DrillState)drill.State;
+            var d = FirstDeposit(drill, out var cell);
+            if (d.IsNone) return null;
+            string item = WorldRules.ItemFor(d.Type);
+            if (!CanAccept(st.Output, item)) return null;
+            world.Extract(cell, 1);
+            st.Output.Add(item, 1);
+            return item;
+        };
 
         /// <summary>Starts smelting one input unit. Error code or null (done fires with the product id or null).</summary>
         public string StartSmelt(PlacedBuilding furnace, Action<string> done)
@@ -315,22 +315,21 @@ namespace Codebound.Core
             if (!CanAccept(st.Output, product)) { st.Status = "output full"; return "output_full"; }
             if (st.BurnLeftKJ <= 0 && st.Fuel.Count(ItemDatabase.Coal) == 0) { st.Status = "no fuel"; return "no_fuel"; }
             st.Status = "smelting";
-            actions.Add(new PendingAction
-            {
-                Machine = furnace, Remaining = SmeltSeconds, Done = done,
-                Complete = () =>
-                {
-                    var s = st.Input[0];
-                    if (s.IsEmpty) return null;
-                    string p = FurnaceState.Recipes[s.ItemId];
-                    if (!CanAccept(st.Output, p)) return null;
-                    st.Input.TryRemove(s.ItemId, 1);
-                    st.Output.Add(p, 1);
-                    return p;
-                }
-            });
+            actions.Add(new PendingAction { Machine = furnace, Kind = "smelt", Remaining = SmeltSeconds, Done = done, Complete = SmeltResult(furnace) });
             return null;
         }
+
+        static Func<string> SmeltResult(PlacedBuilding furnace) => () =>
+        {
+            var st = (FurnaceState)furnace.State;
+            var s = st.Input[0];
+            if (s.IsEmpty) return null;
+            string p = FurnaceState.Recipes[s.ItemId];
+            if (!CanAccept(st.Output, p)) return null;
+            st.Input.TryRemove(s.ItemId, 1);
+            st.Output.Add(p, 1);
+            return p;
+        };
 
         /// <summary>Cancels a machine's running action (program stopped). done fires with null.</summary>
         public void Cancel(PlacedBuilding b)
@@ -599,19 +598,18 @@ namespace Codebound.Core
             foreach (var c in t.Cost) if (st.Input.Count(c.ItemId) < c.Count) { st.Status = "missing " + c.ItemId; return "missing_" + c.ItemId; }
             if (!HasPower(lab)) { st.Status = "no power"; return "no_power"; }
             st.Current = t.Id; st.Status = "researching " + t.Id;
-            actions.Add(new PendingAction
-            {
-                Machine = lab, Remaining = t.Seconds, Done = done,
-                Complete = () =>
-                {
-                    st.Current = null;
-                    if (Research.IsDone(t.Id) || !st.Input.TryRemoveAll(t.Cost)) return null;
-                    Research.Complete(t);
-                    return t.Id;
-                }
-            });
+            actions.Add(new PendingAction { Machine = lab, Kind = "research", Arg = t.Id, Remaining = t.Seconds, Done = done, Complete = ResearchResult(lab, t) });
             return null;
         }
+
+        Func<string> ResearchResult(PlacedBuilding lab, Tech t) => () =>
+        {
+            var st = (LabState)lab.State;
+            st.Current = null;
+            if (Research.IsDone(t.Id) || !st.Input.TryRemoveAll(t.Cost)) return null;
+            Research.Complete(t);
+            return t.Id;
+        };
 
         // ------------------------------------------------------------ manufacturing
         /// <summary>Starts crafting one recipe. Error code or null (done fires with the product id or null).</summary>
@@ -625,17 +623,43 @@ namespace Codebound.Core
             if (!o.IsEmpty && (o.ItemId != r.Product || o.Count + r.Amount > ItemDatabase.Get(r.Product).MaxStack)) { st.Status = "output full"; return "output_full"; }
             if (!HasPower(asm)) { st.Status = "no power"; return "no_power"; }
             st.Status = "crafting";
-            actions.Add(new PendingAction
-            {
-                Machine = asm, Remaining = r.Seconds, Done = done,
-                Complete = () =>
-                {
-                    if (!st.Input.TryRemoveAll(r.Inputs)) return null;
-                    st.Output.Add(r.Product, r.Amount);
-                    return r.Product;
-                }
-            });
+            actions.Add(new PendingAction { Machine = asm, Kind = "craft", Arg = r.Product, Remaining = r.Seconds, Done = done, Complete = CraftResult(asm, r) });
             return null;
+        }
+
+        static Func<string> CraftResult(PlacedBuilding asm, AssemblerState.Recipe r) => () =>
+        {
+            var st = (AssemblerState)asm.State;
+            if (!st.Input.TryRemoveAll(r.Inputs)) return null;
+            st.Output.Add(r.Product, r.Amount);
+            return r.Product;
+        };
+
+        // ------------------------------------------------------------ actions in the save (they used to be lost on load)
+        /// <summary>"act &lt;machine id&gt; &lt;kind&gt; &lt;arg|-&gt; &lt;seconds left&gt;", in the order they started.</summary>
+        public IEnumerable<string> ActionSaveLines()
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            foreach (var a in actions)
+                if (a.Kind != null) yield return $"act {a.Machine.InstanceId.ToString(inv)} {a.Kind} {a.Arg ?? "-"} {a.Remaining.ToString("R", inv)}";
+        }
+
+        /// <summary>Puts a saved action back as it was (no checks: it had already started). Unknown or impossible ones are skipped.</summary>
+        public void LoadAction(string[] p)
+        {
+            var inv = System.Globalization.CultureInfo.InvariantCulture;
+            if (p.Length < 5 || !int.TryParse(p[1], System.Globalization.NumberStyles.Integer, inv, out int id)) return;
+            var m = grid.ById(id);
+            if (m?.State == null || HasAction(m)) return;
+            float left = Math.Max(0f, float.Parse(p[4], inv));
+            string kind = p[2], arg = p[3] == "-" ? null : p[3];
+            Func<string> complete = null;
+            if (kind == "mine" && m.State is DrillState) complete = MineResult(m);
+            else if (kind == "smelt" && m.State is FurnaceState) complete = SmeltResult(m);
+            else if (kind == "research" && m.State is LabState ls && Research.Get(arg) is Tech t) { complete = ResearchResult(m, t); ls.Current = t.Id; }
+            else if (kind == "craft" && m.State is AssemblerState && arg != null && AssemblerState.Recipes.TryGetValue(arg, out var r)) complete = CraftResult(m, r);
+            if (complete == null) return;
+            actions.Add(new PendingAction { Machine = m, Kind = kind, Arg = arg, Remaining = left, Complete = complete });
         }
 
         /// <summary>Buildings a computer can command (centre within ComputerRange), nearest first.</summary>

@@ -262,6 +262,8 @@ namespace Codebound.Core
     {
         public bool Lit;
         public override bool TakesCondition => true;
+        public override void SaveExtra(IDictionary<string, string> d) { if (Lit) d["lit"] = "1"; }   // guests see it lit
+        public override void LoadExtra(string k, string v) { if (k == "lit") Lit = v == "1"; }
     }
 
     public sealed partial class Factory

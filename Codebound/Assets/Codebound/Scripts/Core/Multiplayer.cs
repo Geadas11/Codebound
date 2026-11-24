@@ -85,7 +85,7 @@ namespace Codebound.Core
             foreach (var kv in want)
             {
                 var sb = kv.Value;
-                if (!have.TryGetValue(kv.Key, out var tb)) tb = t.Grid.Place(sb.Def, sb.Origin, sb.Rotation);
+                if (!have.TryGetValue(kv.Key, out var tb)) tb = t.Grid.Place(sb.Def, sb.Origin, sb.Rotation, null, sb.InstanceId);   // same id as on the host
                 if (tb == null) continue;   // cannot happen with the same seed and deltas; skip rather than break the session
                 if (tb == editing && tb.State is ComputerState oc && sb.State is ComputerState nc)   // keep what the guest is typing
                 {
@@ -96,6 +96,7 @@ namespace Codebound.Core
                 tb.State = sb.State; tb.Health = sb.Health; tb.Owner = sb.Owner;
             }
 
+            t.Factory.Robots.Clear(); t.Factory.Robots.AddRange(s.Factory.Robots);   // robots in flight (drawn by the guest)
             t.Clock.Seconds = s.Clock.Seconds;
             if (s.Research.SaveLine() is string rl) t.Research.Load(rl.Split(' '));
             foreach (var line in s.Exploration.SaveLines()) t.Exploration.Load(line.Split(' '));

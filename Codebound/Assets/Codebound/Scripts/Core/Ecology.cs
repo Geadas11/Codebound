@@ -23,7 +23,12 @@ namespace Codebound.Core
         float step;
         double clock;
 
-        public Ecology(GameState g) { game = g; }
+        public Ecology(GameState g)
+        {
+            game = g;
+            // a tree cut or planted makes the cached count of its region stale: drop it, so a loaded world counts the same
+            g.World.DepositChanged += c => treeCache.Remove(RegionOf(c));
+        }
 
         static int Div(int a) => (int)Math.Floor(a / (double)Region);
         public static (int, int) RegionOf(Cell c) => (Div(c.X), Div(c.Y));
@@ -106,9 +111,14 @@ namespace Codebound.Core
         public IEnumerable<string> SaveLines()
         {
             foreach (var kv in air) yield return $"eco {kv.Key.Item1} {kv.Key.Item2} {kv.Value.ToString("R", CultureInfo.InvariantCulture)}";
+            // where the 1-second steps fall: without it a loaded world stepped at other ticks than the one that was saved
+            if (step > 0 || clock > 0) yield return $"ecoclock {step.ToString("R", CultureInfo.InvariantCulture)} {clock.ToString("R", CultureInfo.InvariantCulture)}";
         }
 
-        public void Load(string[] p) =>
+        public void Load(string[] p)
+        {
+            if (p[0] == "ecoclock") { step = Math.Max(0f, Math.Min(1f, float.Parse(p[1], CultureInfo.InvariantCulture))); clock = Math.Max(0, double.Parse(p[2], CultureInfo.InvariantCulture)); return; }
             air[(int.Parse(p[1], CultureInfo.InvariantCulture), int.Parse(p[2], CultureInfo.InvariantCulture))] = float.Parse(p[3], CultureInfo.InvariantCulture);
+        }
     }
 }

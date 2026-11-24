@@ -237,10 +237,16 @@ namespace Codebound.Core
             return true;
         }
 
-        public PlacedBuilding Place(BuildingDef def, Cell origin, Rotation rot, Func<Cell, bool> extraBlocker = null)
+        public PlacedBuilding Place(BuildingDef def, Cell origin, Rotation rot, Func<Cell, bool> extraBlocker = null) => Place(def, origin, rot, extraBlocker, 0);
+
+        /// <summary>Places with a given id (saves and multiplayer snapshots keep ids, so programs' "m12" stay valid).
+        /// The id must be newer than every existing one, or a fresh id is used.</summary>
+        public PlacedBuilding Place(BuildingDef def, Cell origin, Rotation rot, Func<Cell, bool> extraBlocker, int id)
         {
             if (!CanPlace(def, origin, rot, extraBlocker)) return null;
-            var b = new PlacedBuilding(nextId++, def, origin, rot);
+            if (id < nextId) id = nextId;
+            nextId = id + 1;
+            var b = new PlacedBuilding(id, def, origin, rot);
             foreach (var c in b.Cells()) occupancy[c] = b;
             byId[b.InstanceId] = b;
             ordered.Add(b);   // ids only grow, so appending keeps the list sorted
