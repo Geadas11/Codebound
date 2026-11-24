@@ -8,7 +8,8 @@ namespace Codebound.Core
     {
         /// <summary>0..1 share of requested electric power received last tick (1 for machines that need none).</summary>
         public float PowerSatisfaction = 1f;
-        public string Status = "idle";
+        string status = "idle";
+        public virtual string Status { get => status; set => status = value; }
 
         /// <summary>Sleeping: nothing to do until something it depends on changes (Factory wakes it). Not saved: a loaded
         /// world starts awake and machines go back to sleep on their first idle tick.</summary>
@@ -27,6 +28,9 @@ namespace Codebound.Core
 
         /// <summary>The inventory an inserter may take from (outputs, chest contents), or null.</summary>
         public virtual Inventory Extractable => null;
+
+        /// <summary>Fluids held (pipes report their whole segment), for programs and the machine panel.</summary>
+        public virtual IEnumerable<(string fluid, float amount)> FluidContents { get { yield break; } }
 
         public virtual void SaveExtra(IDictionary<string, string> data) { }
         public virtual void LoadExtra(string key, string value) { }
@@ -88,7 +92,7 @@ namespace Codebound.Core
     public sealed class GreenhouseState : MachineState
     {
         public const int Plots = 4;
-        public const float GrowSeconds = 180f, WaterPerSecond = 1f / 90f, TankRefill = 2f, WaterPerDrink = 0.5f;
+        public const float GrowSeconds = 180f, WaterPerSecond = 1f / 90f, TankRefill = 2f, WaterPerDrink = 0.5f, PipeRefill = 5f;
         public const int Yield = 3;
         public readonly Inventory Seeds = new Inventory(3), Output = new Inventory(2);
         public readonly float[] Growth = new float[Plots];     // -1 = empty plot, 0..1 growing, 1 = ripe

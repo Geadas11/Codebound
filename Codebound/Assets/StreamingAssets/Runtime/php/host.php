@@ -99,7 +99,8 @@ final class Machine
     const OPS = ['drill' => ['mine'], 'furnace' => ['smelt'], 'conveyor' => ['start', 'stop', 'set_filter'],
         'inserter' => ['start', 'stop', 'set_filter'], 'greenhouse' => ['plant', 'water', 'harvest', 'plots'],
         'assembler' => ['craft'], 'lab' => ['research', 'techs'], 'turret' => ['targets', 'fire'],
-        'launchpad' => ['launch', 'throttle', 'flight', 'planets', 'travel', 'land', 'asteroids', 'mine_asteroid', 'dock', 'answer', 'transmit'], 'server' => ['get', 'set', 'keys', 'delete'], 'storage_hub' => ['totals', 'find']];
+        'launchpad' => ['launch', 'throttle', 'flight', 'planets', 'travel', 'land', 'asteroids', 'mine_asteroid', 'dock', 'answer', 'transmit'], 'server' => ['get', 'set', 'keys', 'delete'], 'storage_hub' => ['totals', 'find'],
+        'pump' => ['start', 'stop'], 'pumpjack' => ['start', 'stop'], 'filler' => ['start', 'stop']];
     public readonly string $id;
     public readonly string $type;
     public readonly string $name;

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Codebound.Core
 {
-    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap }
+    public enum BuildingKind : byte { Structure, Storage, Furnace, Drill, Generator, Pole, Computer, Belt, Conveyor, Inserter, Greenhouse, Assembler, Lab, Turret, Solar, Battery, Scrubber, LaunchPad, Server, StorageHub, Heater, LightningRod, ShockTrap, Pipe, Pump, Tank, OffshorePump, Pumpjack, Boiler, SteamEngine, Filler }
 
     public sealed class BuildingDef
     {
@@ -22,10 +22,10 @@ namespace Codebound.Core
         /// <summary>Production machines only work when a program drives them (Prompt rule). Infrastructure is passive.</summary>
         public bool Programmable => Kind == BuildingKind.Drill || Kind == BuildingKind.Furnace || Kind == BuildingKind.Conveyor
             || Kind == BuildingKind.Greenhouse || Kind == BuildingKind.Assembler || Kind == BuildingKind.Lab || Kind == BuildingKind.Turret
-            || Kind == BuildingKind.LaunchPad;
+            || Kind == BuildingKind.LaunchPad || Kind == BuildingKind.Pump || Kind == BuildingKind.Pumpjack || Kind == BuildingKind.Filler;
 
         /// <summary>Belts can be walked over (Factorio-style); everything else blocks the player.</summary>
-        public bool Walkable => Kind == BuildingKind.Belt || Kind == BuildingKind.Conveyor || Kind == BuildingKind.ShockTrap;
+        public bool Walkable => Kind == BuildingKind.Belt || Kind == BuildingKind.Conveyor || Kind == BuildingKind.ShockTrap || Kind == BuildingKind.Pipe;
 
         public (int w, int h) Size(Rotation r) => r.IsSideways() ? (Height, Width) : (Width, Height);
 
@@ -89,6 +89,22 @@ namespace Codebound.Core
                 new ItemStack(ItemDatabase.IronPlate, 6), new ItemStack(ItemDatabase.CopperWire, 4)),
             new BuildingDef("computer2", "Advanced Computer", BuildingKind.Computer, 1, 2, 0x8a3ad5,
                 new ItemStack(ItemDatabase.Circuit, 4), new ItemStack(ItemDatabase.IronGear, 2), new ItemStack(ItemDatabase.CopperWire, 6)),
+            // fluids (Etapa 3 of the industrial simulation)
+            new BuildingDef("pipe", "Pipe", BuildingKind.Pipe, 1, 1, 0x7d8894, new ItemStack(ItemDatabase.IronPlate, 1)),
+            new BuildingDef("pump", "Pump", BuildingKind.Pump, 1, 1, 0x4f7fa8,
+                new ItemStack(ItemDatabase.IronPlate, 2), new ItemStack(ItemDatabase.IronGear, 1), new ItemStack(ItemDatabase.Circuit, 1)),
+            new BuildingDef("tank", "Storage Tank", BuildingKind.Tank, 2, 2, 0x8a9aa8,
+                new ItemStack(ItemDatabase.IronPlate, 20), new ItemStack(ItemDatabase.StoneBrick, 5)),
+            new BuildingDef("offshore_pump", "Offshore Pump", BuildingKind.OffshorePump, 1, 1, 0x3f8fc8,
+                new ItemStack(ItemDatabase.IronPlate, 2), new ItemStack(ItemDatabase.IronGear, 1), new ItemStack(ItemDatabase.Circuit, 1)),
+            new BuildingDef("pumpjack", "Pumpjack", BuildingKind.Pumpjack, 2, 2, 0x6a5a7a,
+                new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.IronGear, 6), new ItemStack(ItemDatabase.Circuit, 4)),
+            new BuildingDef("boiler", "Boiler", BuildingKind.Boiler, 2, 2, 0x8a5a4a,
+                new ItemStack(ItemDatabase.StoneBrick, 6), new ItemStack(ItemDatabase.IronPlate, 4)),
+            new BuildingDef("steam_engine", "Steam Engine", BuildingKind.SteamEngine, 2, 2, 0x6f7f6a,
+                new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.IronGear, 8), new ItemStack(ItemDatabase.CopperWire, 6)),
+            new BuildingDef("filler", "Canister Filler", BuildingKind.Filler, 2, 2, 0x9a7a3a,
+                new ItemStack(ItemDatabase.IronPlate, 8), new ItemStack(ItemDatabase.IronGear, 4), new ItemStack(ItemDatabase.Circuit, 2)),
         };
 
         public static BuildingDef TryGet(string id) { foreach (var b in All) if (b.Id == id) return b; return null; }

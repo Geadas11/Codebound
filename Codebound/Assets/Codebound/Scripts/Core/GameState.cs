@@ -92,13 +92,25 @@ namespace Codebound.Core
         {
             if (!WorldRules.IsWalkable(World.Generator.TileAt(c)) || Exploration.FacilityAt(c) != null || Caves.IsPortal(World.Generator, c)) return false;
             var d = World.DepositAt(c);
-            return def.Kind == BuildingKind.Drill ? d.Type != ResourceType.Tree : d.IsNone;
+            return def.Kind == BuildingKind.Drill ? d.Type != ResourceType.Tree : def.Kind == BuildingKind.Pumpjack ? d.IsNone || d.Type == ResourceType.Oil : d.IsNone;
         }
 
         /// <summary>Grid rules plus: a drill must cover at least one minable deposit.</summary>
         public bool CanPlace(BuildingDef def, Cell origin, Rotation rot, Func<Cell, bool> blocker = null)
         {
             if (!Grid.CanPlace(def, origin, rot, blocker)) return false;
+            if (Factory.FluidConflict(def, origin, rot)) return false;   // would join two different fluids
+            if (def.Kind == BuildingKind.OffshorePump)   // takes water from the tile behind it
+            {
+                var back = origin.Move(rot, -1);
+                return World.Generator.TileAt(back) == TileType.Water;
+            }
+            if (def.Kind == BuildingKind.Pumpjack)
+            {
+                var (pw, ph) = def.Size(rot);
+                for (int x = 0; x < pw; x++) for (int y = 0; y < ph; y++) if (World.DepositAt(new Cell(origin.X + x, origin.Y + y)).Type == ResourceType.Oil) return true;
+                return false;
+            }
             if (def.Kind != BuildingKind.Drill) return true;
             var (w, h) = def.Size(rot);
             for (int x = 0; x < w; x++)

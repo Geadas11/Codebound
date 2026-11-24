@@ -201,7 +201,8 @@ class Machine:
                    "inserter": {"start", "stop", "set_filter"}, "greenhouse": {"plant", "water", "harvest", "plots"},
                    "assembler": {"craft"}, "lab": {"research", "techs"}, "turret": {"targets", "fire"},
                    "launchpad": {"launch", "throttle", "flight", "planets", "travel", "land", "asteroids", "mine_asteroid", "dock", "answer", "transmit"},
-                   "server": {"get", "set", "keys", "delete"}, "storage_hub": {"totals", "find"}}.get(self.type, set())
+                   "server": {"get", "set", "keys", "delete"}, "storage_hub": {"totals", "find"},
+                   "pump": {"start", "stop"}, "pumpjack": {"start", "stop"}, "filler": {"start", "stop"}}.get(self.type, set())
         if name not in allowed:
             raise AttributeError(f"'{self.type}' has no function '{name}'")
         return lambda *a: _call(self.id, name, list(a))

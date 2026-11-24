@@ -101,6 +101,8 @@ namespace Codebound.Game
             if (open.Def.Programmable) GUILayout.Label("<i>" + L("mp.programmable", "Works only when a nearby computer program commands it.") + "</i>", small);
             if (st is GeneratorState g) GUILayout.Label(L("mp.genFuel", "Fuel energy left: {0} kJ   output {1}/{2} kW", g.BurnLeftKJ.ToString("0"), g.LoadKW.ToString("0"), Factory.GeneratorKW.ToString("0")), small);
             if (st is FurnaceState f) GUILayout.Label(L("mp.fuel", "Fuel energy left: {0} kJ", f.BurnLeftKJ.ToString("0")), small);
+            if (!(st is PipeState))   // pipes say it in their status
+                foreach (var (fluid, amount) in st.FluidContents) GUILayout.Label(L("mp.fluid", "{0}: {1} units", L("fluid." + fluid, fluid), amount.ToString("0.0")), small);
             if (open.Def.Id == "sorter" && st is ConveyorState sc)   // set by hand: sorters need no program
             {
                 GUILayout.Label(L("mp.sorter", "Straight on: <b>{0}</b> — other items turn right", sc.Filter == null ? L("mp.everything", "everything") : Loc.Item(sc.Filter)), small);

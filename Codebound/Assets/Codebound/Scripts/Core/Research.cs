@@ -82,6 +82,20 @@ namespace Codebound.Core
                 Cost = new[] { new ItemStack(ItemDatabase.IronPlate, 10), new ItemStack(ItemDatabase.CopperPlate, 10), new ItemStack(ItemDatabase.StoneBrick, 5) },
                 Unlocks = new[] { "turret" } },
 
+            // ---- fluids (Etapa 3 of the industrial simulation)
+            new Tech { Id = "fluid_handling", Name = "Fluid Handling", Area = "Industry", Seconds = 30,
+                Description = "Pipes, storage tanks, offshore pumps (water from the shore) and programmable pumps: pump.start(), pump.stop(). contents() shows fluids.",
+                Cost = new[] { new ItemStack(ItemDatabase.IronPlate, 15), new ItemStack(ItemDatabase.IronGear, 5), new ItemStack(ItemDatabase.Circuit, 2) },
+                Prereqs = new[] { "manufacturing" }, Unlocks = new[] { "pipe", "tank", "offshore_pump", "pump" } },
+            new Tech { Id = "steam_power", Name = "Steam Power", Area = "Energy", Seconds = 30,
+                Description = "Boilers burn coal to turn water into steam; steam engines turn steam into 150 kW each, used before coal generators.",
+                Cost = new[] { new ItemStack(ItemDatabase.IronPlate, 15), new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.CopperWire, 10) },
+                Prereqs = new[] { "fluid_handling" }, Unlocks = new[] { "boiler", "steam_engine" } },
+            new Tech { Id = "oil_processing", Name = "Oil Processing", Area = "Industry", Seconds = 40,
+                Description = "Pumpjacks on oil fields pump crude oil; canister fillers turn 20 units into a crude oil canister (launch fuel). Both start()/stop() from programs.",
+                Cost = new[] { new ItemStack(ItemDatabase.Circuit, 10), new ItemStack(ItemDatabase.IronGear, 10), new ItemStack(ItemDatabase.StoneBrick, 10) },
+                Prereqs = new[] { "fluid_handling" }, Unlocks = new[] { "pumpjack", "filler" } },
+
             // ---- main line: rebuild the ship
             new Tech { Id = "ship_frame", Name = "Ship: Hull Frame", Area = "Space", MainLine = true, Seconds = 45,
                 Description = "Repair the crashed hull's frame.",

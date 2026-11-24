@@ -269,7 +269,9 @@ namespace Codebound.Game
             switch (def.Kind)
             {
                 case BuildingKind.Belt: case BuildingKind.Conveyor: case BuildingKind.Drill: case BuildingKind.Generator: case BuildingKind.Assembler: return 4;
-                case BuildingKind.Furnace: case BuildingKind.Lab: case BuildingKind.Server: case BuildingKind.Scrubber: case BuildingKind.Heater: return 2;
+                case BuildingKind.Furnace: case BuildingKind.Lab: case BuildingKind.Server: case BuildingKind.Scrubber: case BuildingKind.Heater: case BuildingKind.Boiler: return 2;
+                case BuildingKind.Pumpjack: return 8;
+                case BuildingKind.SteamEngine: case BuildingKind.OffshorePump: return 4;
                 default: return 1;
             }
         }
@@ -321,6 +323,25 @@ namespace Codebound.Game
                     if ((x == 6 || x == 9) && y >= 1 && y <= 12) return Outline;
                     if ((y == 10 || y == 13) && x >= 3 && x <= 12) return Outline;
                     return Clear;
+                }
+                if (def.Kind == BuildingKind.Pipe || def.Kind == BuildingKind.Pump)
+                {
+                    // a cross of pipe (it joins every neighbour); the pump adds a motor box and an arrow to the front
+                    bool vert = x >= 5 && x <= 10, horiz = y >= 5 && y <= 10;
+                    if (def.Kind == BuildingKind.Pump)
+                    {
+                        if (x >= 3 && x <= 12 && y >= 3 && y <= 12)
+                        {
+                            if (x == 3 || x == 12 || y == 3 || y == 12) return Outline;
+                            if (Mathf.Abs(x - 7.5f) < (11 - y) * 0.6f && y >= 6 && y <= 10) return new Color32(230, 230, 235, 255);   // arrow
+                            return Shade(body, 0.9f + (y - 3) * 0.03f);
+                        }
+                        if (!vert) return Clear;
+                    }
+                    else if (!vert && !horiz) return Clear;
+                    if ((vert && (x == 5 || x == 10) && !horiz) || (horiz && (y == 5 || y == 10) && !vert)) return Outline;
+                    if ((vert && (y == 0 || y == 15) && x >= 5 && x <= 10) || (horiz && (x == 0 || x == 15))) return Shade(body, 0.6f);   // flanges
+                    return Shade(body, (vert ? x == 6 : y == 9) ? 1.35f : 0.95f);
                 }
                 if (x == 0 || y == 0 || x == w - 1 || y == h - 1) return Outline;
                 if (x == 1 || y == h - 2) return Shade(body, 1.25f);
@@ -431,6 +452,43 @@ namespace Codebound.Game
                         break;
                     case "shock_trap":
                         if (Mathf.Abs(y - 8 - ((x % 6) < 3 ? (x % 3) : 2 - (x % 3)) * 2 + 2) < 0.8f && x > 2 && x < 13) return new Color32(150, 220, 255, 255);   // zig-zag
+                        break;
+                    case "tank":
+                    {
+                        float tr = Mathf.Sqrt(cx * cx + cy * cy);
+                        if (tr < 13 && tr > 12) return Outline;
+                        if (tr < 12) return Shade(body, 1.15f - tr * 0.03f + (Mathf.Abs(cx + cy) < 1 ? 0.25f : 0f));   // round tank with a shine
+                        break;
+                    }
+                    case "offshore_pump":
+                        if (y < 6) return (x + frame) % 4 == 0 ? new Color32(140, 200, 255, 255) : new Color32(60, 120, 200, 255);   // intake in the water
+                        if (Mathf.Abs(cx) < 3 && y >= 6) return Shade(body, 1.3f);
+                        break;
+                    case "pumpjack":
+                    {
+                        float swing = Mathf.Sin(frame * Mathf.PI / 4f) * 3f;   // the walking beam rocks
+                        float beamY = 20 + (cx) * swing / 12f;
+                        if (Mathf.Abs(cy + 16 - beamY) < 1.5f && Mathf.Abs(cx) < 12) return new Color32(60, 50, 70, 255);
+                        if (Mathf.Abs(cx + 12) < 2.5f && Mathf.Abs(cy + 16 - beamY) < 4) return new Color32(220, 190, 60, 255);   // horse head
+                        if (Mathf.Abs(cx) < 1.5f && y > 6 && y < 20) return Outline;                                                 // samson post
+                        if (y < 6 && Mathf.Abs(cx + 10) < 3) return new Color32(30, 25, 30, 255);                                   // well head
+                        break;
+                    }
+                    case "boiler":
+                        if (cy < -6 && Mathf.Abs(cx) < 9) return x % 3 == 0 ? (frame % 2 == 0 ? new Color32(255, 150, 40, 255) : new Color32(255, 210, 90, 255)) : new Color32(50, 30, 25, 255);   // firebox
+                        if (cy > 4 && Mathf.Abs(cx) < 10) return Shade(body, 1.2f - (y % 4 == 0 ? 0.3f : 0f));                     // drum
+                        break;
+                    case "steam_engine":
+                    {
+                        float er = Mathf.Sqrt((cx + 6) * (cx + 6) + cy * cy);
+                        if (er < 9 && er > 7.5f) return Outline;
+                        if (er < 7.5f) return ((int)((Mathf.Atan2(cy, cx + 6) + frame * Mathf.PI / 8) * 4 + 40)) % 2 == 0 ? Shade(body, 0.55f) : Shade(body, 0.85f);   // flywheel
+                        if (cx > 4 && Mathf.Abs(cy) < 5) return x % 2 == 0 ? Shade(body, 1.3f) : Shade(body, 1.1f);              // cylinder
+                        break;
+                    }
+                    case "filler":
+                        if (cy < -2 && ((x / 6) % 2 == 1) && x > 3 && x < w - 4) return y == 6 || y == 7 ? new Color32(220, 60, 50, 255) : new Color32(40, 40, 45, 255);   // canisters
+                        if (cy > 4 && Mathf.Abs(cx) < 3) return Shade(body, 0.6f);                                                  // nozzle
                         break;
                     case "launchpad":
                     {

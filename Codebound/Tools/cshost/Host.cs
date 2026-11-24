@@ -101,6 +101,7 @@ namespace Codebound
             ["assembler"] = new[] { "craft" }, ["lab"] = new[] { "research", "techs" }, ["turret"] = new[] { "targets", "fire" },
             ["launchpad"] = new[] { "launch", "throttle", "flight", "planets", "travel", "land", "asteroids", "mine_asteroid", "dock", "answer", "transmit" },
             ["server"] = new[] { "get", "set", "keys", "delete" }, ["storage_hub"] = new[] { "totals", "find" },
+            ["pump"] = new[] { "start", "stop" }, ["pumpjack"] = new[] { "start", "stop" }, ["filler"] = new[] { "start", "stop" },
         };
         public string Id { get; }
         public string Type { get; }

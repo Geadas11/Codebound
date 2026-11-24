@@ -103,3 +103,14 @@ O projeto usa Enter Play Mode sem domain reload: qualquer estado estático tem d
 - EditMode (NUnit) para Core: `unity test Codebound --mode EditMode` (Editor fechado) ou `unity command test run --project-path …` (Editor aberto).
 - Runtime JS: `node Codebound/Tests/runtime/host.test.js`.
 - Verificação em Play Mode via Unity CLI (`unity open` + `unity command`).
+
+## Fluidos (`Core/Fluids.cs`, Etapa 3 da simulação industrial)
+- **Fluidos**: água, vapor, petróleo bruto (`Fluids.All`). Unidades abstratas.
+- **Segmentos**: tubos e depósitos ligados (4 vizinhos) formam um segmento com **um fluido, uma quantidade e uma capacidade** (soma: tubo 100, depósito 2×2 2500). O fluxo dentro do segmento é instantâneo e não custa nada por tubo (ideia dos segmentos de fluido do Factorio 2.0, reescrita). Os segmentos reconstroem-se quando se põe/tira um tubo ou depósito; cada tubo guarda a sua parte (capacidade proporcional), por isso dividir um segmento reparte o conteúdo e tirar um tubo leva a parte dele.
+- **Nunca há misturas**: `GameState.CanPlace` recusa um tubo/depósito que juntaria segmentos com fluidos diferentes (`Factory.FluidConflict`).
+- **Máquinas** (`fluidMachines`, por id, sistema `fluids` depois de `inserters`): bomba de água (na margem, água do mosaico atrás, 60/s, sem energia); bomba (do segmento de trás para o da frente, 120/s, 20 kW, `start()/stop()`); bomba de petróleo (num campo de petróleo, 10/s, 60 kW, `start()/stop()`, 1 unidade do depósito = 10 de petróleo); caldeira (carvão + água → vapor, até 300 kW = 10 vapor/s); máquina a vapor (vapor de trás ou da frente → até 150 kW, 30 kJ por unidade); enchedora (20 de petróleo → 1 bidão `crude_oil`, 2 s, 30 kW, `start()/stop()`). As máquinas têm caixas próprias (`FluidBox`, 20 unidades) e trocam com o segmento do tubo encostado à sua entrada/saída; ligar máquina a máquina diretamente não é suportado (põe-se um tubo).
+- **Energia**: a máquina a vapor é um nó da rede; ordem de fornecimento **sol → vapor já feito → carvão → baterias**. O vapor só se gasta conforme a procura (a caldeira para quando o vapor enche).
+- **Estufas** encostadas a um tubo de água enchem o depósito a 5/s (além do lago próximo).
+- **Saves**: o primeiro tubo (menor id) de cada segmento guarda a quantidade total e os outros 0, por isso carregar soma exatamente o mesmo número (o teste de guardar/carregar a meio compara hashes). Caixas das máquinas: `bx water/steam/crude`. Saves antigos não têm fluidos: nada a migrar.
+- **Programas**: `contents()` ganha `fluids` (`{"water": 45.5}`; um tubo dá o segmento inteiro); SQL: linhas `role = 'fluid'` na tabela `contents` (unidades inteiras). `pump`, `pumpjack` e `filler` aceitam `start/stop` em JS/TS, Python, PHP, C# (`Tools/cshost` recompilado), C/C++ (genérico) e SQL (`commands`).
+- **Status**: `MachineState.Status` passou de campo a propriedade virtual: o tubo calcula o seu texto quando é lido (sem texto por tubo por tick).

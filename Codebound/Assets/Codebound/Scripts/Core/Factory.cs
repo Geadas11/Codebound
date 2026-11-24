@@ -28,7 +28,7 @@ namespace Codebound.Core
         {
             public readonly List<PlacedBuilding> Generators = new List<PlacedBuilding>();
             public readonly List<PlacedBuilding> Consumers = new List<PlacedBuilding>();
-            public readonly List<PlacedBuilding> Solars = new List<PlacedBuilding>(), Batteries = new List<PlacedBuilding>();
+            public readonly List<PlacedBuilding> Solars = new List<PlacedBuilding>(), Batteries = new List<PlacedBuilding>(), Engines = new List<PlacedBuilding>();
             public float StoredKJ;
             public float CapacityKW, DemandKW, Satisfaction;
         }
@@ -82,12 +82,14 @@ namespace Codebound.Core
             if (IsConsumer(b)) yield return consumers;
             if (IsNode(b)) yield return nodeList;
             var st = b.State;
-            if (st is DrillState || st is FurnaceState || st is AssemblerState || st is GreenhouseState) yield return producers;
+            if (st is DrillState || st is FurnaceState || st is AssemblerState || st is GreenhouseState || st is FillerState) yield return producers;
             if (st is ConveyorState) yield return belts;
             if (st is InserterState) yield return inserters;
             if (st is GreenhouseState) yield return greenhouses;
             if (st is LaunchPadState) yield return pads;
             if (st is StorageHubState) yield return hubs;
+            if (st is PipeState) yield return fluidPipes;
+            if (IsFluidMachine(st)) yield return fluidMachines;
         }
 
         static void RemoveSorted(List<PlacedBuilding> l, PlacedBuilding b)
@@ -116,6 +118,7 @@ namespace Codebound.Core
                 if (b.State != null) b.State.Touched += () => { if (b.State != null) b.State.Asleep = false; WakeAround(b); };
                 WakeAround(b);   // whoever waited for something to appear here
                 powerDirty = powerDirtyForHubs = true;
+                if (b.State is PipeState) fluidDirty = true;
             };
             grid.Removed += b =>
             {
@@ -124,6 +127,7 @@ namespace Codebound.Core
                 for (int i = actions.Count - 1; i >= 0; i--)
                     if (actions[i].Machine == b) { var a = actions[i]; actions.RemoveAt(i); a.Done?.Invoke(null); }
                 powerDirty = powerDirtyForHubs = true;
+                if (b.State is PipeState) fluidDirty = true;
             };
         }
 
@@ -152,19 +156,29 @@ namespace Codebound.Core
                 case BuildingKind.Belt: return new ConveyorState { Running = true, Status = "moving", Sorts = def.Id == "sorter" };
                 case BuildingKind.Conveyor: return new ConveyorState { Status = "stopped" };
                 case BuildingKind.Inserter: return new InserterState();
+                case BuildingKind.Pipe: return new PipeState(Fluids.PipeCapacity);
+                case BuildingKind.Tank: return new PipeState(Fluids.TankCapacity);
+                case BuildingKind.Pump: return new PumpState();
+                case BuildingKind.OffshorePump: return new OffshorePumpState();
+                case BuildingKind.Pumpjack: return new PumpjackState();
+                case BuildingKind.Boiler: return new BoilerState();
+                case BuildingKind.SteamEngine: return new SteamEngineState();
+                case BuildingKind.Filler: return new FillerState();
                 default: return null;
             }
         }
 
         // ------------------------------------------------------------ power
         static bool IsNode(PlacedBuilding b) => b.Def.Kind == BuildingKind.Pole || b.Def.Kind == BuildingKind.Generator
-            || b.Def.Kind == BuildingKind.Solar || b.Def.Kind == BuildingKind.Battery || b.Def.Kind == BuildingKind.LightningRod;
+            || b.Def.Kind == BuildingKind.Solar || b.Def.Kind == BuildingKind.Battery || b.Def.Kind == BuildingKind.LightningRod
+            || b.Def.Kind == BuildingKind.SteamEngine;
         public const float SolarKW = 40f;
         /// <summary>Sunlight reaching solar panels 0..1 (daylight × clouds/rain/storm), set every tick by the game.</summary>
         public float SolarFactor = 1f;
         static bool IsConsumer(PlacedBuilding b) => b.Def.Kind == BuildingKind.Drill || b.Def.Kind == BuildingKind.Computer
             || b.Def.Kind == BuildingKind.Greenhouse || b.Def.Kind == BuildingKind.Assembler || b.Def.Kind == BuildingKind.Lab || b.Def.Kind == BuildingKind.Turret
-            || b.Def.Kind == BuildingKind.Scrubber || b.Def.Kind == BuildingKind.Server || b.Def.Kind == BuildingKind.StorageHub || b.Def.Kind == BuildingKind.Heater;
+            || b.Def.Kind == BuildingKind.Scrubber || b.Def.Kind == BuildingKind.Server || b.Def.Kind == BuildingKind.StorageHub || b.Def.Kind == BuildingKind.Heater
+            || b.Def.Kind == BuildingKind.Pump || b.Def.Kind == BuildingKind.Pumpjack || b.Def.Kind == BuildingKind.Filler;
         public const float GrowLampKW = 30f, AssemblerKW = 60f, LabKW = 40f;
         /// <summary>Tech progress of the world (set by GameState).</summary>
         public Research Research = new Research();
@@ -209,6 +223,7 @@ namespace Codebound.Core
                     if (n.Def.Kind == BuildingKind.Generator) net.Generators.Add(n);
                     if (n.Def.Kind == BuildingKind.Solar) net.Solars.Add(n);
                     if (n.Def.Kind == BuildingKind.Battery) net.Batteries.Add(n);
+                    if (n.Def.Kind == BuildingKind.SteamEngine) net.Engines.Add(n);
                     Near(n);
                     foreach (int i in near)
                     {
@@ -244,6 +259,10 @@ namespace Codebound.Core
             if (c.Def.Kind == BuildingKind.Server) return 15f;
             if (c.Def.Kind == BuildingKind.Heater) return Shelter.HeaterKW;
             if (c.Def.Kind == BuildingKind.StorageHub) return 20f;
+            if (c.State is SwitchedFluidState sw && !sw.Running) return 0f;
+            if (c.Def.Kind == BuildingKind.Pump) return Fluids.PumpKW;
+            if (c.Def.Kind == BuildingKind.Pumpjack) return Fluids.PumpjackKW;
+            if (c.Def.Kind == BuildingKind.Filler) return Fluids.FillerKW;
             if (c.State is GreenhouseState gh) { foreach (var g in gh.Growth) if (g >= 0 && g < 1) return GrowLampKW; return 0f; }
             return 0f;
         }
@@ -266,15 +285,18 @@ namespace Codebound.Core
                 foreach (var g in net.Generators) { var gs = (GeneratorState)g.State; gs.LoadKW = 0; if (GeneratorCanRun(gs)) running.Add(gs); }
                 float solarKW = net.Solars.Count * SolarKW * SolarFactor;
                 foreach (var s in net.Solars) ((SolarState)s.State).OutputKW = SolarKW * SolarFactor;
-                float genKW = running.Count * GeneratorKW, battKW = 0;
+                float genKW = running.Count * GeneratorKW, battKW = 0, engKW = 0;
+                foreach (var e in net.Engines) engKW += EngineCapacityKW(e, dt);
                 foreach (var b in net.Batteries) battKW += Math.Min(BatteryState.MaxKW, ((BatteryState)b.State).StoredKJ / Math.Max(dt, 1e-4f));
-                net.CapacityKW = solarKW + genKW + battKW;
+                net.CapacityKW = solarKW + engKW + genKW + battKW;
                 net.DemandKW = 0;
                 foreach (var c in net.Consumers) net.DemandKW += DemandOf(c);
 
-                // supply order: free sunlight, then coal, then stored energy
+                // supply order: free sunlight, then steam already made, then coal, then stored energy
                 float rem = net.DemandKW;
                 float useSolar = Math.Min(rem, solarKW); rem -= useSolar;
+                float useEng = Math.Min(rem, engKW); rem -= useEng;
+                foreach (var e in net.Engines) { float cap = EngineCapacityKW(e, dt); RunEngine(e, engKW > 0 ? useEng * cap / engKW : 0f, dt); }
                 float useGen = Math.Min(rem, genKW); rem -= useGen;
                 float useBatt = Math.Min(rem, battKW); rem -= useBatt;
                 net.Satisfaction = net.DemandKW <= 0 ? (net.CapacityKW > 0 ? 1f : 0f) : 1f - rem / net.DemandKW;
@@ -318,7 +340,7 @@ namespace Codebound.Core
         {
             if (powerDirty) RebuildNetworks();
             return networkOf.TryGetValue(b.InstanceId, out var net) && (net.Generators.Exists(g => GeneratorCanRun((GeneratorState)g.State))
-                || (net.Solars.Count > 0 && SolarFactor > 0.01f) || net.Batteries.Exists(x => ((BatteryState)x.State).StoredKJ > 1f));
+                || (net.Solars.Count > 0 && SolarFactor > 0.01f) || net.Engines.Exists(e => ((SteamEngineState)e.State).Steam.Amount > 0) || net.Batteries.Exists(x => ((BatteryState)x.State).StoredKJ > 1f));
         }
 
         public (float capacityKW, float demandKW) NetworkStats(PlacedBuilding b)
@@ -358,17 +380,19 @@ namespace Codebound.Core
         public MachineActivity Activity(PlacedBuilding b)
         {
             var st = b.State;
-            if (st == null || st is StorageState || b.Def.Kind == BuildingKind.Pole) return MachineActivity.None;
-            if (IsConsumer(b) && st.PowerSatisfaction <= 0 && (HasAction(b) || st is ComputerState cs && cs.Running || st is ScrubberState || st is TurretState)) return MachineActivity.NoPower;
+            if (st == null || st is StorageState || st is PipeState || b.Def.Kind == BuildingKind.Pole) return MachineActivity.None;
+            if (IsConsumer(b) && st.PowerSatisfaction <= 0 && (HasAction(b) || st is ComputerState cs && cs.Running || st is ScrubberState || st is TurretState || st is SwitchedFluidState sw && sw.Running)) return MachineActivity.NoPower;
             string s = (st.Status ?? "").ToLowerInvariant();
-            if (s.Contains("blocked") || s.Contains("full") || s.Contains("no fuel") || s.Contains("no source") || s.Contains("tank") || s.Contains("no power")) return MachineActivity.Blocked;
+            if (s.Contains("blocked") || s.Contains("full") || s.Contains("no fuel") || s.Contains("no source") || s.Contains("tank") || s.Contains("no power")
+                || s.Contains("no pipe") || s.Contains("no water") || s.Contains("no oil") || s.Contains("no steam") || s.Contains("empty") || s.Contains("nothing to pump")) return MachineActivity.Blocked;
             bool working = HasAction(b)
                 || st is GeneratorState g && g.LoadKW > 0 || st is SolarState so && so.OutputKW > 0
                 || st is ConveyorState cv && cv.Item != null && cv.Running
                 || st is InserterState ins && ins.Status == "moving"
                 || st is ComputerState pc && pc.Running
                 || st is ScrubberState sc && sc.Status == "cleaning"
-                || st is LaunchPadState lp && lp.Phase == "ascent";
+                || st is LaunchPadState lp && lp.Phase == "ascent"
+                || s == "pumping" || s == "boiling" || s == "filling" || st is SteamEngineState se && se.OutputKW > 0;
             if (!working && st is GreenhouseState gh) foreach (var v in gh.Growth) if (v >= 0 && v < 1) working = true;
             return working ? MachineActivity.Working : MachineActivity.Idle;
         }
@@ -507,7 +531,7 @@ namespace Codebound.Core
             foreach (var b in producers)
             {
                 Inventory output = b.State is DrillState d ? d.Output : b.State is FurnaceState f ? f.Output
-                    : b.State is AssemblerState asm ? asm.Output : b.State is GreenhouseState gr ? gr.Output : null;
+                    : b.State is AssemblerState asm ? asm.Output : b.State is GreenhouseState gr ? gr.Output : b.State is FillerState fi ? fi.Output : null;
                 if (output == null || output[0].IsEmpty) continue;
                 string item = output[0].ItemId;
                 foreach (var c in b.FrontCells())
@@ -528,6 +552,7 @@ namespace Codebound.Core
             yield return new SimSystem("outputs", PushOutputs);
             yield return new SimSystem("belts", () => TickConveyors(dt));
             yield return new SimSystem("inserters", () => TickInserters(dt));
+            yield return new SimSystem("fluids", () => TickFluids(dt));
             yield return new SimSystem("greenhouses", () => TickGreenhouses(dt));
             yield return new SimSystem("launch pads", () => TickLaunchPads(dt));
             yield return new SimSystem("storage hubs", LinkStorageHubs);
@@ -542,6 +567,7 @@ namespace Codebound.Core
             PushOutputs();
             TickConveyors(dt);
             TickInserters(dt);
+            TickFluids(dt);
             TickGreenhouses(dt);
             TickLaunchPads(dt);
             LinkStorageHubs();

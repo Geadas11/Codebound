@@ -673,6 +673,10 @@ namespace Codebound.Game
                                     if (!inv[i].IsEmpty) items[inv[i].ItemId] = (items.TryGetValue(inv[i].ItemId, out var n) ? (int)n : 0) + inv[i].Count;
                                 c[role] = items;
                             }
+                            Dictionary<string, object> fl = null;   // fluids: {"water": 45.5}; a pipe reports its whole segment
+                            foreach (var (fluid, amount) in m.State.FluidContents)
+                                (fl ?? (fl = new Dictionary<string, object>()))[fluid] = Math.Round((fl.TryGetValue(fluid, out var had) ? (double)had : 0) + amount, 1);
+                            if (fl != null) c["fluids"] = fl;
                             Reply(p, c); return;
                         case "start":
                         case "stop":
@@ -681,6 +685,7 @@ namespace Codebound.Game
                             // programmable conveyors and inserters share start/stop/filter
                             var cv = m.Def.Kind == BuildingKind.Conveyor ? (ConveyorState)m.State : null;
                             var ins = m.State as InserterState;
+                            if (m.State is SwitchedFluidState sw && fn != "set_filter") { sw.Running = fn == "start"; Reply(p, true); return; }   // pump, pumpjack, filler
                             if (cv == null && ins == null) break;
                             string f = fn == "set_filter" ? Arg(0) as string : null;
                             if (f != null && !ItemDatabase.Exists(f)) { Reply(p, null, error: $"Unknown item id '{f}'"); return; }
@@ -848,6 +853,8 @@ namespace Codebound.Game
                 foreach (var (role, inv) in b.State.Inventories)
                     for (int i = 0; i < inv.SlotCount; i++)
                         if (!inv[i].IsEmpty) contents.Add(new List<object> { "m" + b.InstanceId, role, inv[i].ItemId, inv[i].Count });
+                foreach (var (fluid, amount) in b.State.FluidContents)   // fluids as role 'fluid', whole units
+                    contents.Add(new List<object> { "m" + b.InstanceId, "fluid", fluid, (int)Math.Round(amount) });
             }
             var creatures = new List<object>();
             foreach (var cr in session.State.Creatures.All)
@@ -923,7 +930,8 @@ namespace Codebound.Game
                     case "start": case "stop": case "set_filter":
                         var cv = m.Def.Kind == BuildingKind.Conveyor ? (ConveyorState)m.State : null;
                         var ins = m.State as InserterState;
-                        if (cv == null && ins == null) { err = "only conveyors and inserters accept " + action; break; }
+                        if (m.State is SwitchedFluidState sws && action != "set_filter") { sws.Running = action == "start"; break; }   // pump, pumpjack, filler
+                        if (cv == null && ins == null) { err = "only conveyors, inserters, pumps, pumpjacks and fillers accept " + action; break; }
                         if (action == "set_filter" && arg != null && !ItemDatabase.Exists(arg)) { err = $"unknown item id '{arg}'"; break; }
                         bool? run = action == "start" ? true : action == "stop" ? false : (bool?)null;
                         if (cv != null) { if (run.HasValue) cv.Running = run.Value; else cv.Filter = arg; cv.Status = cv.Running ? "moving" : "stopped"; }

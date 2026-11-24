@@ -175,6 +175,9 @@ def main():
     e8 = {}
     exec(open(os.path.join(here, "tables_etapa8.py"), encoding="utf-8").read(), e8)
     T.update(e8["T5"])
+    fl = {}
+    exec(open(os.path.join(here, "tables_fluids.py"), encoding="utf-8").read(), fl)
+    T.update(fl["T6"])
     out = os.path.join(here, "..", "..", "Assets", "StreamingAssets", "Localization")
     os.makedirs(out, exist_ok=True)
     for key, row in T.items():

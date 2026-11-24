@@ -88,3 +88,10 @@ Ordem mantida: a auditoria confirmou que a Etapa 1 é pré-requisito de todas (o
 - **Testes**: 150/150 EditMode; sleep/wake idêntico com 4000 edifícios × 1200 ticks; build + self-test PASS; Play Mode verificado.
 - **Limitações**: fusões de duas correias de frente para a mesma célula usam a regra de curva/lateral (não há "prioridade" configurável); filtros por pista não existem; o limite de desempenho de edição elétrica subiu para 25 ms (reconstrução completa das redes, Etapa 4).
 - **Retomar**: Etapa 3 — fluidos.
+
+### Etapa 3 — concluída (2026-11-24)
+- **Feito**: fluidos (água, vapor, petróleo) em segmentos de tubos/depósitos; bombas programáveis; bomba de água; bomba de petróleo (consome os depósitos de petróleo que já existiam no mundo); caldeira e máquina a vapor ligadas à rede elétrica (sol → vapor → carvão → baterias); enchedora de bidões (liga o petróleo ao combustível da nave); estufas alimentadas por tubo. API em 8 linguagens, investigação, arte, 10 línguas, saves determinísticos.
+- **Ficheiros**: `Core/Fluids.cs` (novo), `Core/Buildings.cs`, `Core/Factory.cs`, `Core/Machines.cs`, `Core/GameState.cs`, `Core/Research.cs`, `Game/ProgramManager.cs`, `Game/MachinePanel.cs`, `Game/PixelArtFactory.cs`, runtimes JS/Python/PHP, `Tools/cshost/Host.cs`, `Tools/localization/tables_fluids.py` (novo) e tabelas geradas; testes `FluidTests.cs` (novo), `DeterminismTests.cs`.
+- **Testes**: 158/158 EditMode; runtimes das 8 linguagens PASS; build + self-test PASS; Play Mode verificado.
+- **Limitações**: fluxo instantâneo dentro de um segmento (sem pressão nem velocidade por tubo); máquinas ligam-se a tubos, não diretamente umas às outras; sem tubos subterrâneos; tubos atravessáveis pelo jogador (não bloqueiam caminhos); a máquina a vapor não guarda energia (só o vapor que tem).
+- **Retomar**: Etapa 4 — energia com prioridades, estatísticas por rede e reconstrução incremental das redes (baixar o limite de 25 ms).

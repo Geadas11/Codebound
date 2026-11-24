@@ -264,3 +264,11 @@
 - Mudança de comportamento intencional: cabem 2 itens lado a lado à entrada de uma correia (o teste "1 item por célula" foi atualizado); um braço pode ficar com 1 item na mão (antes nunca tirava se o destino estivesse cheio).
 - `PerformanceTests.Building_InABigBase_DoesNotStall`: limite 15 → 25 ms. Falhava também no commit anterior (15,5 ms nesta máquina); o custo é a reconstrução completa das redes elétricas (~11 ms), a tornar incremental na Etapa 4.
 - Testes: 150/150 EditMode; equivalência sleep/wake com 4000 edifícios × 1200 ticks; build + self-test PASS (8 linguagens); Play Mode: braço a 0,8 s/item, itens visíveis na pista direita.
+
+## Sessão 5 (cont.): Etapa 3 — fluidos
+- `Core/Fluids.cs` (novo): segmentos (um fluido, quantidade, capacidade), `FluidBox`, estados de tubo/depósito, bomba, bomba de água, bomba de petróleo, caldeira, máquina a vapor, enchedora; `Factory.TickFluids`, `FluidConflict`. 8 edifícios novos, 3 tecnologias (`fluid_handling`, `steam_power`, `oil_processing`), arte em pixel e animações, `tables_fluids.py` (27 chaves × 10 línguas).
+- Decisões: segmentos com fluxo instantâneo (simples, barato e determinístico); misturas impedidas na colocação em vez de resolvidas depois; o primeiro tubo do segmento guarda o total no save para o carregamento dar o mesmo número exato; bomba, bomba de petróleo e enchedora são programáveis (start/stop) como as outras máquinas de produção; caldeira, máquina a vapor e bomba de água são passivas (infraestrutura, como o gerador e a correia).
+- `MachineState.Status` passou a propriedade virtual (compatível com o código existente) para o tubo não criar texto por tick.
+- C#: `Tools/cshost` recompilado com o SDK do Unity (`Editor/Data/DotNetSdk/dotnet.exe build -c Release -o out`); o `Tools/dotnet` só tem o runtime.
+- `php -l host.php` acusa "Cannot redeclare sleep()" também na versão anterior: o host redefine `sleep` de propósito e o php corre com essa função desativada (os testes PHP passam).
+- Testes: 158/158 EditMode (8 novos em `FluidTests`); `DeterminismTests.TickOrder_IsExplicit` atualizado com o sistema `fluids`; runtimes JS, Python, PHP, SQL, C#, C/C++ PASS; build + self-test PASS; Play Mode: caldeira + máquina a vapor alimentam um computador, programa JS liga a bomba e lê `contents().fluids`.
