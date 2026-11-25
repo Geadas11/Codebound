@@ -1,7 +1,7 @@
 {
     "name": "Codebound.Editor",
     "rootNamespace": "Codebound.EditorTools",
-    "references": ["Codebound.Core", "Codebound.Game"],
+    "references": ["Codebound.Core", "Codebound.Game", "Unity.RenderPipelines.Universal.Runtime", "Unity.RenderPipelines.Core.Runtime"],
     "includePlatforms": ["Editor"],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

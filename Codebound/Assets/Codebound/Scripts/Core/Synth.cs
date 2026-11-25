@@ -67,6 +67,7 @@ namespace Codebound.Core
             R("chime", 0.8f, false, (t, r) => 0.4 * Dec(t, 4) * Sin(1046.5, t) + (t > 0.15 ? 0.4 * Dec(t - 0.15, 4) * Sin(1318.5, t) : 0), 1f);
             R("beep", 0.15f, false, (t, r) => 0.35 * Sin(1000, t) * Math.Min(1, (0.15 - t) * 40), 1f);
             R("error", 0.3f, false, (t, r) => 0.4 * Sq(110, t) * Math.Min(1, (0.3 - t) * 20), 0.3f);
+            R("ui_confirm", 0.18f, false, (t, r) => 0.3 * Dec(t, 16) * (Sin(660, t) + (t > 0.06 ? Sin(990, t) : 0)), 1f);
             R("click", 0.05f, false, (t, r) => Dec(t, 120) * Sq(2000, t) * 0.4, 1f);
             R("hurt", 0.25f, false, (t, r) => Dec(t, 10) * 0.5 * Saw(160 - 300 * t, t), 0.4f);
         }

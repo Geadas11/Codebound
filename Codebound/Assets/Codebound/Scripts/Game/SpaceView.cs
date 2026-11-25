@@ -52,7 +52,7 @@ namespace Codebound.Game
             if (box == null)
             {
                 var bg = new Texture2D(1, 1); bg.SetPixel(0, 0, new Color(0.02f, 0.03f, 0.06f, 0.92f)); bg.Apply();
-                box = new GUIStyle(GUI.skin.box) { normal = { background = bg, textColor = new Color(0.8f, 0.95f, 1f) }, fontSize = UiGui.Font(14), richText = true, alignment = TextAnchor.MiddleLeft, padding = new RectOffset(12, 12, 8, 8) };
+                box = new GUIStyle(UiTheme.Panel) { normal = { background = UiTheme.PanelTex, textColor = UiTheme.Text }, fontSize = UiGui.Font(14), richText = true, alignment = TextAnchor.MiddleLeft, padding = new RectOffset(12, 12, 8, 8) };
             }
             if (lp == null)   // in orbit: where, fuel, cargo, story progress
             {

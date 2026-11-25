@@ -19,20 +19,61 @@ namespace Codebound.Game
         public string LastMessage { get; private set; }
         public float MessageTime { get; private set; }
 
-        public static string SavePath => Path.Combine(Application.persistentDataPath, "saves", "quicksave.cbsave");
-        public static string AutoSavePath => Path.Combine(Application.persistentDataPath, "saves", "autosave.cbsave");
-        public const float AutoSaveSeconds = 300f;
-        float autoSaveTimer = AutoSaveSeconds;
+        public static string SavesDir => Path.Combine(Application.persistentDataPath, "saves");
+        public static string SavePath => Path.Combine(SavesDir, "quicksave.cbsave");
+        public static string AutoSavePath => Path.Combine(SavesDir, "autosave.cbsave");
+        float AutoSaveSeconds => Settings.AutoSaveMinutes * 60f;
+        float autoSaveTimer = 300f;
         static int? newGameSeed;
 
-        /// <summary>Starts a fresh world with the given seed (title screen).</summary>
-        public static void NewGame(int seed) { newGameSeed = seed; SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); }
+        /// <summary>The world being played (a save id in SavesDir), or null for a game started from the command line.
+        /// F5 and the autosave write to it; without one they use the old quicksave / autosave files.</summary>
+        public static string CurrentWorld { get; private set; }
+        static string pendingCreate;   // display name of a world just created from the menu: saved once it exists
+        static float playStarted;
+
+        public static string WorldFile => CurrentWorld != null ? WorldStore.FileOf(SavesDir, CurrentWorld) : SavePath;
+
+        /// <summary>Starts a fresh world with the given seed (no world file: the old quicksave behaviour).</summary>
+        public static void NewGame(int seed) { newGameSeed = seed; CurrentWorld = null; SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); }
+
+        /// <summary>The worlds screen's "Create": a new world with its own save file, written right away so it is listed.</summary>
+        public static void CreateWorld(string name, int seed)
+        {
+            CurrentWorld = WorldStore.NewId(SavesDir, name);
+            pendingCreate = WorldStore.CleanName(name);
+            newGameSeed = seed;
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
+
+        /// <summary>Opens a world from the worlds screen.</summary>
+        public static bool OpenWorld(string id, out string error)
+        {
+            error = null;
+            string path = WorldStore.FileOf(SavesDir, id);
+            try { using (var r = new StreamReader(path)) pendingLoad = SaveSystem.Read(r); }
+            catch (Exception e) { error = e.Message; Debug.LogException(e); return false; }
+            CurrentWorld = id;
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            return true;
+        }
+
+        /// <summary>Back to the title screen: saves the world (unless a guest), leaves any multiplayer game, shows the menu.</summary>
+        public void ReturnToTitle()
+        {
+            if (!Net.IsGuest && CurrentWorld != null) Save(WorldFile, quiet: true);
+            Online.ForgetJoin(); Online.Unpublish(); Net.Disconnect();
+            CurrentWorld = null;
+            TitleMenu.ShowAgain();
+            newGameSeed = null;
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
 
         // Play Mode without domain reload keeps statics and event subscriptions: reset them every session.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         static void ResetStatics()
         {
-            Session = null; pendingLoad = null; newGameSeed = null;
+            Session = null; pendingLoad = null; newGameSeed = null; CurrentWorld = null; pendingCreate = null;
             SceneManager.sceneLoaded -= OnSceneLoaded;
         }
 
@@ -40,6 +81,9 @@ namespace Codebound.Game
 
         /// <summary>Replaces the running world (multiplayer guests receiving the host's world).</summary>
         public static void LoadState(GameState s) { pendingLoad = s; SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex); }
+
+        /// <summary>A multiplayer guest receives the host's world: it is not one of ours, so nothing may save over our own.</summary>
+        public static void LoadGuestState(GameState s) { CurrentWorld = null; pendingCreate = null; LoadState(s); }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void AutoStart()
@@ -78,7 +122,8 @@ namespace Codebound.Game
                 state.PlayerX = sp.X + 0.5; state.PlayerY = sp.Y + 0.5;
             }
             Session = new GameSession(state);
-            Application.targetFrameRate = 120;
+            playStarted = Time.unscaledTime;
+            Settings.ApplyGraphics();
 
             var cam = Camera.main;
             if (cam == null) cam = new GameObject("Main Camera", typeof(Camera)) { tag = "MainCamera" }.GetComponent<Camera>();
@@ -172,7 +217,9 @@ namespace Codebound.Game
             if (Net.IsGuest) Session.State.Clock.Seconds += Time.deltaTime;   // between snapshots (cosmetic; the host's clock wins)
             TickSurvival();
             // autosave: a crash or power cut costs at most 5 minutes (guests do not own the world; the title screen has not started a game yet)
-            if (!Net.IsGuest && !TitleMenu.IsOpen && (autoSaveTimer -= Time.unscaledDeltaTime) <= 0) { autoSaveTimer = AutoSaveSeconds; Save(AutoSavePath, quiet: true); }
+            if (pendingCreate != null && !TitleMenu.IsOpen) { var n = pendingCreate; pendingCreate = null; WorldStore.WriteMeta(SavesDir, CurrentWorld, name: n, created: Online.Now()); Save(WorldFile, quiet: true); }
+            if (!Net.IsGuest && !TitleMenu.IsOpen && AutoSaveSeconds > 0 && (autoSaveTimer -= Time.unscaledDeltaTime) <= 0)
+            { autoSaveTimer = AutoSaveSeconds; Save(CurrentWorld != null ? WorldFile : AutoSavePath, quiet: true); }
 
             var kb = Keyboard.current;
             if (kb == null || Session.KeyboardCaptured) return;
@@ -220,7 +267,15 @@ namespace Codebound.Game
 
         void OnDestroy() => ProgramManager.TravelRequested -= OnTravel;
 
-        static string PlanetPath(int homeSeed, string id) => Path.Combine(Application.persistentDataPath, "saves", $"planet_{homeSeed}_{id}.cbsave");
+        static string LegacyPlanetPath(int homeSeed, string id) => Path.Combine(SavesDir, $"planet_{homeSeed}_{id}.cbsave");
+
+        /// <summary>Other planets of this world: in its own folder (so a duplicated world does not share them); old files by seed still load.</summary>
+        static string PlanetPath(int homeSeed, string id, bool forReading = false)
+        {
+            if (CurrentWorld == null) return LegacyPlanetPath(homeSeed, id);
+            string p = Path.Combine(WorldStore.PlanetsOf(SavesDir, CurrentWorld), id + ".cbsave");
+            return forReading && !File.Exists(p) && File.Exists(LegacyPlanetPath(homeSeed, id)) ? LegacyPlanetPath(homeSeed, id) : p;
+        }
 
         /// <summary>Etapa 7: the ship in orbit flies to another world. The world left behind is saved to its own file
         /// (so you can come back to your base there); the destination is loaded from its file or generated.</summary>
@@ -234,9 +289,9 @@ namespace Codebound.Game
             var from = Session.State;
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(SavePath));
+                Directory.CreateDirectory(Path.GetDirectoryName(PlanetPath(from.HomeSeed, from.PlanetId)));
                 GameState saved = null;
-                string dest = PlanetPath(from.HomeSeed, targetId);
+                string dest = PlanetPath(from.HomeSeed, targetId, forReading: true);
                 if (File.Exists(dest)) using (var r = new StreamReader(dest)) saved = SaveSystem.Read(r);
                 var arrived = arrive(saved);
                 using (var w = new StreamWriter(PlanetPath(from.HomeSeed, from.PlanetId), false, new System.Text.UTF8Encoding(false))) SaveSystem.Write(from, w);
@@ -248,7 +303,7 @@ namespace Codebound.Game
 
         void Say(string m) { LastMessage = m; MessageTime = Time.time; Debug.Log("[Codebound] " + m); }
 
-        public void Save() => Save(SavePath, quiet: false);
+        public void Save() => Save(WorldFile, quiet: false);
 
         void Save(string path, bool quiet)
         {
@@ -261,11 +316,28 @@ namespace Codebound.Game
                 if (File.Exists(path)) File.Replace(tmp, path, path + ".bak");
                 else File.Move(tmp, path);
                 if (!quiet) Say("Saved (F9 to load)");
+                if (CurrentWorld != null && path == WorldFile) Describe();
             }
             catch (Exception e) { Say("Save failed: " + e.Message); Debug.LogException(e); }
         }
 
-        public void Load() => LoadFrom(SavePath);
+        /// <summary>Sidecar and preview of the current world: when it was played, its version, biome and map. Never blocks a save.</summary>
+        void Describe()
+        {
+            try
+            {
+                var st = Session.State;
+                var info = WorldStore.Inspect(SavesDir, CurrentWorld);
+                WorldStore.WriteMeta(SavesDir, CurrentWorld, lastPlayed: Online.Now(), gameVersion: Application.version,
+                                     profile: info.Profile == null ? FrontEnd.Player?.Id : null,
+                                     biome: info.Biome == null ? st.World.Generator.BiomeAt(st.World.Generator.FindSpawn()).ToString() : null,
+                                     created: info.HasMeta ? (long?)null : info.Created);
+                WorldPreview.Write(st, WorldStore.PreviewOf(SavesDir, CurrentWorld));
+            }
+            catch (Exception e) { Debug.LogWarning("Codebound: world details not written: " + e.Message); }
+        }
+
+        public void Load() => LoadFrom(WorldFile);
 
         public void LoadFrom(string path)
         {

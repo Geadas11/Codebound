@@ -62,16 +62,16 @@ namespace Codebound.Game
             if (box != null && styleVersion == Settings.Version) return;
             styleVersion = Settings.Version;
             var bg = new Texture2D(1, 1); bg.SetPixel(0, 0, new Color(0.05f, 0.06f, 0.09f, 0.96f)); bg.Apply();
-            box = new GUIStyle(GUI.skin.box) { normal = { background = bg }, padding = new RectOffset(10, 10, 8, 8) };
-            label = new GUIStyle(GUI.skin.label) { fontSize = 14, richText = true, normal = { textColor = new Color(0.86f, 0.95f, 0.9f) } };
+            box = new GUIStyle(UiTheme.Panel) { padding = new RectOffset(10, 10, 8, 8) };
+            label = new GUIStyle(GUI.skin.label) { fontSize = 14, richText = true, normal = { textColor = UiTheme.Text } };
             small = new GUIStyle(label) { fontSize = 12, wordWrap = true };
             title = new GUIStyle(label) { fontSize = 16, fontStyle = FontStyle.Bold };
             err = new GUIStyle(small) { normal = { textColor = new Color(1f, 0.45f, 0.4f) } };
             btn = new GUIStyle(GUI.skin.button) { fontSize = 13 };
             monoFont = Font.CreateDynamicFontFromOSFont(new[] { "Consolas", "Menlo", "DejaVu Sans Mono", "Liberation Mono", "Courier New" }, 14);
             mono = new GUIStyle(GUI.skin.textArea) { font = monoFont, fontSize = UiGui.Font(14), wordWrap = false, richText = false };
-            mono.normal.textColor = mono.focused.textColor = new Color(0.9f, 0.95f, 0.9f);
-            monoNum = new GUIStyle(label) { font = monoFont, fontSize = UiGui.Font(14), alignment = TextAnchor.UpperRight, padding = mono.padding, normal = { textColor = new Color(0.45f, 0.5f, 0.55f) } };
+            mono.normal.textColor = mono.focused.textColor = UiTheme.Text;
+            monoNum = new GUIStyle(label) { font = monoFont, fontSize = UiGui.Font(14), alignment = TextAnchor.UpperRight, padding = mono.padding, normal = { textColor = UiTheme.Muted } };
         }
 
         void OnGUI()
@@ -731,7 +731,7 @@ namespace Codebound.Game
             {
                 calls.TryGetValue("m" + m.InstanceId, out int n);
                 float k = n == 0 ? 0f : 0.35f + 0.65f * n / max;
-                DrawLine(center, Pos(m), n == 0 ? new Color(0.4f, 0.45f, 0.5f, 0.5f) : Color.Lerp(new Color(0.3f, 0.6f, 0.5f), new Color(0.37f, 0.94f, 0.63f), k), n == 0 ? 1f : 1f + 3f * k);
+                DrawLine(center, Pos(m), n == 0 ? new Color(0.4f, 0.45f, 0.5f, 0.5f) : Color.Lerp(new Color(0.3f, 0.6f, 0.5f), UiTheme.Accent, k), n == 0 ? 1f : 1f + 3f * k);
             }
             foreach (var m in near)
             {

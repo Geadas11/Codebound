@@ -88,7 +88,7 @@ namespace Codebound.Core.Hud
         public const string StarterCss =
             "/* Style your box. Supported: colors, sizes, padding, margin, border, flex... */\n" +
             ".card { padding: 4px; }\n" +
-            "h3 { color: #5ef0a0; }\n" +
+            "h3 { color: #f2a23a; }\n" +
             ".kw { color: #ffd43b; }\n" +
             "progress { height: 8px; }\n" +
             ".hp { color: #ff5d5d; }\n" +

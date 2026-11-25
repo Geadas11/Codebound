@@ -131,8 +131,8 @@ namespace Codebound.Game
         {
             if (!Net.IsHost) return Loc.T("online.hostFirst", "Host the world first.");
             var g = GameBootstrap.Session?.State;
-            string name = Loc.T("online.worldOf", "{0}'s world", Client.DisplayName);
-            var r = await Client.HostSession(name, visibility, Multiplayer.MaxGuests + 1, Multiplayer.Port, Multiplayer.ProtocolVersion, Net.WorldPassword.Length > 0, Net.FirstLanAddress());
+            string name = string.IsNullOrWhiteSpace(Net.SessionName) ? Loc.T("online.worldOf", "{0}'s world", Client.DisplayName) : Net.SessionName.Trim();
+            var r = await Client.HostSession(name, visibility, Net.MaxGuests + 1, Net.HostPort, Multiplayer.ProtocolVersion, Net.WorldPassword.Length > 0, Net.FirstLanAddress());
             if (!r.Ok) return r.Message;
             HostedSession = r.Str("sessionId"); HostedVisibility = visibility;
             return Loc.T("online.published", "Listed online ({0}). Only players with an account can join it now.", Loc.T("online.vis." + visibility, visibility));
@@ -161,7 +161,8 @@ namespace Codebound.Game
         {
             Net.JoinTicket = r.Str("ticket"); Net.OnlineSession = r.Str("sessionId");
             string addr = r.Str("address");
-            return Net.Join(addr, Client.DisplayName, lastJoinPassword ?? "");
+            int port = r.Obj != null && r.Obj.TryGetValue("port", out var p) && p is double pd ? (int)pd : Multiplayer.Port;
+            return Net.Join(addr, Client.DisplayName, lastJoinPassword ?? "", port);
         }
 
         /// <summary>Called when a guest's connection drops (not a kick): up to 3 new tickets, 5 / 15 / 45 s apart.</summary>

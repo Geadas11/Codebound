@@ -15,8 +15,15 @@ namespace Codebound.Game
         static readonly Dictionary<string, float> floats = new Dictionary<string, float>();
         static int I(string k, int d) { if (ints.TryGetValue(k, out var v)) return v; try { v = PlayerPrefs.GetInt(k, d); } catch { v = d; } return ints[k] = v; }
         static float F(string k, float d) { if (floats.TryGetValue(k, out var v)) return v; try { v = PlayerPrefs.GetFloat(k, d); } catch { v = d; } return floats[k] = v; }
-        static void Set(string k, int v) { ints[k] = v; PlayerPrefs.SetInt(k, v); PlayerPrefs.Save(); Version++; }
-        static void Set(string k, float v) { floats[k] = v; PlayerPrefs.SetFloat(k, v); PlayerPrefs.Save(); Version++; }
+        static void Set(string k, int v) { if (ints.TryGetValue(k, out var old) && old == v) return; ints[k] = v; PlayerPrefs.SetInt(k, v); PlayerPrefs.Save(); Version++; }
+        static void Set(string k, float v) { if (floats.TryGetValue(k, out var old) && old == v) return; floats[k] = v; PlayerPrefs.SetFloat(k, v); PlayerPrefs.Save(); Version++; }
+
+        /// <summary>Back to the defaults (the options screen's "Restore defaults").</summary>
+        public static void Reset(params string[] keys)
+        {
+            foreach (var k in keys) { ints.Remove(k); floats.Remove(k); PlayerPrefs.DeleteKey(k); }
+            PlayerPrefs.Save(); Version++;
+        }
 
         /// <summary>Bumped on every change so cached styles can rebuild.</summary>
         public static int Version { get; private set; }
@@ -85,6 +92,41 @@ namespace Codebound.Game
             }
         }
 
+        // ---- interface
+        /// <summary>No slides, fades or moving menu background (accessibility; also follows "reduce flashes").</summary>
+        public static bool ReduceMotion { get => I("cb.reduceMotion", 0) == 1 || ReduceEffects; set => Set("cb.reduceMotion", value ? 1 : 0); }
+        public static float UiVolume { get => Mathf.Clamp01(F("cb.vol.ui", 0.7f)); set => Set("cb.vol.ui", Mathf.Clamp01(value)); }
+        /// <summary>The frame-rate counter in the corner of the HUD.</summary>
+        public static bool ShowFps { get => I("cb.showFps", 1) == 1; set => Set("cb.showFps", value ? 1 : 0); }
+        /// <summary>Pop-up notifications of the HUD (research done, waves, skills). Alarms with sound still play.</summary>
+        public static bool Notifications { get => I("cb.notifications", 1) == 1; set => Set("cb.notifications", value ? 1 : 0); }
+
+        // ---- gameplay
+        public static int AutoSaveMinutes { get => Mathf.Clamp(I("cb.autosaveMin", 5), 0, 30); set => Set("cb.autosaveMin", Mathf.Clamp(value, 0, 30)); }
+
+        // ---- graphics (applied by ApplyGraphics; resolution and window mode are also remembered by Unity itself)
+        public static readonly int[] FpsLimits = { 30, 60, 120, 144, 240, 0 };
+        public static int FpsLimit { get => I("cb.fps", 120); set { Set("cb.fps", value); ApplyGraphics(); } }
+        public static bool VSync { get => I("cb.vsync", 0) == 1; set { Set("cb.vsync", value ? 1 : 0); ApplyGraphics(); } }
+        public static int Quality { get => Mathf.Clamp(I("cb.quality", QualitySettings.GetQualityLevel()), 0, Mathf.Max(0, QualitySettings.names.Length - 1)); set { Set("cb.quality", value); ApplyGraphics(); } }
+
+        public static void ApplyGraphics()
+        {
+            if (Application.isBatchMode) return;
+            if (QualitySettings.GetQualityLevel() != Quality) QualitySettings.SetQualityLevel(Quality, true);
+            QualitySettings.vSyncCount = VSync ? 1 : 0;
+            Application.targetFrameRate = VSync ? -1 : (FpsLimit <= 0 ? -1 : FpsLimit);
+        }
+
+        // ---- network
+        public static int NetPort { get => Mathf.Clamp(I("cb.netPort", Multiplayer.Port), 1024, 65535); set => Set("cb.netPort", Mathf.Clamp(value, 1024, 65535)); }
+        public static int MaxGuests { get => Mathf.Clamp(I("cb.maxGuests", Multiplayer.MaxGuests), 1, Multiplayer.MaxGuests); set => Set("cb.maxGuests", Mathf.Clamp(value, 1, Multiplayer.MaxGuests)); }
+        public static string GuestRole
+        {
+            get { var r = PlayerPrefs.GetString("cb.guestRole", Multiplayer.Builder); return r == Multiplayer.Visitor || r == Multiplayer.Admin ? r : Multiplayer.Builder; }
+            set { PlayerPrefs.SetString("cb.guestRole", value); PlayerPrefs.Save(); Version++; }
+        }
+
         public static float TextScale { get => Mathf.Clamp(F("cb.textScale", 1f), 0.75f, 2f); set => Set("cb.textScale", Mathf.Clamp(value, 0.75f, 2f)); }
 
         // status colours that stay distinguishable with red–green colour blindness (blue / orange instead of green / red)
@@ -97,16 +139,15 @@ namespace Codebound.Game
     /// <summary>IMGUI scaling: every OnGUI starts with UiGui.Begin() and lays out in UiGui.W × UiGui.H.</summary>
     public static class UiGui
     {
-        public static float S => Settings.UiScale;
+        /// <summary>Interface scale: the player's choice on top of an automatic factor, so 1440p and 4K look like 1080p, only sharper.</summary>
+        public static float S => Settings.UiScale * Auto;
+        public static float Auto => Mathf.Clamp(Mathf.Min(Screen.height / 1080f, Screen.width / 1600f), 0.7f, 4f);
         public static float W => Screen.width / S;
         public static float H => Screen.height / S;
-        static Font defaultFont;
         public static void Begin()
         {
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(S, S, 1));
-            if (defaultFont == null) defaultFont = GUI.skin.font;
-            var f = Settings.UiFont ?? defaultFont;
-            if (GUI.skin.font != f) GUI.skin.font = f;
+            GUI.skin = UiTheme.Skin;   // one industrial look for every screen and panel
         }
         /// <summary>Mouse position (Input System, bottom-left origin) in scaled IMGUI coordinates.</summary>
         public static Vector2 Mouse(Vector2 screen) => new Vector2(screen.x / S, (Screen.height - screen.y) / S);

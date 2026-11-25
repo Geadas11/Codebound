@@ -32,6 +32,7 @@ Codebound/Tools/php/
 Codebound/Tools/wasi-sdk/
 # screenshots taken by automated play-mode checks
 Codebound/Screenshots/
+Codebound/Recordings/
 # test and tool output
 test-results.xml
 err.txt

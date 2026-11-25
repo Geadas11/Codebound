@@ -39,9 +39,9 @@ namespace Codebound.Game
             if (box == null)
             {
                 var bg = new Texture2D(1, 1); bg.SetPixel(0, 0, new Color(0.04f, 0.07f, 0.1f, 0.88f)); bg.Apply();
-                box = new GUIStyle(GUI.skin.box) { normal = { background = bg }, padding = new RectOffset(12, 12, 8, 8) };
-                title = new GUIStyle(GUI.skin.label) { fontSize = UiGui.Font(14), fontStyle = FontStyle.Bold, wordWrap = true, normal = { textColor = new Color(0.55f, 0.95f, 0.75f) } };
-                text = new GUIStyle(GUI.skin.label) { fontSize = UiGui.Font(13), wordWrap = true, normal = { textColor = new Color(0.9f, 0.95f, 1f) } };
+                box = new GUIStyle(UiTheme.Panel) { padding = new RectOffset(12, 12, 8, 8) };
+                title = new GUIStyle(GUI.skin.label) { fontSize = UiGui.Font(14), fontStyle = FontStyle.Bold, wordWrap = true, normal = { textColor = UiTheme.Accent } };
+                text = new GUIStyle(GUI.skin.label) { fontSize = UiGui.Font(13), wordWrap = true, normal = { textColor = UiTheme.Text } };
                 small = new GUIStyle(GUI.skin.button) { fontSize = UiGui.Font(11) };
             }
             var t = session.State.Tutorial;

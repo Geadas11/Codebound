@@ -30,8 +30,8 @@ namespace Codebound.Game
         }
 
         public const float UiScaleDefault = 1f;
-        static readonly Color PanelBg = new Color(0.04f, 0.05f, 0.08f, 0.86f), HeaderBg = new Color(0.09f, 0.13f, 0.17f, 0.95f),
-            Accent = new Color(0.37f, 0.94f, 0.63f), TextCol = new Color(0.85f, 0.95f, 0.9f), Border = new Color(0.17f, 0.25f, 0.3f);
+        static readonly Color PanelBg = new Color(0.082f, 0.094f, 0.114f, 0.9f), HeaderBg = new Color(0.118f, 0.137f, 0.165f, 0.97f),
+            Accent = new Color(0.949f, 0.635f, 0.227f), TextCol = new Color(0.91f, 0.89f, 0.843f), Border = new Color(0.208f, 0.243f, 0.286f);   // UiTheme palette: charcoal, graphite, amber
 
         GameSession session;
         ProgramManager programs;
@@ -46,7 +46,7 @@ namespace Codebound.Game
         void ApplySettings()
         {
             appliedSettings = Settings.Version;
-            doc.panelSettings.scale = Settings.UiScale;
+            doc.panelSettings.scale = UiGui.S;
             root.style.fontSize = 13 * Settings.TextScale;
             root.style.unityFontDefinition = FontDefinition.FromFont(Settings.UiFont ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"));
             root.style.color = Settings.HighContrast ? Color.white : TextCol;
@@ -268,6 +268,8 @@ namespace Codebound.Game
         void Update()
         {
             fps = Mathf.Lerp(fps, 1f / Mathf.Max(Time.unscaledDeltaTime, 1e-4f), 0.05f);
+            var show = TitleMenu.IsOpen ? DisplayStyle.None : DisplayStyle.Flex;   // the title screen shows its own scene, not the game's HUD
+            if (root.style.display != show) root.style.display = show;
             var mouse = Mouse.current;
             if (mouse != null && root.panel != null)
             {
@@ -279,9 +281,9 @@ namespace Codebound.Game
             session.PointerOverHud = PointerOverHud;
 
             var hud = session.State.Hud;
-            while (hud.Notifications.Count > 0) Toast(hud.Notifications.Dequeue());
+            while (hud.Notifications.Count > 0) { var n = hud.Notifications.Dequeue(); if (Settings.Notifications) Toast(n); }
 
-            if (appliedSettings != Settings.Version) ApplySettings();
+            if (appliedSettings != Settings.Version || doc.panelSettings.scale != UiGui.S) ApplySettings();
             refreshTimer -= Time.unscaledDeltaTime;
             if (refreshTimer > 0) return;
             refreshTimer = 0.25f;

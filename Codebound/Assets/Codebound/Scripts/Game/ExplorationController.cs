@@ -124,9 +124,9 @@ namespace Codebound.Game
             if (box != null && styleVersion == Settings.Version) return;
             styleVersion = Settings.Version;
             var bg = new Texture2D(1, 1); bg.SetPixel(0, 0, Settings.HighContrast ? Color.black : new Color(0.03f, 0.07f, 0.05f, 0.97f)); bg.Apply();
-            box = new GUIStyle(GUI.skin.box) { normal = { background = bg }, padding = new RectOffset(16, 16, 12, 12) };
-            label = new GUIStyle(GUI.skin.label) { fontSize = UiGui.Font(15), richText = true, wordWrap = true, normal = { textColor = new Color(0.55f, 1f, 0.65f) } };
-            small = new GUIStyle(label) { fontSize = UiGui.Font(12), normal = { textColor = new Color(0.6f, 0.75f, 0.65f) } };
+            box = new GUIStyle(UiTheme.Panel) { padding = new RectOffset(16, 16, 12, 12) };
+            label = new GUIStyle(GUI.skin.label) { fontSize = UiGui.Font(15), richText = true, wordWrap = true, normal = { textColor = UiTheme.Accent } };
+            small = new GUIStyle(label) { fontSize = UiGui.Font(12), normal = { textColor = UiTheme.Muted } };
             title = new GUIStyle(label) { fontSize = UiGui.Font(19), fontStyle = FontStyle.Bold };
         }
 

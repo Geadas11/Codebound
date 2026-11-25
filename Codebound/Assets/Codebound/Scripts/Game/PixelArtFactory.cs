@@ -40,7 +40,7 @@ namespace Codebound.Game
         // ---------------- terrain ----------------
         public const int TileVariants = 8;
 
-        static Color32 BaseOf(TileType t)
+        public static Color32 BaseOf(TileType t)
         {
             switch (t)
             {

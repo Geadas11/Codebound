@@ -58,6 +58,8 @@ namespace Codebound.Game
             ComposeMusic();
             ambA = Source("ambA", true); ambB = Source("ambB", true); weather = Source("weather", true);
             sfx = Source("sfx", false);
+            ui = Source("ui", false);
+            ui.ignoreListenerPause = true;   // menu clicks still sound while the pause menu silences the world
             for (int i = 0; i < MachineVoices; i++) { voices[i] = Source("machine" + i, true); voiceOwner[i] = 0; }
 
             var st = s.State;
@@ -74,6 +76,16 @@ namespace Codebound.Game
 
         static Vector2 Pos(PlacedBuilding b) => new Vector2((float)b.CenterX, (float)b.CenterY);
         float Master => Settings.MasterVolume;
+        AudioSource ui;
+
+        /// <summary>Interface sounds (clicks, confirmations, errors), on their own volume slider.</summary>
+        public static void Ui(string name)
+        {
+            var a = Instance;
+            if (a == null || a.ui == null) return;
+            float v = Settings.UiVolume * Settings.MasterVolume;
+            if (v > 0.001f) a.ui.PlayOneShot(a.Clip(name), v * 0.6f);
+        }
 
         /// <summary>Plays a one-shot; with a world position it is panned and attenuated. Caption shown if enabled.</summary>
         public void Play(string name, Vector2? at, string caption)

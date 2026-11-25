@@ -1,146 +1,115 @@
 using System;
-using System.IO;
 using Codebound.Core;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace Codebound.Game
 {
     /// <summary>
-    /// Start screen, shown once per launch over a paused world: Continue (newest of quicksave/autosave), New game
-    /// (optional seed), language, quit. Skipped for -selftest, -host/-join, -seed and batch mode.
+    /// The front end, shown over a paused world once per launch (and again after "Exit to main menu"): the profile entry
+    /// screen, then the main menu and its screens (Game/Ui). Skipped for -selftest, -host/-join, -seed and batch mode.
     /// </summary>
     public sealed class TitleMenu : MonoBehaviour
     {
-        static bool shownThisLaunch;
+        static bool shownThisLaunch, showAgain;
+        static TitleMenu instance;
         GameSession session;
-        GameBootstrap boot;
         bool open;
-        string seedText = "";
-        int selected;
-        GUIStyle box, title, label, btn, btnSel, small;
-        int styleVersion = -1;
+        UiNav nav;
+        int accountFrame = -10;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-        static void ResetStatics() => shownThisLaunch = false;
+        static void ResetStatics() { shownThisLaunch = showAgain = false; instance = null; IsOpen = false; }
 
         public static bool IsOpen { get; private set; }
 
+        /// <summary>The next scene load shows the main menu again (pause menu → Exit to main menu).</summary>
+        public static void ShowAgain() => showAgain = true;
+
         public void Init(GameSession s, GameBootstrap b)
         {
-            session = s; boot = b;
+            session = s; instance = this;
             var args = Environment.GetCommandLineArgs();
             bool skip = Application.isBatchMode || SelfTest.Requested || Array.IndexOf(args, "-host") >= 0 || Array.IndexOf(args, "-join") >= 0
                         || Array.IndexOf(args, "-seed") >= 0 || Net.Current != Net.Mode.Off;
-            if (shownThisLaunch || skip) { shownThisLaunch = true; return; }
-            shownThisLaunch = true;
-            open = IsOpen = true; session.PanelOpen = true; session.KeyboardCaptured = true;
-            Time.timeScale = 0;
+            if ((shownThisLaunch && !showAgain) || skip) { shownThisLaunch = true; showAgain = false; IsOpen = false; Time.timeScale = 1; return; }
+            shownThisLaunch = true; showAgain = false;
+            if (FrontEnd.Player != null) Net.MyName = FrontEnd.Player.Name;
+            nav = new UiNav();
+            nav.OnEmpty = () => nav.Ask(Loc.T("ui.quitQ", "Quit Codebound?"), null, Loc.T("menu.quit", "Quit game"), Application.Quit);
+            nav.Reset(FrontEnd.Player == null ? new ProfilesScreen(true) : (UiScreen)new MainScreen());
+            Open();
         }
 
-        static string Newest()
-        {
-            string best = null;
-            foreach (var p in new[] { GameBootstrap.SavePath, GameBootstrap.AutoSavePath })
-                if (File.Exists(p) && (best == null || File.GetLastWriteTimeUtc(p) > File.GetLastWriteTimeUtc(best))) best = p;
-            return best;
-        }
+        void Open() { open = IsOpen = true; session.PanelOpen = true; session.KeyboardCaptured = true; Time.timeScale = 0; MenuStage.Open(); }
 
         void Close() { open = IsOpen = false; session.PanelOpen = false; session.KeyboardCaptured = false; Time.timeScale = 1; }
 
-        string[] Entries => new[]
-        {
-            Loc.T("title.continue", "Continue"), Loc.T("title.new", "New game"),
-            Loc.T("title.account", "Account and friends") + Pending(),
-            Loc.T("menu.language", "Language") + ": " + LanguageName(), Loc.T("menu.quit", "Quit game"),
-        };
+        /// <summary>A world is about to load from the menus: the menu steps aside.</summary>
+        public static void Leaving() { if (instance != null && instance.open) instance.Close(); }
 
-        static string Pending()
-        {
-            int n = Online.FriendRequests + Online.Invites.Count;
-            return n > 0 ? "  (" + Loc.T("title.pending", "{0} new", n) + ")" : "";
-        }
+        /// <summary>The load failed: the menu comes back.</summary>
+        public static void Back() { if (instance != null && !instance.open && instance.nav != null) instance.Open(); }
 
-        static string LanguageName() { foreach (var l in Loc.Languages) if (l.code == Settings.Language) return l.native; return Settings.Language; }
-
-        void Choose(int i)
+        /// <summary>Opens a world from any menu screen, with a loading state and a clear error if it cannot be read.</summary>
+        public static void Play(UiNav nav, WorldInfo w)
         {
-            switch (i)
+            if (w == null || !w.Loadable) return;
+            nav.Run(Loc.T("ui.loading", "Loading {0}…", w.Name), () =>
             {
-                case 0:
-                    var p = Newest();
-                    if (p == null) return;
-                    Close(); boot.LoadFrom(p); return;
-                case 1:
-                    Close();
-                    Online.Record("worlds_created", 1);
-                    if (int.TryParse(seedText.Trim(), out int seed)) GameBootstrap.NewGame(seed);   // otherwise keep the fresh random world already running
-                    return;
-                case 2: AccountMenu.Open(); return;
-                case 3:
-                    int k = 0; for (int j = 0; j < Loc.Languages.Length; j++) if (Loc.Languages[j].code == Settings.Language) k = j;
-                    Settings.Language = Loc.Languages[(k + 1) % Loc.Languages.Length].code; return;
-                case 4: Application.Quit(); return;
-            }
+                bool title = instance != null && instance.open;
+                Leaving();
+                if (GameBootstrap.OpenWorld(w.Id, out var err)) return;
+                if (title) Back();
+                nav.Tell(Loc.T("ui.loadFailed", "Could not load the world"), err);
+            });
         }
 
         void Update()
         {
-            if (!open || AccountMenu.IsOpen) return;
-            var kb = Keyboard.current;
-            if (kb == null) return;
-            int n = Entries.Length;
-            if (kb.downArrowKey.wasPressedThisFrame) selected = (selected + 1) % n;
-            if (kb.upArrowKey.wasPressedThisFrame) selected = (selected + n - 1) % n;
-            if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) Choose(selected);
-        }
-
-        void Styles()
-        {
-            if (box != null && styleVersion == Settings.Version) return;
-            styleVersion = Settings.Version;
-            var bg = new Texture2D(1, 1); bg.SetPixel(0, 0, new Color(0.02f, 0.03f, 0.05f, 0.86f)); bg.Apply();
-            var sel = new Texture2D(1, 1); sel.SetPixel(0, 0, new Color(0.12f, 0.3f, 0.24f)); sel.Apply();
-            box = new GUIStyle(GUI.skin.box) { normal = { background = bg } };
-            title = new GUIStyle(GUI.skin.label) { fontSize = UiGui.Font(46), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter, normal = { textColor = new Color(0.37f, 0.94f, 0.63f) } };
-            label = new GUIStyle(GUI.skin.label) { fontSize = UiGui.Font(15), alignment = TextAnchor.MiddleCenter, wordWrap = true, normal = { textColor = new Color(0.8f, 0.9f, 0.85f) } };
-            small = new GUIStyle(label) { fontSize = UiGui.Font(12) };
-            btn = new GUIStyle(GUI.skin.button) { fontSize = UiGui.Font(18), fixedHeight = 40 };
-            btnSel = new GUIStyle(btn) { normal = { background = sel, textColor = Color.white } };
+            if (!open) return;
+            if (AccountMenu.IsOpen) { accountFrame = Time.frameCount; return; }
+            if (Time.frameCount <= accountFrame + 1) return;   // the Esc that closed the account panel is not also a Back
+            nav.Update();
         }
 
         void OnGUI()
         {
             if (!open || AccountMenu.IsOpen) return;
             UiGui.Begin();
-            Styles();
-            GUI.Box(new Rect(0, 0, UiGui.W, UiGui.H), GUIContent.none, box);
-            float w = Mathf.Min(420, UiGui.W - 40);
-            GUILayout.BeginArea(new Rect((UiGui.W - w) / 2, UiGui.H * 0.16f, w, UiGui.H * 0.8f));
-            GUILayout.Label("CODEBOUND", title);
-            GUILayout.Label(Loc.T("title.tagline", "Build. Code. Survive. Explore."), label);
-            GUILayout.Space(24);
-            var e = Entries;
-            bool canContinue = Newest() != null;
-            for (int i = 0; i < e.Length; i++)
+            GUI.depth = -10;
+            var full = new Rect(0, 0, UiGui.W, UiGui.H);
+            var stage = MenuStage.Instance;
+            bool onTerminal = stage != null && MenuStage.Active && (nav.Depth > 1 || nav.Busy != null || nav.Blocked);
+            if (onTerminal && stage.Progress > 0.02f) DrawOnTerminal(stage);
+            else nav.Draw(full);
+            Ui.DrawToasts();
+        }
+
+        float powered;   // 0..1: the terminal glass powering on (and off when the camera leaves)
+
+        /// <summary>The screens opened from the main menu, drawn on the terminal's glass: power-on, scanlines, reflection.</summary>
+        void DrawOnTerminal(MenuStage stage)
+        {
+            powered = Mathf.MoveTowards(powered, stage.AtTerminal ? 1 : 0, Ui.Dt / 0.35f);
+            if (!Ui.Animate) powered = stage.AtTerminal ? 1 : 0;
+            if (powered <= 0) return;
+            var glass = stage.ScreenRect();
+            // power-on: a bright line opens vertically into the picture
+            float open = Mathf.SmoothStep(0, 1, Mathf.Clamp01((powered - 0.15f) / 0.85f));
+            float h = Mathf.Max(2, glass.height * open);
+            var visible = new Rect(glass.x, glass.center.y - h / 2, glass.width, h);
+            if (Event.current.type == EventType.Repaint && powered < 1)
             {
-                GUI.enabled = i != 0 || canContinue;
-                if (GUILayout.Button(e[i], i == selected ? btnSel : btn)) { selected = i; Choose(i); }
-                if (i == 1)
-                {
-                    GUI.enabled = true;
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Label(Loc.T("title.seed", "Seed (optional)"), small, GUILayout.Width(130));
-                    seedText = GUILayout.TextField(seedText, 11);
-                    GUILayout.EndHorizontal();
-                }
-                GUILayout.Space(6);
+                float lineW = glass.width * Mathf.Clamp01(powered / 0.15f);
+                Ui.Fill(new Rect(glass.center.x - lineW / 2, glass.center.y - 1.5f, lineW, 3), new Color(1f, 0.85f, 0.6f, 1 - open * 0.8f));
             }
-            GUI.enabled = true;
-            GUILayout.Label(Loc.T("title.keys", "Up/Down and Enter, or the mouse · options later with Esc"), small);
-            GUILayout.Space(10);
-            GUILayout.Label(Online.StatusLine(), Online.OnlineNow || !Online.SignedIn ? small : label);   // who is playing, and whether the service is reachable
-            GUILayout.EndArea();
+            if (open <= 0.01f) return;
+            MenuBackdrop.Terminal = true;
+            GUI.BeginClip(visible);
+            nav.Draw(new Rect(0, (visible.height - glass.height) / 2, glass.width, glass.height));
+            GUI.EndClip();
+            MenuBackdrop.Terminal = false;
+            MenuBackdrop.Glass(visible);
         }
     }
 }

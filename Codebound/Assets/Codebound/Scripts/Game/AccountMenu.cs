@@ -96,13 +96,13 @@ namespace Codebound.Game
             styleVersion = Settings.Version;
             var bg = new Texture2D(1, 1); bg.SetPixel(0, 0, new Color(0.03f, 0.04f, 0.06f, 0.97f)); bg.Apply();
             var on = new Texture2D(1, 1); on.SetPixel(0, 0, new Color(0.12f, 0.3f, 0.24f)); on.Apply();
-            box = new GUIStyle(GUI.skin.box) { normal = { background = bg }, padding = new RectOffset(14, 14, 10, 10) };
-            title = new GUIStyle(GUI.skin.label) { fontSize = UiGui.Font(22), fontStyle = FontStyle.Bold, normal = { textColor = new Color(0.37f, 0.94f, 0.63f) } };
+            box = new GUIStyle(UiTheme.Panel) { padding = new RectOffset(14, 14, 10, 10) };
+            title = new GUIStyle(GUI.skin.label) { fontSize = UiGui.Font(22), fontStyle = FontStyle.Bold, normal = { textColor = UiTheme.Accent } };
             label = new GUIStyle(GUI.skin.label) { fontSize = UiGui.Font(14), wordWrap = true, richText = true, normal = { textColor = new Color(0.82f, 0.9f, 0.86f) } };
-            small = new GUIStyle(label) { fontSize = UiGui.Font(12), normal = { textColor = new Color(0.6f, 0.7f, 0.66f) } };
+            small = new GUIStyle(label) { fontSize = UiGui.Font(12), normal = { textColor = UiTheme.Muted } };
             warn = new GUIStyle(label) { normal = { textColor = new Color(1f, 0.78f, 0.35f) } };
             btn = new GUIStyle(GUI.skin.button) { fontSize = UiGui.Font(14) };
-            tabOn = new GUIStyle(btn) { normal = { background = on, textColor = Color.white } };
+            tabOn = new GUIStyle(btn) { normal = { background = UiTheme.RowSelTex, textColor = Color.white } };
             field = new GUIStyle(GUI.skin.textField) { fontSize = UiGui.Font(14) };
             toggle = new GUIStyle(GUI.skin.toggle) { fontSize = UiGui.Font(14), wordWrap = true, normal = { textColor = label.normal.textColor }, onNormal = { textColor = Color.white } };
         }

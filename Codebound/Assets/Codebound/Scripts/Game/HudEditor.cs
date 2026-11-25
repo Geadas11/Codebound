@@ -37,16 +37,16 @@ namespace Codebound.Game
         {
             if (box != null) return;
             var bg = new Texture2D(1, 1); bg.SetPixel(0, 0, new Color(0.05f, 0.06f, 0.09f, 0.97f)); bg.Apply();
-            box = new GUIStyle(GUI.skin.box) { normal = { background = bg }, padding = new RectOffset(10, 10, 8, 8) };
-            label = new GUIStyle(GUI.skin.label) { fontSize = 14, richText = true, normal = { textColor = new Color(0.86f, 0.95f, 0.9f) } };
+            box = new GUIStyle(UiTheme.Panel) { padding = new RectOffset(10, 10, 8, 8) };
+            label = new GUIStyle(GUI.skin.label) { fontSize = 14, richText = true, normal = { textColor = UiTheme.Text } };
             small = new GUIStyle(label) { fontSize = 12, wordWrap = true };
             titleStyle = new GUIStyle(label) { fontSize = 16, fontStyle = FontStyle.Bold };
             err = new GUIStyle(small) { normal = { textColor = new Color(1f, 0.55f, 0.4f) } };
             btn = new GUIStyle(GUI.skin.button) { fontSize = 13 };
             var font = Font.CreateDynamicFontFromOSFont(new[] { "Consolas", "Menlo", "DejaVu Sans Mono", "Liberation Mono", "Courier New" }, 14);
             mono = new GUIStyle(GUI.skin.textArea) { font = font, fontSize = 14, wordWrap = false };
-            mono.normal.textColor = mono.focused.textColor = new Color(0.9f, 0.95f, 0.9f);
-            monoNum = new GUIStyle(label) { font = font, fontSize = 14, alignment = TextAnchor.UpperRight, padding = mono.padding, normal = { textColor = new Color(0.45f, 0.5f, 0.55f) } };
+            mono.normal.textColor = mono.focused.textColor = UiTheme.Text;
+            monoNum = new GUIStyle(label) { font = font, fontSize = 14, alignment = TextAnchor.UpperRight, padding = mono.padding, normal = { textColor = UiTheme.Muted } };
         }
 
         void OnGUI()

@@ -97,6 +97,15 @@ namespace Codebound.Game
         static string joinPassword = "";
         /// <summary>Guest: the one-use ticket from the online service for the game being joined (null for LAN / direct joins).</summary>
         public static string JoinTicket, OnlineSession;
+        /// <summary>Host settings (the multiplayer screen sets them; defaults from Settings).</summary>
+        public static int HostPort = Multiplayer.Port, MaxGuests = Multiplayer.MaxGuests;
+        public static string GuestRole = Multiplayer.Builder, SessionName;
+        public static bool WorldReceived => worldReceived;
+
+        /// <summary>What to do once the chosen world has loaded: host it (the multiplayer screen's "Start server").</summary>
+        public sealed class HostPlan { public string Password = "", Listing; public bool Upnp; }
+        public static HostPlan PendingHost;
+
         public static readonly List<(string name, double x, double y)> Others = new List<(string, double, double)>();
         public static readonly List<(string from, string text, float at)> Chat = new List<(string, string, float)>();
 
@@ -120,27 +129,30 @@ namespace Codebound.Game
         internal static IReadOnlyList<Peer> Peers => peers;
         public static Dictionary<string, object> RemotePc(Cell c) => remotePcs.TryGetValue(c, out var m) ? m : null;
 
-        public static string StartHost()
+        public static string StartHost(int port = 0)
         {
             Disconnect();
             hostWorld = null;
-            try { listener = new TcpListener(IPAddress.Any, Multiplayer.Port); listener.Start(); }
+            HostPort = port > 0 ? port : HostPort;
+            try { listener = new TcpListener(IPAddress.Any, HostPort); listener.Start(); }
             catch (Exception e) { listener = null; return Status = Loc.T("net.cantHost", "could not host: {0}", e.Message); }
             Current = Mode.Host;
-            return Status = Loc.T("net.hosting", "hosting on port {0}", Multiplayer.Port);
+            return Status = Loc.T("net.hosting", "hosting on port {0}", HostPort);
         }
 
-        public static string Join(string address, string name, string password = "")
+        public static string Join(string address, string name, string password = "", int port = 0)
         {
+            if (port <= 0) (address, port) = Multiplayer.SplitAddress(address);
+            if (port < 1 || port > 65535 || address.Length == 0) return Status = Loc.T("net.badAddress", "enter an address, optionally with :port");
             Disconnect();
             if (!Multiplayer.ValidName(name)) return Status = Loc.T("net.badName", "name: 1-16 letters, digits, _ or -");
             try
             {
                 var c = new TcpClient();
-                if (!c.ConnectAsync(address, Multiplayer.Port).Wait(8000)) { c.Close(); return Status = Loc.T("net.noAnswer", "no answer from {0}", address); }
+                if (!c.ConnectAsync(address, port).Wait(8000)) { c.Close(); return Status = Loc.T("net.noAnswer", "no answer from {0}", address); }
                 server = new Peer(c, Multiplayer.MaxHostLine);
             }
-            catch (Exception e) { return Status = Loc.T("net.cantConnect", "could not connect: {0}", (e.InnerException ?? e).Message); }
+            catch (Exception e) { return Status = Loc.T("net.cantConnect", "could not connect: {0}", (e.InnerException ?? e).Message.Split((char)0)[0].Replace('\r', ' ').Replace('\n', ' ').Trim()); }   // Windows socket messages carry CRLF and NUL padding
             MyName = name; Current = Mode.Guest; worldReceived = false; joinPassword = password ?? "";
             return Status = Loc.T("net.joining", "joining {0}…", address);   // hello goes out encrypted once the host's handshake arrives
         }
@@ -247,7 +259,7 @@ namespace Codebound.Game
                 while (listener != null && listener.Pending())
                 {
                     var p = new Peer(listener.AcceptTcpClient(), Multiplayer.MaxGuestLine);
-                    if (peers.Count >= Multiplayer.MaxGuests) { p.SendPlain(Msg("kick", Loc.T("net.full", "the world is full"))); p.Close(); continue; }
+                    if (peers.Count >= Math.Min(MaxGuests, Multiplayer.MaxGuests)) { p.SendPlain(Msg("kick", Loc.T("net.full", "the world is full"))); p.Close(); continue; }
                     p.Chan = new SecureChannel(); p.Salt = SecureChannel.NewSalt();
                     p.SendPlain(new Dictionary<string, object> { { "t", "hs" }, { "v", (double)SecureChannel.Version }, { "salt", Convert.ToBase64String(p.Salt) }, { "pub", Convert.ToBase64String(p.Chan.Public) } });
                     peers.Add(p);
@@ -430,6 +442,7 @@ namespace Codebound.Game
             string why = !Multiplayer.ValidName(name) || name == MyName ? Loc.T("net.invalidName", "invalid name") : peers.Exists(o => o.Name == name) ? Loc.T("net.nameInUse", "name already in use") : null;
             if (why != null) return Refuse(p, why);
             p.Name = name;
+            p.Role = GuestRole;   // the host's chosen permission for newcomers (can be changed per player in the N panel)
             bool known = s.State.GuestBodies.ContainsKey(name);
             var body = Body(s.State, name);
             if (!known) { body.X = s.Player.position.x; body.Y = s.Player.position.y; }   // first visit: appear next to the host
@@ -594,7 +607,7 @@ namespace Codebound.Game
                 GuestUnlocked.Clear(); remotePcs.Clear();
                 var to = StarSystem.Get(snap.HomeSeed, snap.PlanetId);
                 snap.Hud.Notify(Loc.T("net.travelled", "The host's ship took everyone to {0}.", to?.Name ?? snap.PlanetId));
-                GameBootstrap.LoadState(snap);
+                GameBootstrap.LoadGuestState(snap);
                 return;
             }
             if (!worldReceived)
@@ -609,7 +622,7 @@ namespace Codebound.Game
                     if (snap.Vitals.Dead) snap.Vitals.Respawn();
                 }
                 Multiplayer.LoadInventory(snap.Inventory, latestMsg.TryGetValue("inv", out var iv0) ? iv0 as List<object> : null);
-                GameBootstrap.LoadState(snap);   // rebuilds the scene around the host's world
+                GameBootstrap.LoadGuestState(snap);   // rebuilds the scene around the host's world
                 return;
             }
             Multiplayer.Apply(s.State, snap, MachinePanel.Editing);
@@ -650,10 +663,18 @@ namespace Codebound.Game
         Vector2 chatScroll;
         static bool commandLineDone, quitHooked;
         GUIStyle box, label, small, chatStyle;
+        int styleVersion = -1;
+
+        static NetSession instance;
+
+        /// <summary>The pause menu's "Multiplayer": opens the N panel (host / join / players).</summary>
+        public static void OpenPanel() { if (instance != null && !instance.open) instance.ShowPanel(); }
+
+        void ShowPanel() { open = true; localAddresses = null; session.PanelOpen = true; session.KeyboardCaptured = true; }
 
         public void Init(GameSession s, ProgramManager pm, Camera c)
         {
-            session = s; programs = pm; cam = c;
+            session = s; programs = pm; cam = c; instance = this;
             try
             {
                 if (Net.Current == Net.Mode.Off) Net.MyName = PlayerPrefs.GetString("cb.netName", "player");   // a guest keeps its name across the world reload
@@ -661,6 +682,16 @@ namespace Codebound.Game
             }
             catch { }
             if (!quitHooked) { quitHooked = true; Application.quitting += RouterPort.Close; }   // never leave a port open on the router
+            if (Net.Current == Net.Mode.Off) { Net.HostPort = Settings.NetPort; Net.MaxGuests = Settings.MaxGuests; Net.GuestRole = Settings.GuestRole; }
+            if (Net.PendingHost is Net.HostPlan plan && !Net.IsGuest)   // "Start server" from the multiplayer screen, now that the world is loaded
+            {
+                Net.PendingHost = null;
+                Net.WorldPassword = plan.Password ?? "";
+                var st = Net.StartHost(Net.HostPort);
+                Ui.Toast(st, Net.IsHost ? "good" : "bad");
+                if (Net.IsHost && plan.Upnp) RouterPort.OpenAsync(Net.HostPort);
+                if (Net.IsHost && plan.Listing != null && Online.SignedIn) ListAs(plan.Listing);
+            }
             if (commandLineDone) return;
             commandLineDone = true;
             var args = Environment.GetCommandLineArgs();
@@ -698,7 +729,7 @@ namespace Codebound.Game
             if (open && kb.escapeKey.wasPressedThisFrame) { Close(); return; }
             if (chatting && kb.escapeKey.wasPressedThisFrame) { chatting = false; session.KeyboardCaptured = false; return; }
             bool free = !session.KeyboardCaptured && !session.PanelOpen && !OptionsMenu.IsOpen;
-            if (!open && free && Controls.Pressed("network")) { open = true; localAddresses = null; session.PanelOpen = true; session.KeyboardCaptured = true; }
+            if (!open && free && Controls.Pressed("network")) ShowPanel();
             else if (!chatting && free && Net.Current != Net.Mode.Off && Controls.Pressed("chat")) { chatting = focusChat = true; chatOpenedFrame = Time.frameCount; chatInput = ""; session.KeyboardCaptured = true; }
         }
 
@@ -707,11 +738,11 @@ namespace Codebound.Game
         void OnGUI()
         {
             UiGui.Begin();
-            if (box == null)
+            if (box == null || styleVersion != Settings.Version)
             {
-                var bg = new Texture2D(1, 1); bg.SetPixel(0, 0, new Color(0.05f, 0.06f, 0.09f, 0.96f)); bg.Apply();
-                box = new GUIStyle(GUI.skin.box) { normal = { background = bg }, padding = new RectOffset(14, 14, 10, 10) };
-                label = new GUIStyle(GUI.skin.label) { fontSize = 14, richText = true, wordWrap = true, normal = { textColor = new Color(0.86f, 0.95f, 0.9f) } };
+                styleVersion = Settings.Version;
+                box = new GUIStyle(UiTheme.Panel);
+                label = new GUIStyle(GUI.skin.label) { fontSize = UiGui.Font(14), richText = true, wordWrap = true, normal = { textColor = UiTheme.Text } };
                 small = new GUIStyle(label) { fontSize = 11, alignment = TextAnchor.MiddleCenter, wordWrap = false };
                 chatStyle = new GUIStyle(label) { fontSize = 13 };
             }
@@ -760,9 +791,11 @@ namespace Codebound.Game
 
         void DrawPanel()
         {
-            float w = Mathf.Min(500, UiGui.W - 40);
-            GUILayout.BeginArea(new Rect((UiGui.W - w) / 2, 50, w, Mathf.Min(UiGui.H - 100, 520)), box);
-            GUILayout.Label("<b>" + Loc.T("net.title2", "Multiplayer") + "</b>   <size=11>" + Net.Status + "</size>", label);
+            float w = Mathf.Min(680, UiGui.W - 40);
+            GUILayout.BeginArea(new Rect((UiGui.W - w) / 2, 50, w, Mathf.Min(UiGui.H - 100, 600)), box);
+            GUILayout.Label(Loc.T("net.title2", "Multiplayer").ToUpperInvariant(), UiTheme.H1);
+            GUILayout.Label(Net.Status + (Net.IsHost ? "  ·  " + Loc.T("net.playersCount", "{0}/{1} players", Net.Peers.Count + 1, Net.MaxGuests + 1) : ""), UiTheme.Muted_);
+            Ui.Rule(UiTheme.Accent, 2);
             GUILayout.BeginHorizontal();
             GUILayout.Label(Loc.T("net.name", "Name"), label, GUILayout.Width(110));
             Net.MyName = GUILayout.TextField(Net.MyName, 16);
@@ -781,7 +814,7 @@ namespace Codebound.Game
                 if (GUILayout.Button(Loc.T("net.host", "Host this world"))) { Remember(); Net.WorldPassword = joinPassword; Net.StartHost(); }
                 if (GUILayout.Button(Loc.T("net.join", "Join"))) { Remember(); Net.Join(address.Trim(), Net.MyName, joinPassword); }
                 GUILayout.EndHorizontal();
-                GUILayout.Label("<size=11>" + Loc.T("net.help3", "Host: the password is optional; everyone who joins must know it. The connection is always encrypted (with a password, also against impostors). Join: the host's IP or name; on the internet the host must open port {0}. Guests keep their own inventory; programs run on the host's computer, in its sandbox.", Multiplayer.Port) + "</size>", label);
+                GUILayout.Label("<size=11>" + Loc.T("net.help3", "Host: the password is optional; everyone who joins must know it. The connection is always encrypted (with a password, also against impostors). Join: the host's IP or name; on the internet the host must open port {0}. Guests keep their own inventory; programs run on the host's computer, in its sandbox.", Net.HostPort) + "</size>", label);
             }
             else
             {
@@ -790,7 +823,7 @@ namespace Codebound.Game
                     localAddresses ??= Net.LocalAddresses();
                     GUILayout.Label("<size=12>" + Loc.T("net.lan", "Same network: join at {0}", localAddresses) + (Net.WorldPassword.Length > 0 ? "  ·  " + Loc.T("net.withPassword", "password required") : "") + "</size>", label);
                     GUI.enabled = !RouterPort.Busy;
-                    if (GUILayout.Button(Loc.T("net.openInternet", "Open to the internet (UPnP on the router)"))) RouterPort.OpenAsync(Multiplayer.Port);
+                    if (GUILayout.Button(Loc.T("net.openInternet", "Open to the internet (UPnP on the router)"))) RouterPort.OpenAsync(Net.HostPort);
                     GUI.enabled = true;
                     if (RouterPort.Status != null) GUILayout.Label("<size=12>" + RouterPort.Status + "</size>", label);
                     OnlineListing();
@@ -798,11 +831,11 @@ namespace Codebound.Game
                     {
                         if (p.Name == null) continue;
                         GUILayout.BeginHorizontal();
-                        GUILayout.Label($"{p.Name}  <size=11>({Loc.T("net.role." + p.Role, p.Role)})</size>", label);
+                        GUILayout.Label($"<b>{p.Name}</b>  <color={UiTheme.Html(UiTheme.Muted)}>{Loc.T("net.role." + p.Role, p.Role)}</color>", label, GUILayout.ExpandWidth(true));
                         string next = p.Role == Multiplayer.Visitor ? Multiplayer.Builder : p.Role == Multiplayer.Builder ? Multiplayer.Admin : Multiplayer.Visitor;
-                        if (GUILayout.Button(Loc.T("net.make", "Make {0}", Loc.T("net.role." + next, next)), GUILayout.Width(130))) Net.SetRole(p.Name, next);
-                        if (GUILayout.Button(Loc.T("net.kick", "Kick"), GUILayout.Width(60))) Net.Kick(p.Name);
-                        if (p.PublicId != null && GUILayout.Button(Loc.T("net.ban", "Ban"), GUILayout.Width(60))) Net.Kick(p.Name, ban: true);
+                        if (GUILayout.Button(Loc.T("net.make", "Make {0}", Loc.T("net.role." + next, next)), GUILayout.Width(220))) Net.SetRole(p.Name, next);
+                        if (GUILayout.Button(Loc.T("net.kick", "Kick"), UiTheme.DangerBtn, GUILayout.Width(100))) Net.Kick(p.Name);
+                        if (p.PublicId != null && GUILayout.Button(Loc.T("net.ban", "Ban"), UiTheme.DangerBtn, GUILayout.Width(90))) Net.Kick(p.Name, ban: true);
                         GUILayout.EndHorizontal();
                     }
                 }
@@ -811,7 +844,8 @@ namespace Codebound.Game
                 chatScroll = GUILayout.BeginScrollView(chatScroll, GUILayout.Height(110));
                 foreach (var (from, text, _) in Net.Chat) GUILayout.Label($"<b>{from}</b>: {text}", chatStyle);
                 GUILayout.EndScrollView();
-                if (GUILayout.Button(Loc.T("net.disconnect", "Disconnect"))) { Online.ForgetJoin(); Net.Disconnect(); }
+                if (GUILayout.Button(Net.IsHost ? Loc.T("net.closeServer", "Close the server (everyone is disconnected)") : Loc.T("net.leave", "Leave the game"), UiTheme.DangerBtn))
+                { Online.ForgetJoin(); if (Net.IsHost) Online.Unpublish(); Net.Disconnect(); }
             }
             if (GUILayout.Button(Loc.T("net.close", "Close (Esc)"))) Close();
             GUILayout.EndArea();

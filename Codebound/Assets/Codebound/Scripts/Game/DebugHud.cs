@@ -17,7 +17,8 @@ namespace Codebound.Game
         GameBootstrap boot;
         bool showInventory = true;
         float fps;
-        GUIStyle box, label, small, btn;
+        GUIStyle box, label, small, btn, btnSel;
+        int btnVersion = -1;
         Rect barRect;
 
         public void Init(GameSession s, BuildController b, MiningController m, GameBootstrap gb) { session = s; build = b; mining = m; boot = gb; }
@@ -39,8 +40,8 @@ namespace Codebound.Game
         void Styles()
         {
             if (box != null) return;
-            box = new GUIStyle(GUI.skin.box) { normal = { background = Tex(new Color(0.06f, 0.07f, 0.1f, 0.82f)) }, padding = new RectOffset(8, 8, 6, 6) };
-            label = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = new Color(0.85f, 0.95f, 0.9f) }, richText = true };
+            box = new GUIStyle(UiTheme.Panel) { padding = new RectOffset(8, 8, 6, 6) };
+            label = new GUIStyle(GUI.skin.label) { fontSize = 14, normal = { textColor = UiTheme.Text }, richText = true };
             small = new GUIStyle(label) { fontSize = 12 };
         }
 
@@ -51,7 +52,7 @@ namespace Codebound.Game
         void OnGUI()
         {
             UiGui.Begin();
-            if (session == null) return;
+            if (session == null || TitleMenu.IsOpen) return;
             Styles();
             var p = session.Player.position;
             var pc = new Cell(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y));
@@ -59,9 +60,9 @@ namespace Codebound.Game
 
             // status
             GUILayout.BeginArea(new Rect(10, 10, 330, 184), box);
-            GUILayout.Label("<b><color=#5ef0a0>CODEBOUND</color></b>  <size=11>" + Loc.T("hud.tagline", "BUILD. CODE. SURVIVE. EXPLORE.") + "</size>", label);
+            GUILayout.Label("<b><color=#F2A23A>CODEBOUND</color></b>  <size=11>" + Loc.T("hud.tagline", "BUILD. CODE. SURVIVE. EXPLORE.") + "</size>", label);
             var clk = session.State.Clock; var env = session.Surroundings;
-            GUILayout.Label(Loc.T("hud.line1", "Seed {0}   FPS {1}   Day {2} {3} {4}", session.Seed, fps.ToString("0"), clk.Day, clk.ClockText, E("season", clk.Season.ToString())), small);
+            GUILayout.Label(Loc.T("hud.line1", "Seed {0}   FPS {1}   Day {2} {3} {4}", session.Seed, Settings.ShowFps ? fps.ToString("0") : "—", clk.Day, clk.ClockText, E("season", clk.Season.ToString())), small);
             string weather = WorldClock.WeatherName(env.Weather, gen.BiomeAt(pc));
             GUILayout.Label(Loc.T("hud.air", "{0}   air {1}°C", E("weather", weather.Replace(" ", "_")), env.AmbientC.ToString("0"))
                 + (env.Breathable ? "" : "  <color=#ffb347>" + Loc.T("hud.unbreathable", "unbreathable") + "</color>")
@@ -112,12 +113,17 @@ namespace Codebound.Game
             for (int k = 0; k < BuildingDatabase.All.Count; k++) if (session.State.Research.IsUnlocked(BuildingDatabase.All[k])) shown.Add(k);
             int locked = BuildingDatabase.All.Count - shown.Count;
             int n = shown.Count + (locked > 0 ? 1 : 0);
-            float barW = Mathf.Min(UiGui.W - 20, 1120);
-            int perRow = Mathf.Max(1, Mathf.FloorToInt((barW - 16) / 104f));
+            float barW = Mathf.Min(UiGui.W - 20, 1320);
+            int perRow = Mathf.Max(1, Mathf.FloorToInt((barW - 30) / 132f));
             int rows = Mathf.CeilToInt(n / (float)perRow);
-            float barH = rows * 46 + 14;
+            float barH = rows * 60 + 26;
             barRect = new Rect(10, UiGui.H - barH - 8, barW, barH);
-            if (btn == null) btn = new GUIStyle(GUI.skin.button) { richText = true, fontSize = 11, alignment = TextAnchor.UpperLeft, wordWrap = true, padding = new RectOffset(4, 4, 3, 3) };
+            if (btn == null || btnVersion != Settings.Version)
+            {
+                btnVersion = Settings.Version;
+                btn = new GUIStyle(GUI.skin.button) { richText = true, fontSize = UiGui.Font(12), alignment = TextAnchor.UpperLeft, wordWrap = true, clipping = TextClipping.Clip, padding = new RectOffset(8, 6, 5, 4) };
+                btnSel = new GUIStyle(btn) { normal = GUI.skin.button.active };
+            }
             GUILayout.BeginArea(barRect, box);
             for (int r = 0; r < rows; r++)
             {
@@ -126,7 +132,7 @@ namespace Codebound.Game
                 {
                     if (slot >= shown.Count)
                     {
-                        GUILayout.Label($"<color=#8a8f99><size=10>{Loc.T("hud.locked", "+{0} more in the research tree ({1})", locked, Controls.Name("research"))}</size></color>", btn, GUILayout.Width(100), GUILayout.Height(42));
+                        GUILayout.Label($"<color=#8a8f99><size={UiGui.Font(10)}>{Loc.T("hud.locked", "+{0} more in the research tree ({1})", locked, Controls.Name("research"))}</size></color>", btn, GUILayout.Width(128), GUILayout.Height(54));
                         continue;
                     }
                     int i = shown[slot];
@@ -135,11 +141,11 @@ namespace Codebound.Game
                     bool can = session.Inventory.Has(d.Cost);
                     var cost = new StringBuilder();
                     foreach (var c in d.Cost) cost.Append(c.Count).Append(' ').Append(Loc.Item(c.ItemId)).Append(", ");
-                    string col = sel ? "#ffe066" : can ? "#d8f5e6" : "#8a8f99";
+                    string col = sel ? "#ffffff" : can ? "#e8e3d7" : "#7c848d";
                     string key = i < 10 ? $"<b>{(i + 1) % 10}</b> " : "";
                     var locker = session.State.Research.IsUnlocked(d) ? null : Research.UnlockerOf(d.Id);
                     if (locker != null) { col = "#5a5f69"; cost.Clear(); cost.Append(Loc.T("hud.needs", "research: {0}", Loc.Tech(locker))); }
-                    if (GUILayout.Button($"<color={col}>{key}{Loc.Building(d)}\n<size=9>{cost.ToString().TrimEnd(',', ' ')}</size></color>", btn, GUILayout.Width(100), GUILayout.Height(42)))
+                    if (GUILayout.Button($"<color={col}>{(key.Length > 0 ? "<color=#F2A23A>" + key + "</color>" : "")}{Loc.Building(d)}\n<size={UiGui.Font(10)}><color=#9ca5af>{cost.ToString().TrimEnd(',', ' ')}</color></size></color>", sel ? btnSel : btn, GUILayout.Width(128), GUILayout.Height(54)))
                         build.Select(i);
                 }
                 GUILayout.EndHorizontal();

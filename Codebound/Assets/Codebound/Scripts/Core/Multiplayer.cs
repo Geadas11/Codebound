@@ -23,6 +23,22 @@ namespace Codebound.Core
         static readonly Regex NameRx = new Regex("^[A-Za-z0-9_-]{1,16}$");
         public static bool ValidName(string n) => n != null && NameRx.IsMatch(n);
 
+        /// <summary>"host", "host:port" or "[v6]:port" → address and port (the default port when none is given).</summary>
+        public static (string host, int port) SplitAddress(string text, int defaultPort = Port)
+        {
+            string a = (text ?? "").Trim();
+            int port = defaultPort;
+            if (a.StartsWith("[") && a.IndexOf(']') > 0)
+            {
+                int e = a.IndexOf(']');
+                if (e + 2 < a.Length && a[e + 1] == ':' && int.TryParse(a.Substring(e + 2), out int p6)) port = p6;
+                return (a.Substring(1, e - 1), port);
+            }
+            int c = a.LastIndexOf(':');
+            if (c > 0 && a.IndexOf(':') == c && int.TryParse(a.Substring(c + 1), out int p)) { port = p; a = a.Substring(0, c); }
+            return (a, port);
+        }
+
         // ---------------------------------------------------------------- snapshots (host → guest)
         /// <summary>The save text minus secrets: password-protected computers go out without their hash, code or database,
         /// and other guests' inventories are left out.</summary>
